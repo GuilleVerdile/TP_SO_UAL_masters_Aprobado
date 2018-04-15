@@ -22,7 +22,7 @@ int prueba(){
 	       }
 	   printf("Se creo socket cliente!");
 	   dest_addr.sin_family = AF_INET;
-	   dest_addr.sin_port = htons(8096);
+	   dest_addr.sin_port = htons(8097);
 	   dest_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	   memset(&(dest_addr.sin_zero), '\0', 8);
 	   connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr));

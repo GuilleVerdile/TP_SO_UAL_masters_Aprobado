@@ -25,9 +25,11 @@ int prueba1(){
     printf("El socket del servidor fue creado\n");
 
     my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(8096);
+    my_addr.sin_port = htons(8098);
     my_addr.sin_addr.s_addr = INADDR_ANY;
     memset(&(my_addr.sin_zero), '\0', 8);
+    int activado = 1;
+    setsockopt(sockfd, SOL_SOCKET,SO_REUSEADDR,&activado,sizeof(activado));
     if((bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)))<0){
     	printf("Error, no se pudo hacer el bind al puerto\n");
     	return 1;

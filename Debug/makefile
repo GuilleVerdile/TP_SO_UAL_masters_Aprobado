@@ -24,19 +24,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: tp-2018-1c-UAL-masters
+all: SistemasOperativos
 
 # Tool invocations
-tp-2018-1c-UAL-masters: $(OBJS) $(USER_OBJS)
+SistemasOperativos: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc  -o "tp-2018-1c-UAL-masters" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc  -o "SistemasOperativos" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) tp-2018-1c-UAL-masters
+	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) SistemasOperativos
 	-@echo ' '
 
 .PHONY: all clean dependents
