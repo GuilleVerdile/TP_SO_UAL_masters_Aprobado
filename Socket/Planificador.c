@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int prueba1(){
+int planificador(){
     int sockfd, new_fd;
     struct sockaddr_in my_addr;
     struct sockaddr_in their_addr;
@@ -39,10 +39,11 @@ int prueba1(){
     sin_size = sizeof(struct sockaddr_in);
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
     printf("Se acepto conexion,enviando dato\n\n\n");
-
-    char *msg="Hola Cliente!!,bienvenido al planificador\n\n";
-    send(new_fd, msg, 1024, 0);
-
+    char* buffer = malloc(1024);
+    recv(new_fd,buffer,1024,0);
+    printf("%s",buffer);
+    send(new_fd, "Oka soy planificador\n", 1024, 0);
+    free(buffer);
 	 return 0;
 }
 

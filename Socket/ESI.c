@@ -18,7 +18,7 @@ void setearDireccion (struct sockaddr_in *midireccion,int puerto,char *ip){
 	(*midireccion).sin_addr.s_addr = inet_addr(ip);
 	memset(&(*midireccion).sin_zero, '\0', 8);
 }
-int prueba0999999(){
+int esi(){
 		//decleraciones
 	   int sockplanificador=socket(AF_INET, SOCK_STREAM, 0);;
 	   int sockcoordinador=socket(AF_INET, SOCK_STREAM, 0);;
@@ -38,12 +38,14 @@ int prueba0999999(){
 
 	   printf("Se conecto a los 2 servidores\n");
 	   //me avisan todo bien
-	   char *buff=malloc(1024);
-	   recv(sockplanificador, buff, 1024, 0);
-	   printf("%s",buff);
-	   recv(sockcoordinador, buff, 1024, 0);
-	   printf("%s",buff);
-	   free(buff);
+	   send(sockplanificador,"Hola soy el cliente :D",1024,0);
+	   send(sockcoordinador,"Hola soy el cliente :D",1024,0);
+	   char* buffer = malloc(1024);
+	   recv(sockplanificador,buffer,1024,0);
+	   printf("%s",buffer);
+	   recv(sockcoordinador,buffer,1024,0);
+	   printf("%s",buffer);
+	   free(buffer);
 	 return 0;
 }
 
