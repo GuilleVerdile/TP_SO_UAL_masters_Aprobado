@@ -25,7 +25,7 @@ int prueba1(){
     printf("El socket del servidor fue creado\n");
 
     my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(8098);
+    my_addr.sin_port = htons(8081);
     my_addr.sin_addr.s_addr = INADDR_ANY;
     memset(&(my_addr.sin_zero), '\0', 8);
     int activado = 1;
@@ -40,12 +40,9 @@ int prueba1(){
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
     printf("Se acepto conexion,enviando dato\n\n\n");
 
-    char *msg="Hola Cliente!!\n\n";
+    char *msg="Hola Cliente!!,bienvenido al planificador\n\n";
     send(new_fd, msg, 1024, 0);
 
-    char *buff=malloc(1024);
-    recv(new_fd, buff, 1024, 0);
-    printf("%s",buff);
 	 return 0;
 }
 

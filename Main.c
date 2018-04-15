@@ -17,6 +17,7 @@
 #include <commons/config.h>
 
 #include "Config/config.h"
+#include "Socket/Coordinador.h"
 
 int main(){
 	t_config *miconfig;
