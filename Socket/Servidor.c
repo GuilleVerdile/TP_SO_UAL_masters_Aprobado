@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int prueba(){
+int prueba1(){
     int sockfd, new_fd;
     struct sockaddr_in my_addr;
     struct sockaddr_in their_addr;

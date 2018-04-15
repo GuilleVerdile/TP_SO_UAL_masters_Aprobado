@@ -19,8 +19,8 @@
 #include "Config/config.h"
 
 int main(){
-	t_config miconfig;
-	 char *path="/home/utnso/workspace/SistemasOperativos/Config/config.cfg";
+	t_config *miconfig;
+	 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
 	 miconfig = configuracion(path);
 
 	 return 0;
