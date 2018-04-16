@@ -30,7 +30,7 @@ int clientechat(){
        printf("\n%s",buff);
 	   while(1){
 		   printf("\nCliente --> ");
-		   scanf("%s",buff);
+		   fgets(buff,1024, stdin);
 		   send(sockfd,buff,1024,0);
 		   printf("\nServidor --> ");
 		   recv(sockfd,buff,1024,0);
