@@ -14,7 +14,7 @@
 #include <arpa/inet.h>
 
 
-int clientechat(){
+int instancia(){
 		//decleraciones
 	   int sockfd;
        struct sockaddr_in dest_addr;   // Guardará la dirección de destino
@@ -30,7 +30,9 @@ int clientechat(){
        printf("\n%s",buff);
 	   while(1){
 		   printf("\nCliente --> ");
-		   fgets(buff,1024, stdin);
+		   scanf("%*[^\n]");
+		   scanf("\n");
+		   scanf("%[^\n]", buff);
 		   send(sockfd,buff,1024,0);
 		   printf("\nServidor --> ");
 		   recv(sockfd,buff,1024,0);
