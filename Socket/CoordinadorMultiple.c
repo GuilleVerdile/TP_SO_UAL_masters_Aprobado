@@ -79,7 +79,8 @@ int coordinadormultiple()
                             if (newfd > fdmax) {    // actualizar el máximo
                                 fdmax = newfd;
                             }
-                            printf("Nuevo cliente");
+                            printf("Nuevo cliente\n");
+                            fflush(stdout);
                             send(newfd,"Hola capo soy el Coordinador\n",1024,0);
                         }
                     } else {
@@ -95,7 +96,8 @@ int coordinadormultiple()
                             close(i); // bye!
                             FD_CLR(i, &master); // eliminar del conjunto maestro
                         } else {
-                          printf("%s",buf);
+                          printf("%s\n",buf);
+                          fflush(stdout);
                           send(i,"Dale capo",1024,0);
                         }
                     } // Esto es ¡TAN FEO!
