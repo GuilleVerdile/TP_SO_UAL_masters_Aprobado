@@ -5,7 +5,6 @@
  *      Author: utnso
  */
 
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -23,6 +22,5 @@ int main(){
 	t_config *miconfig;
 	 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
 	 miconfig = configuracion(path);
-
 	 return 0;
 }

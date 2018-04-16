@@ -29,7 +29,10 @@ int coordinador(){
     my_addr.sin_addr.s_addr = INADDR_ANY;
     memset(&(my_addr.sin_zero), '\0', 8);
     int activado = 1;
-    setsockopt(sockfd, SOL_SOCKET,SO_REUSEADDR,&activado,sizeof(activado));
+    if(setsockopt(sockfd, SOL_SOCKET,SO_REUSEADDR,&activado,sizeof(activado)) == -1){
+    	printf("Error en la funcion setsockopt");
+    	return 1;
+    };
     if((bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)))<0){
     	printf("Error, no se pudo hacer el bind al puerto\n");
     	return 1;
@@ -38,6 +41,10 @@ int coordinador(){
     listen(sockfd, 10);
     sin_size = sizeof(struct sockaddr_in);
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+    if(new_fd < 0){
+    	printf("Error en aceptar la conexion");
+    	return 1;
+    }
     printf("Se acepto conexion,enviando dato\n\n\n");
     char* buffer = malloc(1024);
     recv(new_fd,buffer,1024,0);

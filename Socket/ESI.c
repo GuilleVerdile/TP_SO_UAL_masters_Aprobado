@@ -20,22 +20,23 @@ void setearDireccion (struct sockaddr_in *midireccion,int puerto,char *ip){
 }
 int esi(){
 		//decleraciones
-	   int sockplanificador=socket(AF_INET, SOCK_STREAM, 0);;
-	   int sockcoordinador=socket(AF_INET, SOCK_STREAM, 0);;
+	   int sockplanificador=socket(AF_INET, SOCK_STREAM, 0);
+	   int sockcoordinador=socket(AF_INET, SOCK_STREAM, 0);
 	   struct sockaddr_in planificador;
 	   struct sockaddr_in coordinador;
 	   if(sockplanificador<0||sockcoordinador<0){
 	       	printf("Error, no se pudo crear el socket\n");
 	       	return 1;
 	       }
-	   printf("Se crearon socketS cliente!");
+	   printf("Se crearon sockets cliente!");
 	   setearDireccion(&planificador,8080,"127.0.0.1");
 	   setearDireccion(&coordinador,8081,"127.0.0.1");
 
 	   //conecto
-	   connect(sockplanificador, (struct sockaddr *)&planificador, sizeof(struct sockaddr));
-	   connect(sockcoordinador, (struct sockaddr *)&coordinador, sizeof(struct sockaddr));
-
+	   if(connect(sockplanificador, (struct sockaddr *)&planificador, sizeof(struct sockaddr))<0 || connect(sockcoordinador, (struct sockaddr *)&coordinador, sizeof(struct sockaddr))<0){
+		   printf("Error de conexion a los servidores\n");
+		   return 1;
+	   }
 	   printf("Se conecto a los 2 servidores\n");
 	   //me avisan todo bien
 	   send(sockplanificador,"Hola soy el cliente :D",1024,0);
