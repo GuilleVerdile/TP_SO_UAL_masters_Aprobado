@@ -17,10 +17,25 @@
 
 #include "Config/config.h"
 #include "Socket/Coordinador.h"
+#include "Socket/Planificador.h"
+#include "Socket/ESI.h"
 
 int main(){
 	t_config *miconfig;
-	 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
-	 miconfig = configuracion(path);
-	 return 0;
+		 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
+		 int opcion;
+		 scanf("%i",&opcion);
+		 switch(opcion){
+		 case 1:
+			 	 coordinador();
+			 	 break;
+		 case 2:
+			 	 planificador();
+			 	 break;
+		 case 3:
+			 	 esi();
+			 	 break;
+		 }
+		 while(1){}
+		 return 0;
 }
