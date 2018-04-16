@@ -29,8 +29,8 @@ int esi(){
 	       	return 1;
 	       }
 	   printf("Se crearon sockets cliente!");
-	   setearDireccion(&planificador,8080,"127.0.0.1");
-	   setearDireccion(&coordinador,8081,"127.0.0.1");
+	   setearDireccion(&planificador,8081,"127.0.0.1");
+	   setearDireccion(&coordinador,8080,"127.0.0.1");
 
 	   //conecto
 	   if(connect(sockplanificador, (struct sockaddr *)&planificador, sizeof(struct sockaddr))<0 || connect(sockcoordinador, (struct sockaddr *)&coordinador, sizeof(struct sockaddr))<0){
@@ -42,9 +42,9 @@ int esi(){
 	   send(sockplanificador,"Hola soy el cliente :D",1024,0);
 	   send(sockcoordinador,"Hola soy el cliente :D",1024,0);
 	   char* buffer = malloc(1024);
-	   recv(sockplanificador,buffer,1024,0);
-	   printf("%s",buffer);
 	   recv(sockcoordinador,buffer,1024,0);
+	   printf("%s",buffer);
+	   recv(sockplanificador,buffer,1024,0);
 	   printf("%s",buffer);
 	   free(buffer);
 	 return 0;

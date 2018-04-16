@@ -19,7 +19,9 @@
 #include "Socket/Coordinador.h"
 #include "Socket/Planificador.h"
 #include "Socket/ESI.h"
-
+#include "Socket/Coordinador.h"
+#include "Socket/CoordinadorMultiple.h"
+#include "Socket/ClienteChat.h"
 int main(){
 	t_config *miconfig;
 		 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
@@ -33,7 +35,13 @@ int main(){
 			 	 planificador();
 			 	 break;
 		 case 3:
+			 	 coordinadormultiple();
+			 	 break;
+		 case 4:
 			 	 esi();
+			 	 break;
+		 case 5:
+			 	 clientechat();
 			 	 break;
 		 }
 		 while(1){}
