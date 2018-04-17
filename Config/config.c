@@ -4,6 +4,7 @@
  *  Created on: 15 abr. 2018
  *      Author: utnso
  */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,3 +34,5 @@ uint32_t ip(char *ip){
 		return inet_addr(ip);
 	}
 }
+
+

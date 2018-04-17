@@ -4,6 +4,8 @@
  *  Created on: 15 abr. 2018
  *      Author: utnso
  */
+#include <commons/config.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -12,28 +14,33 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-void setearDireccion (struct sockaddr_in *midireccion,int puerto,char *ip){
-	(*midireccion).sin_family = AF_INET;
-	(*midireccion).sin_port = htons(puerto);
-	(*midireccion).sin_addr.s_addr = inet_addr(ip);
-	memset(&(*midireccion).sin_zero, '\0', 8);
+struct sockaddr_in dameUnEsi(char *path){
+	t_config *config=config_create(path);
+	struct sockaddr_in midireccion;
+	midireccion.sin_family = AF_INET;
+	midireccion.sin_port = htons(config_get_int_value(config, "Puerto"));
+	midireccion.sin_addr.s_addr = INADDR_ANY;
+	return midireccion;
 }
-int esi(){
-		//decleraciones
-	   int sockplanificador=socket(AF_INET, SOCK_STREAM, 0);
-	   int sockcoordinador=socket(AF_INET, SOCK_STREAM, 0);
-	   struct sockaddr_in planificador;
-	   struct sockaddr_in coordinador;
-	   if(sockplanificador<0||sockcoordinador<0){
-	       	printf("Error, no se pudo crear el socket\n");
-	       	return 1;
-	       }
-	   printf("Se crearon sockets cliente!");
-	   setearDireccion(&planificador,8081,"127.0.0.1");
-	   setearDireccion(&coordinador,8080,"127.0.0.1");
 
-	   //conecto
-	   if(connect(sockplanificador, (struct sockaddr *)&planificador, sizeof(struct sockaddr))<0 || connect(sockcoordinador, (struct sockaddr *)&coordinador, sizeof(struct sockaddr))<0){
+int crearConexionEsi(char*path){//retorna el descriptor de fichero
+	int sock=socket(AF_INET, SOCK_STREAM, 0);
+	if(sock<0){
+	return -1;// CASO DE ERROR
+	}
+	struct sockaddr_in midireccion=dameUnEsi(path);
+	memset(&midireccion.sin_zero, '\0', 8);
+	if(connect(sock, (struct sockaddr *)&midireccion, sizeof(struct sockaddr))<0){
+		return -1;
+	}
+	return sock;
+}
+
+int esi(char* pathCoordinador,char*pathPlanificador){
+		int sockplanificador=crearConexionEsi(pathPlanificador);
+		int sockcoordinador=crearConexionEsi(pathCoordinador);
+	   printf("Se crearon sockets cliente!");
+	   if(sockplanificador<0 || sockcoordinador<0){
 		   printf("Error de conexion a los servidores\n");
 		   return 1;
 	   }

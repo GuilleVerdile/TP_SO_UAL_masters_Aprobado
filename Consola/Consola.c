@@ -16,7 +16,7 @@ void encontrarCentinela(char* linea, char* auxiliar, int *i){
     (*i)++;
 }
 
-void main() {
+void consolaPlanificador() {
   char* linea;
   char* comando;
   char* id;

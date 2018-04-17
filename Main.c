@@ -24,9 +24,8 @@
 #include "Socket/Instancia.h"
 #include "Consola/Consola.h"
 int main(){
-	consolaPlanificador();
-	t_config *miconfig;
-		 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
+		 char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
+		 char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
 		 int opcion;
 		 scanf("%i",&opcion);
 		 switch(opcion){
@@ -40,7 +39,7 @@ int main(){
 			 	 coordinadormultiple();
 			 	 break;
 		 case 4:
-			 	 esi();
+			 	 esi(pathCoordinador,pathPlanificador);
 			 	 break;
 		 case 5:
 			 	 instancia();
