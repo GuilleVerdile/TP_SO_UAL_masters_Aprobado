@@ -13,7 +13,7 @@ void encontrarCentinela(char* linea, char* auxiliar, int *i){
     	j++;
     }
     auxiliar[j] = '\0';
-    (*i)++;
+	(*i)++;
 }
 
 int cantidadDeArgumentos(char* linea, int cantidadNecesitada){
@@ -30,19 +30,19 @@ int cantidadDeArgumentos(char* linea, int cantidadNecesitada){
 	return 1;
 }
 
+
 void consolaPlanificador() {
   char* linea;
   char* comando;
   char* id;
   char clave[40];
-
   while(1) {
     linea = readline(">");
     if (!linea) {
       break;
     }
-    comando=malloc(sizeof(linea));
     int i =0;
+    comando=malloc(sizeof(linea));
     encontrarCentinela(linea,comando,&i);
     if(!strcmp(comando,"continuar")){
     	if(cantidadDeArgumentos(linea,0)){
@@ -101,7 +101,9 @@ void consolaPlanificador() {
     	if(cantidadDeArgumentos(linea,0)){
     		printf("Usted ingreso deadlock\n");
     	}
-    	}
+    }else{
+    	printf("No se reconocio el comando %s\n", comando);
+    }
 
     free(comando);
     free(linea);
