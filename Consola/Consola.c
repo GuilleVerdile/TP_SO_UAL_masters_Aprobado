@@ -6,17 +6,22 @@
 #include <readline/history.h>
 
 void encontrarCentinela(char* linea, char* auxiliar, int *i){
+	int j = 0;
     while(linea[*i] != ' ' && linea[*i]!='\0'){
-    	auxiliar[*i] = linea[*i];
+    	auxiliar[j] = linea[*i];
     	(*i)++;
+    	j++;
     }
-    auxiliar[*i] = '\0';
-    printf("%s",auxiliar);
+    auxiliar[j] = '\0';
+    (*i)++;
 }
 
-void consolaPlanificador() {
-  char * linea;
+void main() {
+  char* linea;
   char* comando;
+  char* id;
+  char clave[40];
+
   while(1) {
     linea = readline(">");
     if (!linea) {
@@ -27,22 +32,46 @@ void consolaPlanificador() {
     encontrarCentinela(linea,comando,&i);
     if(!strcmp(comando,"continuar")){
     	printf("Usted ingreso continuar\n");
-    }else if(!strcmp(comando,"pausar")){
+    }
+    else if(!strcmp(comando,"pausar")){
     	printf("Usted ingreso pausar\n");
-    }else if(!strcmp(comando,"bloquear")){
+    }
+    else if(!strcmp(comando,"bloquear")){
     	printf("Usted ingreso bloquear\n");
-    }else if(!strcmp(comando,"desbloquear")){
+    	encontrarCentinela(linea,clave,&i);
+    	printf("con la clave: %s\n", clave);
+    	id = malloc(sizeof(linea));
+    	encontrarCentinela(linea,id,&i);
+    	printf("con el id: %s\n",id);
+    	free(id);
+    }
+    else if(!strcmp(comando,"desbloquear")){
     	printf("Usted ingreso desbloquear\n");
-    }else if(!strcmp(comando,"listar")){
+    	encontrarCentinela(linea,clave,&i);
+    	printf("con la clave: %s\n", clave);
+    }
+    else if(!strcmp(comando,"listar")){
     	printf("Usted ingreso listar\n");
-    }else if(!strcmp(comando,"kill")){
+    	id = malloc(sizeof(linea)); //ID = RECURSO EN ESTE CASO PARA EVITAR USAR MAS VARIABLES!
+    	encontrarCentinela(linea,id,&i);
+    	printf("con el recurso: %s\n",id);
+    	free(id);
+    }
+    else if(!strcmp(comando,"kill")){
     	printf("Usted ingreso kill\n");
-    }else if(!strcmp(comando,"status")){
+    	id = malloc(sizeof(linea));
+    	encontrarCentinela(linea,id,&i);
+    	printf("con el id: %s\n",id);
+    	free(id);
+    }
+    else if(!strcmp(comando,"status")){
     	printf("Usted ingreso status\n");
-    }else if(!strcmp(comando,"deadlock")){
+    	encontrarCentinela(linea,clave,&i);
+    	printf("con la clave %s\n",clave);
+    }
+    else if(!strcmp(comando,"deadlock")){
     	printf("Usted ingreso deadlock\n");
     }
     free(comando);
     free(linea);
   }
-}
