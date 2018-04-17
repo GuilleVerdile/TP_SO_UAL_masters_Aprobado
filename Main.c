@@ -22,7 +22,9 @@
 #include "Socket/Coordinador.h"
 #include "Socket/CoordinadorMultiple.h"
 #include "Socket/Instancia.h"
+#include "Consola/Consola.h"
 int main(){
+	consolaPlanificador();
 	t_config *miconfig;
 		 char *path="/home/utnso/git/tp-2018-1c-UAL-masters/Config/config.cfg";
 		 int opcion;
