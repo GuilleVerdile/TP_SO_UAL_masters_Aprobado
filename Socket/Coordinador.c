@@ -70,14 +70,20 @@ int coordinador(char *pathCoordinador)
         // seguir la pista del descriptor de fichero mayor
         fdmax = listener; // por ahora es éste
         // bucle principal
-        int sockPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen);
-        send(sockPlanificador,"Hola Coordinador",1024,0);
+        int seConectoPlanificador=0;
+
         for(;;) {
             read_fds = master; // cópialo
             if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
                 perror("select");
                 exit(1);
             }
+            if(!seConectoPlanificador){
+            	int sockPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen);
+            	seConectoPlanificador=1;
+            	send(sockPlanificador,"Hola Planificador",1024,0);
+            }
+            else{
             // explorar conexiones existentes en busca de datos que leer
             for(i = 0; i <= fdmax; i++) {
                 if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
@@ -94,7 +100,7 @@ int coordinador(char *pathCoordinador)
                             }
                             printf("Nuevo cliente\n");
                             fflush(stdout);
-                            send(nuevoCliente,"Hola capo soy el Planificador\n",1024,0);
+                            send(nuevoCliente,"Hola capo soy el Coordinador\n",1024,0);
                         }
 
                     }
@@ -119,6 +125,7 @@ int coordinador(char *pathCoordinador)
                     }
                 }
             }
+        }
         free(buf);
         return 0;
     }
