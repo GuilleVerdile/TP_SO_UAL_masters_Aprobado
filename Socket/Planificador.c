@@ -14,10 +14,12 @@
 #include "FuncionesConexiones.h"
 
 
-int planificador(char *pathPlanificador)
+int planificador(char *pathPlanificador,char *pathCoordinador)
     {
+		int sockYoCliente=crearConexionCliente(pathCoordinador);//Me inicio como cliente de Coordinador
         fd_set master;   // conjunto maestro de descriptores de fichero
         fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
+
         struct sockaddr_in their_addr; // datos cliente
         int fdmax;        // número máximo de descriptores de fichero
         int listener=crearConexionServidor(pathPlanificador);     //se usa la funcion que me devuelve el sock del servidor
@@ -37,8 +39,12 @@ int planificador(char *pathPlanificador)
         printf("Escuchando\n");
         // añadir listener al conjunto maestro
         FD_SET(listener, &master);
+        FD_SET(sockYoCliente, &master);//Agrego el socket de conexion con el coordinador
         // seguir la pista del descriptor de fichero mayor
-        fdmax = listener; // por ahora es éste
+        if(listener>sockYoCliente)
+        	fdmax = listener; // por ahora es éste
+        else
+        	fdmax= sockYoCliente;
         // bucle principal
         for(;;) {
             read_fds = master; // cópialo
@@ -64,7 +70,14 @@ int planificador(char *pathPlanificador)
                             fflush(stdout);
                             send(nuevoCliente,"Hola capo soy el Planificador\n",1024,0);
                         }
-                    } else {
+
+                    }
+                    else if(i==sockYoCliente){//aca trato al coordinador
+                    	recv(sockYoCliente,buf,1024,0);
+                    	printf("%s\n",buf);
+                    	fflush(stdout);
+                    }
+                    else {
                         // gestionar datos de un cliente
                         if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
                             // error o conexión cerrada por el cliente
@@ -79,7 +92,7 @@ int planificador(char *pathPlanificador)
                         } else {
                           printf("%s\n",buf);
                           fflush(stdout);
-                          send(i,"Dale capo",1024,0);
+                          send(i,"Dale Esi",1024,0);
                         }
                     }
                 }

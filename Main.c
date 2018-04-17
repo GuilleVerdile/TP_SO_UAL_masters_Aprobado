@@ -30,10 +30,10 @@ int main(){
 		 scanf("%i",&opcion);
 		 switch(opcion){
 		 case 1:
-			 	 coordinador(pathCoordinador,pathPlanificador);
+			 	 coordinador(pathCoordinador);
 			 	 break;
 		 case 2:
-			 	 planificador(pathPlanificador);
+			 	 planificador(pathPlanificador,pathCoordinador);
 			 	 break;
 		 case 4:
 			 	 esi(pathCoordinador,pathPlanificador);
