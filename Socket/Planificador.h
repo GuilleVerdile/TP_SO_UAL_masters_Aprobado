@@ -1,7 +1,7 @@
 /*
  * Planificador.h
  *
- *  Created on: 15 abr. 2018
+ *  Created on: 17 abr. 2018
  *      Author: utnso
  */
 

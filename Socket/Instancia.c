@@ -12,9 +12,10 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "ESI.h"//Tiene la funcion dameUnaDireccion
+#include "FuncionesConexiones.h"
 
-int instancia(char*path){
+
+int instancia(char*path){ // es una prueba que solo se conecta al planificador
 		//decleraciones
 	   int sockfd;
        struct sockaddr_in dest_addr=dameUnaDireccion(path,0);;   // Guardará la dirección de destino

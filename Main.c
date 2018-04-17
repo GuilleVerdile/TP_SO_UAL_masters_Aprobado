@@ -20,31 +20,26 @@
 #include "Socket/Planificador.h"
 #include "Socket/ESI.h"
 #include "Socket/Coordinador.h"
-#include "Socket/CoordinadorMultiple.h"
 #include "Socket/Instancia.h"
 #include "Consola/Consola.h"
 
 int main(){
 		 char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 		 char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-		 char *pathCoordinadorMultiple="/home/utnso/git/tp-2018-1c-UAL-masters/Config/CoordinadorMultiple.cfg";
 		 int opcion;
 		 scanf("%i",&opcion);
 		 switch(opcion){
 		 case 1:
-			 	 coordinador(pathCoordinador);
+			 	 coordinador(pathCoordinador,pathPlanificador);
 			 	 break;
 		 case 2:
 			 	 planificador(pathPlanificador);
-			 	 break;
-		 case 3:
-			 	 coordinadormultiple(pathCoordinadorMultiple);
 			 	 break;
 		 case 4:
 			 	 esi(pathCoordinador,pathPlanificador);
 			 	 break;
 		 case 5:
-			 	 instancia(pathCoordinadorMultiple);
+			 	 instancia(pathPlanificador);
 			 	 break;
 		 }
 		 while(1){}

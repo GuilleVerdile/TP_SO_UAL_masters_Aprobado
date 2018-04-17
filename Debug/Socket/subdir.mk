@@ -5,22 +5,22 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Socket/Coordinador.c \
-../Socket/CoordinadorMultiple.c \
 ../Socket/ESI.c \
+../Socket/FuncionesConexiones.c \
 ../Socket/Instancia.c \
 ../Socket/Planificador.c 
 
 OBJS += \
 ./Socket/Coordinador.o \
-./Socket/CoordinadorMultiple.o \
 ./Socket/ESI.o \
+./Socket/FuncionesConexiones.o \
 ./Socket/Instancia.o \
 ./Socket/Planificador.o 
 
 C_DEPS += \
 ./Socket/Coordinador.d \
-./Socket/CoordinadorMultiple.d \
 ./Socket/ESI.d \
+./Socket/FuncionesConexiones.d \
 ./Socket/Instancia.d \
 ./Socket/Planificador.d 
 
