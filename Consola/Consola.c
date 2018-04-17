@@ -42,7 +42,7 @@ void consolaPlanificador() {
       break;
     }
     int i =0;
-    comando=malloc(sizeof(linea));
+    comando=malloc(strlen(linea)+1);
     encontrarCentinela(linea,comando,&i);
     if(!strcmp(comando,"continuar")){
     	if(cantidadDeArgumentos(linea,0)){
@@ -59,7 +59,7 @@ void consolaPlanificador() {
     		printf("Usted ingreso bloquear\n");
     		encontrarCentinela(linea,clave,&i);
     		printf("con la clave: %s\n", clave);
-    		id = malloc(sizeof(linea));
+    		id = malloc(strlen(linea)+1);
     		encontrarCentinela(linea,id,&i);
     		printf("con el id: %s\n",id);
     		free(id);
@@ -75,7 +75,7 @@ void consolaPlanificador() {
     else if(!strcmp(comando,"listar")){
     	if(cantidadDeArgumentos(linea,0)){
     		printf("Usted ingreso listar\n");
-    		id = malloc(sizeof(linea)); //ID = RECURSO EN ESTE CASO PARA EVITAR USAR MAS VARIABLES!
+    		id = malloc(strlen(linea)+1); //ID = RECURSO EN ESTE CASO PARA EVITAR USAR MAS VARIABLES!
     		encontrarCentinela(linea,id,&i);
     		printf("con el recurso: %s\n",id);
     		free(id);
@@ -84,7 +84,7 @@ void consolaPlanificador() {
     else if(!strcmp(comando,"kill")){
     	if(cantidadDeArgumentos(linea,1)){
     		printf("Usted ingreso kill\n");
-    		id = malloc(sizeof(linea));
+    		id = malloc(strlen(linea)+1);
     		encontrarCentinela(linea,id,&i);
     		printf("con el id: %s\n",id);
     		free(id);
