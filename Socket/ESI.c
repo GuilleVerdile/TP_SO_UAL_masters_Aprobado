@@ -35,3 +35,4 @@ int esi(char* pathCoordinador,char*pathPlanificador){
 	   free(buffer);
 	 return 0;
 }
+

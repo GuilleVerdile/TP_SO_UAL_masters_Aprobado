@@ -126,3 +126,5 @@ int coordinador(char *pathCoordinador)
         free(buf);
         return 0;
     }
+
+
