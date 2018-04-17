@@ -5,7 +5,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-void encontrarSentinela(char* linea, char* auxiliar, int *i){
+void encontrarCentinela(char* linea, char* auxiliar, int *i){
     while(linea[*i] != ' ' && linea[*i]!='\0'){
     	auxiliar[*i] = linea[*i];
     	(*i)++;
@@ -22,7 +22,7 @@ void main() {
     }
     char* auxiliar;
     int i =0;
-    encontrarSentinela(linea,auxiliar,&i);
+    encontrarCentinela(linea,auxiliar,&i);
     if(!strcmp(auxiliar,"continuar")){
     	printf("Usted ingreso continuar\n");
     }else if(!strcmp(auxiliar,"pausar")){
