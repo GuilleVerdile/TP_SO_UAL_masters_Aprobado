@@ -11,10 +11,10 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-int coordinador(){
+#include "ESI.h"//Tiene la funcion dameUnaDireccion
+int coordinador(char *path){
     int sockfd, new_fd;
-    struct sockaddr_in my_addr;
+    struct sockaddr_in my_addr=dameUnaDireccion(path,1);
     struct sockaddr_in their_addr;
     int sin_size;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -23,10 +23,6 @@ int coordinador(){
     	return 1;
     }
     printf("El socket del servidor fue creado\n");
-
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(8080);
-    my_addr.sin_addr.s_addr = INADDR_ANY;
     memset(&(my_addr.sin_zero), '\0', 8);
     int activado = 1;
     if(setsockopt(sockfd, SOL_SOCKET,SO_REUSEADDR,&activado,sizeof(activado)) == -1){

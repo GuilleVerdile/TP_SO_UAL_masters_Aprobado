@@ -11,12 +11,12 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-int coordinadormultiple()
+#include "ESI.h"//Tiene la funcion dameUnaDireccion
+int coordinadormultiple(char *path)
     {
         fd_set master;   // conjunto maestro de descriptores de fichero
         fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
-        struct sockaddr_in myaddr;     // dirección del servidor
+        struct sockaddr_in myaddr=dameUnaDireccion(path,1);     // dirección del servidor
         struct sockaddr_in remoteaddr; // dirección del cliente
         int fdmax;        // número máximo de descriptores de fichero
         int listener;     // descriptor de socket a la escucha
@@ -40,9 +40,6 @@ int coordinadormultiple()
             exit(1);
         }
         // enlazar
-        myaddr.sin_family = AF_INET;
-        myaddr.sin_addr.s_addr = INADDR_ANY;
-        myaddr.sin_port = htons(8090);
         memset(&(myaddr.sin_zero), '\0', 8);
         if (bind(listener, (struct sockaddr *)&myaddr, sizeof(myaddr)) == -1) {
             perror("bind");

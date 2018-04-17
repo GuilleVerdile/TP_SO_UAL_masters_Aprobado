@@ -10,4 +10,5 @@
 
 t_config * configuracion(char *path);
 uint32_t ip(char *ip);
+
 #endif /* CONFIG_CONFIG_H_ */

@@ -12,16 +12,13 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "ESI.h"//Tiene la funcion dameUnaDireccion
 
-
-int instancia(){
+int instancia(char*path){
 		//decleraciones
 	   int sockfd;
-       struct sockaddr_in dest_addr;   // Guardará la dirección de destino
+       struct sockaddr_in dest_addr=dameUnaDireccion(path,0);;   // Guardará la dirección de destino
        sockfd = socket(AF_INET, SOCK_STREAM, 0); // ¡Comprueba errores!
-       dest_addr.sin_family = AF_INET;          // Ordenación de máquina
-       dest_addr.sin_port = htons(8090);   // short, Ordenación de la red
-       dest_addr.sin_addr.s_addr = inet_addr("127.0.0.3");
        memset(&(dest_addr.sin_zero), '\0', 8);  // Poner a cero el resto de la estructura
        // no olvides comprobar los errores de connect()!
        connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr));
