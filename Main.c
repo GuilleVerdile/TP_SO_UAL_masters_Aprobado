@@ -39,7 +39,7 @@ int main(){
 			 	 esi(pathCoordinador,pathPlanificador);
 			 	 break;
 		 case 5:
-			 	 instancia(pathPlanificador);
+			 	 instancia(pathCoordinador);
 			 	 break;
 		 }
 		 while(1){}

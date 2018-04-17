@@ -78,12 +78,6 @@ int coordinador(char *pathCoordinador)
                 perror("select");
                 exit(1);
             }
-            if(!seConectoPlanificador){
-            	int sockPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen);
-            	seConectoPlanificador=1;
-            	send(sockPlanificador,"Hola Planificador",1024,0);
-            }
-            else{
             // explorar conexiones existentes en busca de datos que leer
             for(i = 0; i <= fdmax; i++) {
                 if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
@@ -94,6 +88,10 @@ int coordinador(char *pathCoordinador)
                                                                  &addrlen)) == -1) {
                             perror("accept");
                         } else {
+                        	if(seConectoPlanificador==0){
+                        		int sockPlanificador = nuevoCliente; // ACA SE GUARDA EL SOCK QUE SE REFIERE AL PLANIFICADOR
+                        		seConectoPlanificador=1;
+                        	}
                             FD_SET(nuevoCliente, &master); // añadir al conjunto maestro
                             if (nuevoCliente > fdmax) {    // actualizar el máximo
                                 fdmax = nuevoCliente;
@@ -103,7 +101,6 @@ int coordinador(char *pathCoordinador)
                             send(nuevoCliente,"Hola capo soy el Coordinador\n",1024,0);
                         }
 
-                    }
                     }
                     else {
                         // gestionar datos de un cliente
@@ -124,7 +121,7 @@ int coordinador(char *pathCoordinador)
                         }
                     }
                 }
-            }
+        }
         }
         free(buf);
         return 0;
