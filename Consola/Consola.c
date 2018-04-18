@@ -109,3 +109,7 @@ void consolaPlanificador() {
     free(linea);
     }
 }
+int main(){
+	consolaPlanificador();
+	return 0;
+}

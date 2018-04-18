@@ -38,3 +38,9 @@ int instancia(char*path){ // es una prueba que solo se conecta al planificador
 	   }
 	 return 0;
 }
+int main(){
+	 char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
+	 char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
+	instancia(pathCoordinador);
+	return 0;
+}
