@@ -4,112 +4,79 @@
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <commons/string.h>
 
-void encontrarCentinela(char* linea, char* auxiliar, int *i){
-	int j = 0;
-    while(linea[*i] != ' ' && linea[*i]!='\0'){
-    	auxiliar[j] = linea[*i];
-    	(*i)++;
-    	j++;
-    }
-    auxiliar[j] = '\0';
-	(*i)++;
+int cantidadDeCentinelas(char** centinelas){
+	int i = 0;
+	while(centinelas[i]){
+		i++;
+	}
+	return i;
 }
 
-int cantidadDeArgumentos(char* linea, int cantidadNecesitada){
-	int cantArgumentos = 0;
-	for(int i = 0;i < strlen(linea);i++){
-		if(linea[i] == ' '){
-			cantArgumentos++;
-		}
-	}
-	if(cantArgumentos != cantidadNecesitada){
-		printf("Ingreso una cantidad invalida de argumentos\n");
-		return 0;
-	}
-	return 1;
-}
-
-
-void consolaPlanificador() {
+int main() {
   char* linea;
-  char* comando;
-  char* id;
-  char clave[40];
   while(1) {
     linea = readline(">");
     if (!linea) {
       break;
     }
     int i =0;
-    comando=malloc(strlen(linea)+1);
-    encontrarCentinela(linea,comando,&i);
-    if(!strcmp(comando,"continuar")){
-    	if(cantidadDeArgumentos(linea,0)){
-    		printf("Usted ingreso continuar\n");
-    	}
+    char** centinelas = string_split(linea," ");
+    int n = cantidadDeCentinelas(centinelas);
+    switch(n){
+    	case 0:
+    		break;
+    	case 1:
+    		if(!strcmp(centinelas[0],"continuar")){
+    			printf("Usted ingreso continuar\n");
+    		}
+    		else if(!strcmp(centinelas[0],"pausar")){
+        		printf("Usted ingreso pausar\n");
+    		}
+    	    else if(!strcmp(centinelas[0],"deadlock")){
+    	    		printf("Usted ingreso deadlock\n");
+    	    }
+    	    else{
+    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
+    	    }
+    		break;
+    	case 2:
+	   		if(!strcmp(centinelas[0],"desbloquear")){
+	    		printf("Usted ingreso desbloquear\n");
+	    		printf("con la clave: %s\n", centinelas[1]);
+	    	}
+	   		else if(!strcmp(centinelas[0],"listar")){
+	        	printf("Usted ingreso listar\n");
+	        	printf("con el recurso: %s\n",centinelas[1]);
+	        }
+	   		else if(!strcmp(centinelas[0],"kill")){
+	        	printf("Usted ingreso kill\n");
+	        	printf("con el id: %s\n",centinelas[0]);
+	        	}
+	   	    else if(!strcmp(centinelas[0],"status")){
+	   	    	printf("Usted ingreso status\n");
+	   	    	printf("con la clave %s\n",centinelas[1]);
+	   	    }
+    	    else{
+    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
+    	    }
+    		break;
+    	case 3:
+			if(!strcmp(centinelas[0],"bloquear")){
+		    	printf("Usted ingreso bloquear\n");
+		    	printf("con la clave: %s\n", centinelas[1]);
+		    	printf("con el id: %s\n",centinelas[2]);
+			}
+			else{
+    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
+			}
+    		break;
+    	default:
+    		printf("Usted ingreso una cantidad de argumentos invalida\n");
     }
-    else if(!strcmp(comando,"pausar")){
-    	if(cantidadDeArgumentos(linea,0)){
-    		printf("Usted ingreso pausar\n");
-    	}
-    }
-    else if(!strcmp(comando,"bloquear")){
-    	if(cantidadDeArgumentos(linea,2)){
-    		printf("Usted ingreso bloquear\n");
-    		encontrarCentinela(linea,clave,&i);
-    		printf("con la clave: %s\n", clave);
-    		id = malloc(strlen(linea)+1);
-    		encontrarCentinela(linea,id,&i);
-    		printf("con el id: %s\n",id);
-    		free(id);
-    	}
-    }
-    else if(!strcmp(comando,"desbloquear")){
-    	if(cantidadDeArgumentos(linea,1)){
-    		printf("Usted ingreso desbloquear\n");
-    		encontrarCentinela(linea,clave,&i);
-    		printf("con la clave: %s\n", clave);
-    	}
-    }
-    else if(!strcmp(comando,"listar")){
-    	if(cantidadDeArgumentos(linea,0)){
-    		printf("Usted ingreso listar\n");
-    		id = malloc(strlen(linea)+1); //ID = RECURSO EN ESTE CASO PARA EVITAR USAR MAS VARIABLES!
-    		encontrarCentinela(linea,id,&i);
-    		printf("con el recurso: %s\n",id);
-    		free(id);
-    	}
-    }
-    else if(!strcmp(comando,"kill")){
-    	if(cantidadDeArgumentos(linea,1)){
-    		printf("Usted ingreso kill\n");
-    		id = malloc(strlen(linea)+1);
-    		encontrarCentinela(linea,id,&i);
-    		printf("con el id: %s\n",id);
-    		free(id);
-    	}
-    }
-    else if(!strcmp(comando,"status")){
-    	if(cantidadDeArgumentos(linea,1)){
-    		printf("Usted ingreso status\n");
-    		encontrarCentinela(linea,clave,&i);
-    		printf("con la clave %s\n",clave);
-    	}
-    }
-    else if(!strcmp(comando,"deadlock")){
-    	if(cantidadDeArgumentos(linea,0)){
-    		printf("Usted ingreso deadlock\n");
-    	}
-    }else{
-    	printf("No se reconocio el comando %s\n", comando);
-    }
-
-    free(comando);
+    free(centinelas);
     free(linea);
-    }
-}
-int main(){
-	consolaPlanificador();
-	return 0;
+  }
+  return 0;
 }
