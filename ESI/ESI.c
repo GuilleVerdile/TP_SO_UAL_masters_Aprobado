@@ -16,6 +16,7 @@
 
 
 int esi(char* pathCoordinador,char*pathPlanificador){
+	char* buffer = malloc(1024);
 		int sockplanificador=crearConexionCliente(pathPlanificador);
 		int sockcoordinador=crearConexionCliente(pathCoordinador);
 	   printf("Se crearon sockets cliente!");
@@ -25,13 +26,12 @@ int esi(char* pathCoordinador,char*pathPlanificador){
 	   }
 	   printf("Se conecto a los 2 servidores\n");
 	   //me avisan todo bien
-	   send(sockplanificador,"Hola soy el cliente :D",1024,0);
-	   send(sockcoordinador,"Hola soy el cliente :D",1024,0);
-	   char* buffer = malloc(1024);
-	   recv(sockcoordinador,buffer,1024,0);
-	   printf("%s",buffer);
 	   recv(sockplanificador,buffer,1024,0);
 	   printf("%s",buffer);
+	   recv(sockcoordinador,buffer,1024,0);
+	   printf("%s",buffer);
+	   send(sockplanificador,"Hola soy el cliente :D",1024,0);
+	   send(sockcoordinador,"Hola soy el cliente :D",1024,0);
 	   free(buffer);
 	 return 0;
 }

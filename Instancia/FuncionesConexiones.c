@@ -34,7 +34,7 @@ int crearConexionCliente(char*path){//retorna el descriptor de fichero
 	if(sock<0){
 	return -1;// CASO DE ERROR
 	}
-	struct sockaddr_in midireccion=dameUnaDireccion(path,1);
+	struct sockaddr_in midireccion=dameUnaDireccion(path,0);
 	memset(&midireccion.sin_zero, '\0', 8);
 	if(connect(sock, (struct sockaddr *)&midireccion, sizeof(struct sockaddr))<0){
 		return -1;
