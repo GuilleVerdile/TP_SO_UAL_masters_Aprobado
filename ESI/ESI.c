@@ -33,17 +33,16 @@ char* transformarTamagnoKey(char* key){
 	else
 		return string_itoa(tam);
 }
-char *serealizarPaquete(Paquete pack){
+char* serealizarPaquete(Paquete pack){
 	char* serealizado =string_itoa(pack.a);
 	if(!pack.a){
-	string_append(&serealizado, transformarTamagnoKey(&(pack.key)));
+	string_append(&serealizado, transformarTamagnoKey(&pack.key));
 	}
-	string_append(&serealizado, &(pack.key));
+	string_append(&serealizado, &pack.key);
 	if(!pack.a){
 	string_append(&serealizado, pack.value);
 	}
-
-	return serealizado;
+	return string_from_format("%s",serealizado);
 }
 
 
@@ -67,10 +66,7 @@ int main(){
 	pack.value="MIVALOR";
 	char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 	char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-	char *a=serealizarPaquete(pack);
-	printf("%s",a);
 
-	while(1){}
 	return 0;
 }
 
