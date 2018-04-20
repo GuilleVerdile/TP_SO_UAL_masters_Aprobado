@@ -24,19 +24,19 @@ typedef struct{
 	char *value;
 }Paquete;
 
-void transformarTamagnoKey(char* key,char *resultado){
+char* transformarTamagnoKey(char* key){
 	int tam=string_length(key);
 	if(tam<10){
-		resultado="0";
-		strcat(resultado,string_itoa(tam));
+		//return "0"+string_itoa(tam);
+		return string_from_format("%s%s","0",string_itoa(tam));
 	}
 	else
-		resultado=string_itoa(tam);
+		return string_itoa(tam);
 }
 char *serealizarPaquete(Paquete pack){
 	char* serealizado =string_itoa(pack.a);
 	if(!pack.a){
-	string_append(&serealizado, &(pack.key));
+	string_append(&serealizado, transformarTamagnoKey(&(pack.key)));
 	}
 	string_append(&serealizado, &(pack.key));
 	if(!pack.a){
@@ -61,18 +61,16 @@ int esi(char* pathCoordinador,char*pathPlanificador,Paquete pack){
 	   return 0;
 }
 int main(){
-	/*Paquete pack;
+	Paquete pack;
 	pack.a=SET;
 	strcpy (pack.key,"MILLAVE");
 	pack.value="MIVALOR";
 	char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 	char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-	esi(pathCoordinador,pathPlanificador);
-	char *buff=serealizar(pack);
-	while(1){}*/
-	char *a=malloc(1024);
-	transformarTamagnoKey("HOLAHOLA",a);
+	char *a=serealizarPaquete(pack);
 	printf("%s",a);
+
+	while(1){}
 	return 0;
 }
 
