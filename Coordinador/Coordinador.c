@@ -12,37 +12,26 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "FuncionesConexiones.h"
+#include <commons/string.h>
 
-
-
-/*int coordinador(char *pathCoordinador,){
-	int sockNuevoCliente;
-	struct sockaddr_in their_addr; //datos del cliente
-    int sockYoServidor=crearConexionServidor(pathCoordinador)idor, el 10 es el numero maximos de conexiones en cola
-    int sockYoCliente=crearConexionCliente(pathPlanificador);//Me inicio como cliente de planificador
-    listen(sockYoServidor, 10);
-    int sin_size = sizeof(struct sockaddr_in);
-    sockNuevoCliente = accept(sockYoServidor, (struct sockaddr *)&their_addr, &sin_size);
-    if(sockNuevoCliente < 0){
-        	printf("Error en aceptar la conexion");
-        	return 1;//error
-    }
-    printf("Se acepto conexion,enviando dato\n\n\n");
-    char* buffer = malloc(1024);
-    //verificacion conexion con ESI
-    recv(sockNuevoCliente,buffer,1024,0);
-    printf("%s",buffer);
-    fflush(stdout);
-    send(sockNuevoCliente, "Oka soy coordinador\n", 1024, 0);
-    //verificacion conexion con Planificador
-    send(sockYoCliente,"Hola soy el coordinador\n",1024,0);
-    recv(sockYoCliente,buffer,1024,0);
-    printf("%s",buffer);
-    fflush(stdout);
-    //libero al buffer
-    free(buffer);
-	return 0;
-}*/
+typedef struct{
+	int a;
+	char key[40];
+	char *value;
+}Paquete;
+Paquete deserializacion(char* texto){
+	Paquete pack;
+	pack.a = texto[0] -48;
+	if(!pack.a){
+		int tam = (texto[1]-48)*10 + texto[2]-48;
+		strcpy(pack.key,string_substring(texto,3,tam));
+		pack.value = string_substring_from(texto,tam+3);
+	}
+	else{
+		strcpy(pack.key, string_substring_from(texto,1));
+	}
+	return pack;
+}
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
