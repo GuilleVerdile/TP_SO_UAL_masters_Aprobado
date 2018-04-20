@@ -14,6 +14,9 @@
 #include <arpa/inet.h>
 #include "FuncionesConexiones.h"
 #include <commons/string.h>
+#include <commons/log.h>
+#include <commons/config.h>
+
 const int SET=0;
 const int GET=1;
 const int STORE=2;
@@ -45,6 +48,20 @@ char* serealizarPaquete(Paquete pack){
 	return string_from_format("%s",serealizado);
 }
 
+void enviar(int socket,Paquete pack){
+	int i =0;
+	char *enviar=malloc(5);
+	char *buff=serealizarPaquete(pack);
+	char *cantBytes=string_itoa(string_length(buff)+1);
+	string_append(&cantBytes, "z");
+	while(i<string_length(cantBytes)){
+		enviar =string_substring(cantBytes, i, 4);
+		send(socket,enviar,5,0);
+		i=i+4;
+	}
+	send(socket,buff,string_itoa((string_length(buff)+1)),0);
+	free(enviar);
+}
 
 int esi(char* pathCoordinador,char*pathPlanificador,Paquete pack){
 		char* buffer = malloc(1024);
@@ -56,9 +73,10 @@ int esi(char* pathCoordinador,char*pathPlanificador,Paquete pack){
 		   return 1;
 	   }
 	   printf("Se conecto a los 2 servidores\n");
-
+	   enviar(sockcoordinador,pack);
 	   return 0;
 }
+
 int main(){
 	Paquete pack;
 	pack.a=SET;
@@ -66,7 +84,7 @@ int main(){
 	pack.value="MIVALOR";
 	char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 	char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-
+	esi(pathCoordinador,pathPlanificador,pack);
 	return 0;
 }
 

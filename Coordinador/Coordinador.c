@@ -14,12 +14,22 @@
 #include "FuncionesConexiones.h"
 #include <commons/string.h>
 #include <commons/log.h>
+#include <commons/config.h>
 
 typedef struct{
 	int a;
 	char key[40];
 	char *value;
 }Paquete;
+//1024
+int transformarNumero(char *a,int start){
+	int tam=string_length(a);
+	int resultado=0;
+	for(int i=0;i<tam;i++){
+		resultado=(a[i+start]-48)+resultado*10;
+	}
+	return resultado;
+}
 Paquete deserializacion(char* texto){
 	Paquete pack;
 	pack.a = texto[0] -48;
@@ -31,6 +41,34 @@ Paquete deserializacion(char* texto){
 	else{
 		strcpy(pack.key, string_substring_from(texto,1));
 	}
+	return pack;
+}
+Paquete recibir(int socket){
+	t_config *auxiliar;
+	char *total=string_new();
+	char *buff=malloc(5);
+	while(1){
+		recv(socket, buff, 5, 0);
+			if(string_contains(buff, "z")){
+				int i=0;
+				char *aux=malloc(4);
+				while(buff[i]!='z'){
+					aux[i]=buff[i];
+					i++;
+				}
+				aux[i]='\0';
+				string_append(&total,aux);
+				free(aux);
+				break;
+			}
+		string_append(&total, buff);
+	}
+	free(buff);
+	int tot=transformarNumero("Total",0);
+	char *buf=malloc(tot);
+	recv(socket,buf,tot,0);
+	Paquete pack=deserializacion(buf);
+	free(buf);
 	return pack;
 }
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
@@ -154,9 +192,11 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                  FD_CLR(i, &master); // eliminar del conjunto maestro
                              } else {
                             	log_info(logger, "Conexion entrante del cliente");
-                               printf("%s\n",buf);
-                               fflush(stdout);
-                               send(i,"Dale Esi",1024,0);
+                            	Paquete pack = recibir(i);
+                            	printf("**%s\n",pack.key);
+                            	printf("**%s\n",pack.value);
+                            	printf("**%d\n",pack.a);
+
                              }
                          }
                      }
