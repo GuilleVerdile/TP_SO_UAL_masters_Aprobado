@@ -4,16 +4,22 @@
  *  Created on: 17 abr. 2018
  *      Author: utnso
  */
-#include <commons/config.h>
+#include "FuncionesConexiones.h"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+const int SET=0;
+const int GET=1;
+const int STORE=2;
 
+//Path de los servidores
+const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
+const char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
+
+//Los pongo en escritorio para que no tengamos problemas al commitear
+const char *logCoordinador="/home/utnso/Escritorio/Coordinador.log";
+const char *logPlanificador="/home/utnso/Escritorio/Planificador.log";
+const char *logESI="/home/utnso/Escritorio/ESI.log";
+const char *logConsola="/home/utnso/Escritorio/Consola.log";
+const char *logInstancias="/home/utnso/Escritorio/Instancia.log";
 
 struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica){
 	t_config *config=config_create(path);
@@ -62,3 +68,93 @@ int crearConexionServidor(char*path){//Retorna el sock del Servidor
     return sockYoServidor;
 }
 
+
+//1024
+int transformarNumero(char *a,int start){
+	int tam=string_length(a);
+	int resultado=0;
+	for(int i=0;i<tam;i++){
+		resultado=(a[i+start]-48)+resultado*10;
+	}
+	return resultado;
+}
+Paquete deserializacion(char* texto){
+	Paquete pack;
+	pack.a = texto[0] -48;
+	if(!pack.a){
+		int tam = (texto[1]-48)*10 + texto[2]-48;
+		strcpy(pack.key,string_substring(texto,3,tam));
+		pack.value = string_substring_from(texto,tam+3);
+	}
+	else{
+		strcpy(pack.key, string_substring_from(texto,1));
+	}
+	return pack;
+}
+Paquete recibir(int socket){
+	char *total=string_new();
+	char *buff=malloc(5);
+	while(1){
+		recv(socket, buff, 5, 0);
+			if(string_contains(buff, "z")){
+				int i=0;
+				char *aux=malloc(5);
+				strcpy(aux,buff);
+				aux[string_length(buff)-1]='\0';
+				string_append(&total,aux);
+				free(aux);
+				break;
+			}
+		string_append(&total, buff);
+	}
+	free(buff);
+	int tot=transformarNumero(total,0);
+	printf("%d\n",tot);
+	char *buf=malloc(tot);
+	recv(socket,buf,tot,0);
+
+
+	Paquete pack=deserializacion(buf);
+
+	fflush(stdout);
+	free(buf);
+	return pack;
+}
+//Funciones ESI
+char* transformarTamagnoKey(char* key){
+	int tam=string_length(key);
+	if(tam<10){
+		//return "0"+string_itoa(tam);
+		return string_from_format("%s%s","0",string_itoa(tam));
+	}
+	else
+		return string_itoa(tam);
+}
+char* serealizarPaquete(Paquete pack){
+	char* serealizado =string_itoa(pack.a);
+	if(!pack.a){
+	string_append(&serealizado, transformarTamagnoKey(&pack.key));
+	}
+	string_append(&serealizado, &pack.key);
+	if(!pack.a){
+	string_append(&serealizado, pack.value);
+	}
+	return string_from_format("%s",serealizado);
+}
+
+void enviar(int socket,Paquete pack){
+	int i =0;
+	char *enviar=malloc(5);
+	char *buff=serealizarPaquete(pack);
+	char *cantBytes=string_itoa(string_length(buff)+1);
+	string_append(&cantBytes, "z");
+	while(i<string_length(cantBytes)){
+		enviar =string_substring(cantBytes, i, 4);
+		send(socket,enviar,5,0);
+		i=i+4;
+	}
+	send(socket,buff,string_length(buff)+1,0);
+	printf("%d",string_length(buff)+1);
+	fflush(stdout);
+	free(enviar);
+}

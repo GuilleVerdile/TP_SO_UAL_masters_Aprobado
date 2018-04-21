@@ -5,15 +5,7 @@
  *      Author: utnso
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include "FuncionesConexiones.h"
-
+#include "Instancia.h";
 
 int instancia(char*path){ // es una prueba que solo se conecta al planificador
 		//decleraciones
@@ -39,8 +31,6 @@ int instancia(char*path){ // es una prueba que solo se conecta al planificador
 	 return 0;
 }
 int main(){
-	 char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
-	 char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
 	instancia(pathCoordinador);
 	return 0;
 }

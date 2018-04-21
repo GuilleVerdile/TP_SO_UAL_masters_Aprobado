@@ -7,7 +7,21 @@
 
 #ifndef SOCKET_ESI_H_
 #define SOCKET_ESI_H_
-struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica);
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include "FuncionesConexiones.h"
+#include <commons/string.h>
+#include <commons/log.h>
+#include <commons/config.h>
+
+
+int esi(Paquete pack);
 
 
 #endif /* SOCKET_ESI_H_ */

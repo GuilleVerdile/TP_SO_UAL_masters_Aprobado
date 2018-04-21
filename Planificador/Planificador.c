@@ -4,24 +4,16 @@
  *  Created on: 16 abr. 2018
  *      Author: utnso
  */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include "FuncionesConexiones.h"
-#include <commons/log.h>
+#include "Planificador.h"
 
 
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 char* path;
 	 int listener;
 	 if(soyCoordinador)
-		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Coordinador.log";
+		path=logCoordinador;
 	 else
-		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Planificador.log";
+		path=logPlanificador;
 	 t_log *logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
@@ -147,14 +139,12 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
              free(buf);
 }
 
-int planificador(char *pathPlanificador,char *pathCoordinador)
+int planificador()
     {
 		crearSelect(0,pathPlanificador,pathCoordinador);
         return 0;
     }
 int main(){
-	 char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
-	 char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-	 planificador(pathPlanificador,pathCoordinador);
+	 planificador();
 	return 0;
 }

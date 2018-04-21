@@ -4,82 +4,17 @@
  *  Created on: 15 abr. 2018
  *      Author: utnso
  */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include "FuncionesConexiones.h"
-#include <commons/string.h>
-#include <commons/log.h>
-#include <commons/config.h>
 
-typedef struct{
-	int a;
-	char key[40];
-	char *value;
-}Paquete;
-//1024
-int transformarNumero(char *a,int start){
-	int tam=string_length(a);
-	int resultado=0;
-	for(int i=0;i<tam;i++){
-		resultado=(a[i+start]-48)+resultado*10;
-	}
-	return resultado;
-}
-Paquete deserializacion(char* texto){
-	Paquete pack;
-	pack.a = texto[0] -48;
-	if(!pack.a){
-		int tam = (texto[1]-48)*10 + texto[2]-48;
-		strcpy(pack.key,string_substring(texto,3,tam));
-		pack.value = string_substring_from(texto,tam+3);
-	}
-	else{
-		strcpy(pack.key, string_substring_from(texto,1));
-	}
-	return pack;
-}
-Paquete recibir(int socket){
-	char *total=string_new();
-	char *buff=malloc(5);
-	while(1){
-		recv(socket, buff, 5, 0);
-			if(string_contains(buff, "z")){
-				int i=0;
-				char *aux=malloc(5);
-				strcpy(aux,buff);
-				aux[string_length(buff)-1]='\0';
-				string_append(&total,aux);
-				free(aux);
-				break;
-			}
-		string_append(&total, buff);
-	}
-	free(buff);
-	int tot=transformarNumero(total,0);
-	printf("%d\n",tot);
-	char *buf=malloc(tot);
-	recv(socket,buf,tot,0);
+#include "Coordinador.h"
 
-
-	Paquete pack=deserializacion(buf);
-
-	fflush(stdout);
-	free(buf);
-	return pack;
-}
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	char* path;
 	 int listener;
 	 if(soyCoordinador)
-		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Coordinador.log";
+		path=logCoordinador;
 	 else
-		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Planificador.log";
-	 t_log *logger=log_create(path,"crearSelect",0, LOG_LEVEL_INFO);
+		path=logPlanificador;
+	 t_log *logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -207,13 +142,14 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
              free(buf);
 }
 
-int coordinador(char *pathCoordinador)
+int coordinador()
     {
+		printf("HOLA\n");
 		crearSelect(1,pathCoordinador,NULL);
         return 0;
     }
 int main(){
-	coordinador("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg");
+	coordinador();
 	return 0;
 }
 
