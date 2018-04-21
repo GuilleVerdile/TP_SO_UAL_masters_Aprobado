@@ -53,35 +53,33 @@ Paquete recibir(int socket){
 				char *aux=malloc(5);
 				strcpy(aux,buff);
 				aux[string_length(buff)-1]='\0';
-				printf("%s",aux);
 				string_append(&total,aux);
-				printf("%s",total);
 				free(aux);
 				break;
 			}
 		string_append(&total, buff);
-		printf("%s",total);
 	}
 	free(buff);
 	int tot=transformarNumero(total,0);
-	printf("%d",tot);
+	printf("%d\n",tot);
 	char *buf=malloc(tot);
 	recv(socket,buf,tot,0);
-	printf("%s",buf);
+
+
 	Paquete pack=deserializacion(buf);
+
+	fflush(stdout);
 	free(buf);
 	return pack;
 }
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
-	 int j=0;
-	 int packRecibido=0;
 	char* path;
 	 int listener;
 	 if(soyCoordinador)
 		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Coordinador.log";
 	 else
 		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Planificador.log";
-	 t_log *logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
+	 t_log *logger=log_create(path,"crearSelect",0, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -199,16 +197,9 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                fflush(stdout);
                                send(i,"Dale Esi",1024,0);
                              }*/
-                        	 /*if(j==2){
-                        		 packRecibido=0;
-                        		 j=0;
-                        	 }
-                        	 if(!packRecibido){
-                        		 Paquete pack= recibir(i);
-                        		 packRecibido = 1;
-                        	 }
-                        	 j++;*/
                         	 Paquete pack= recibir(i);
+                        	 printf("%d %s %s",pack.a,pack.key,pack.value);
+                        	 fflush(stdout);
                          }
                      }
              }
@@ -225,3 +216,4 @@ int main(){
 	coordinador("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg");
 	return 0;
 }
+

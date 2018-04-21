@@ -59,7 +59,9 @@ void enviar(int socket,Paquete pack){
 		send(socket,enviar,5,0);
 		i=i+4;
 	}
-	send(socket,buff,string_itoa((string_length(buff)+1)),0);
+	send(socket,buff,string_length(buff)+1,0);
+	printf("%d",string_length(buff)+1);
+	fflush(stdout);
 	free(enviar);
 }
 
