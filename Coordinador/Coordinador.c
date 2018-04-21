@@ -44,35 +44,38 @@ Paquete deserializacion(char* texto){
 	return pack;
 }
 Paquete recibir(int socket){
-	t_config *auxiliar;
 	char *total=string_new();
 	char *buff=malloc(5);
 	while(1){
 		recv(socket, buff, 5, 0);
 			if(string_contains(buff, "z")){
 				int i=0;
-				char *aux=malloc(4);
-				while(buff[i]!='z'){
-					aux[i]=buff[i];
-					i++;
-				}
-				aux[i]='\0';
+				char *aux=malloc(5);
+				strcpy(aux,buff);
+				aux[string_length(buff)-1]='\0';
+				printf("%s",aux);
 				string_append(&total,aux);
+				printf("%s",total);
 				free(aux);
 				break;
 			}
 		string_append(&total, buff);
+		printf("%s",total);
 	}
 	free(buff);
-	int tot=transformarNumero("Total",0);
+	int tot=transformarNumero(total,0);
+	printf("%d",tot);
 	char *buf=malloc(tot);
 	recv(socket,buf,tot,0);
+	printf("%s",buf);
 	Paquete pack=deserializacion(buf);
 	free(buf);
 	return pack;
 }
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
-	 char* path;
+	 int j=0;
+	 int packRecibido=0;
+	char* path;
 	 int listener;
 	 if(soyCoordinador)
 		path="/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Coordinador.log";
@@ -166,7 +169,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
-                                 send(nuevoCliente,"Hola capo soy tu Servidor Select\n",1024,0);
+                                 //send(nuevoCliente,"Hola capo soy tu Servidor Select\n",1024,0);
                              }
 
                          }
@@ -177,7 +180,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                          	fflush(stdout);
                          }
                          else {
-                             // gestionar datos de un cliente
+                             /*// gestionar datos de un cliente
                              if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
@@ -192,12 +195,20 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                  FD_CLR(i, &master); // eliminar del conjunto maestro
                              } else {
                             	log_info(logger, "Conexion entrante del cliente");
-                            	Paquete pack = recibir(i);
-                            	printf("**%s\n",pack.key);
-                            	printf("**%s\n",pack.value);
-                            	printf("**%d\n",pack.a);
-
-                             }
+                               printf("%s\n",buf);
+                               fflush(stdout);
+                               send(i,"Dale Esi",1024,0);
+                             }*/
+                        	 /*if(j==2){
+                        		 packRecibido=0;
+                        		 j=0;
+                        	 }
+                        	 if(!packRecibido){
+                        		 Paquete pack= recibir(i);
+                        		 packRecibido = 1;
+                        	 }
+                        	 j++;*/
+                        	 Paquete pack= recibir(i);
                          }
                      }
              }
@@ -214,4 +225,3 @@ int main(){
 	coordinador("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg");
 	return 0;
 }
-
