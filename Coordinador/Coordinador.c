@@ -10,6 +10,7 @@
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	char* path;
 	 int listener;
+	 int i = 0;
 	 if(soyCoordinador)
 		path=logCoordinador;
 	 else
@@ -31,7 +32,6 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
      int nbytes;
      int yes=1;        // para setsockopt() SO_REUSEADDR, más abajo
      int addrlen;
-     int i;
      int casoDiscriminador;
      FD_ZERO(&master);    // borra los conjuntos maestro
      FD_ZERO(&read_fds);	// borra los conjuntos maestro
@@ -76,7 +76,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
     	 	fdmax=casoDiscriminador;
      else
          	fdmax = listener;
-     for(;;) {
+     while(1) {
                  read_fds = master; // cópialo
                  if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
                 	 log_error(logger, "Error Al seleccionar");
@@ -93,7 +93,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                              addrlen = sizeof(their_addr);
                              if ((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,
                                                                       &addrlen)) == -1) {
-                            	 log_error(logger, "Al Aceptar al nuevo cliente");
+                            	 log_error(logger, "Al                         	 j=1;Aceptar al nuevo cliente");
                              } else {
                                  FD_SET(nuevoCliente, &master); // añadir al conjunto maestro
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
@@ -135,6 +135,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                         	 Paquete pack= recibir(i);
                         	 printf("%d %s %s",pack.a,pack.key,pack.value);
                         	 fflush(stdout);
+                        	 free(pack.value);
                          }
                      }
              }
