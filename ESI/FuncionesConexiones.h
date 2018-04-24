@@ -49,8 +49,8 @@ int transformarNumero(char *a,int start);
 Paquete deserializacion(char* texto);
 Paquete recibir(int socket);
 //Funciones utilizadas por el ESI
-char* transformarTamagnoKey(char* key);
-char* serealizarPaquete(Paquete pack);
+char* transformarTamagnoKey(char key[]);
+void serealizarPaquete(Paquete pack,char** buff);
 void enviar(int socket,Paquete pack);
 
 #endif /* SOCKET_FUNCIONESCONEXIONES_H_ */

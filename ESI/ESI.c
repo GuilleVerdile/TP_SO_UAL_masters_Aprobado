@@ -30,9 +30,6 @@ int main(){
 	strcpy (pack.key,"MILLAVE");
 	pack.value="MIVALOR";
 	esi(pack);
-	while(1){
-
-	}
 	return 0;
 }
 

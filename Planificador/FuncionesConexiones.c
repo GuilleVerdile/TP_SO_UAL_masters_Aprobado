@@ -32,6 +32,7 @@ struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica){
 	else{
 		midireccion.sin_addr.s_addr = inet_addr(config_get_string_value(config,"Ip"));
 	}
+	config_destroy(config);
 	return midireccion;
 }
 // estas Funciones retornan -1 en caso de error hay que ver despues como manejarlas
@@ -121,40 +122,46 @@ Paquete recibir(int socket){
 	return pack;
 }
 //Funciones ESI
-char* transformarTamagnoKey(char* key){
+char* transformarTamagnoKey(char key[]){
 	int tam=string_length(key);
 	if(tam<10){
-		//return "0"+string_itoa(tam);
-		return string_from_format("%s%s","0",string_itoa(tam));
+		char* tamKey = malloc(3);
+		strcpy(tamKey,"0");
+		char* tam1 = string_itoa(tam);
+		string_append(&tamKey,tam1);
+		free(tam1);
+		return tamKey;
 	}
 	else
 		return string_itoa(tam);
 }
-char* serealizarPaquete(Paquete pack){
-	char* serealizado =string_itoa(pack.a);
+void serealizarPaquete(Paquete pack,char** buff){
+	*buff=string_itoa(pack.a);
 	if(!pack.a){
-	string_append(&serealizado, transformarTamagnoKey(&pack.key));
+		char* tamkey = transformarTamagnoKey(pack.key);
+		string_append(buff,tamkey);
+		free(tamkey);
 	}
-	string_append(&serealizado, &pack.key);
+	string_append(buff, pack.key);
 	if(!pack.a){
-	string_append(&serealizado, pack.value);
+	string_append(buff, pack.value);
 	}
-	return string_from_format("%s",serealizado);
 }
 
 void enviar(int socket,Paquete pack){
 	int i =0;
-	char *enviar=malloc(5);
-	char *buff=serealizarPaquete(pack);
+	char *enviar;
+	char *buff;
+	serealizarPaquete(pack,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);
 		i=i+4;
+		free(enviar);
 	}
 	send(socket,buff,string_length(buff)+1,0);
-	printf("%d",string_length(buff)+1);
-	fflush(stdout);
-	free(enviar);
+	free(cantBytes);
+	free(buff);
 }
