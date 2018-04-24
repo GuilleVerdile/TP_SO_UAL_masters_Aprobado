@@ -84,7 +84,9 @@ Paquete deserializacion(char* texto){
 	pack.a = texto[0] -48;
 	if(!pack.a){
 		int tam = (texto[1]-48)*10 + texto[2]-48;
-		strcpy(pack.key,string_substring(texto,3,tam));
+		char* clave =string_substring(texto,3,tam);
+		strcpy(pack.key,clave);
+		free(clave);
 		pack.value = string_substring_from(texto,tam+3);
 	}
 	else{
@@ -93,15 +95,15 @@ Paquete deserializacion(char* texto){
 	return pack;
 }
 Paquete recibir(int socket){
-	char *total=string_new();
+	char *total= string_new();
 	char *buff=malloc(5);
 	while(1){
 		recv(socket, buff, 5, 0);
 			if(string_contains(buff, "z")){
-				int i=0;
 				char *aux=malloc(5);
 				strcpy(aux,buff);
 				aux[string_length(buff)-1]='\0';
+				fflush(stdout);
 				string_append(&total,aux);
 				free(aux);
 				break;
@@ -110,14 +112,9 @@ Paquete recibir(int socket){
 	}
 	free(buff);
 	int tot=transformarNumero(total,0);
-	printf("%d\n",tot);
 	char *buf=malloc(tot);
 	recv(socket,buf,tot,0);
-
-
 	Paquete pack=deserializacion(buf);
-
-	fflush(stdout);
 	free(buf);
 	return pack;
 }

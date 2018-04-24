@@ -19,6 +19,9 @@ int esi(Paquete pack){
 	   printf("Se crearon sockets cliente!");
 	   printf("Se conecto a los 2 servidores\n");
 	   enviar(sockcoordinador,pack);
+		while(1){
+
+		}
 	   close(sockplanificador);
 	   close(sockcoordinador);
 	   return 0;
@@ -30,6 +33,7 @@ int main(){
 	strcpy (pack.key,"MILLAVE");
 	pack.value="MIVALOR";
 	esi(pack);
+
 	return 0;
 }
 
