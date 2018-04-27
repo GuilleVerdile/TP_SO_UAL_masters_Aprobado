@@ -25,6 +25,8 @@ typedef struct{
 	char *value;
 }Paquete;
 
+const char* ESI;
+const char* INSTANCIA;
 extern const int SET;
 extern const int GET;
 extern const int STORE;
@@ -52,5 +54,5 @@ int recibir(int socket,Paquete* pack);
 char* transformarTamagnoKey(char key[]);
 void serealizarPaquete(Paquete pack,char** buff);
 void enviar(int socket,Paquete pack);
-
+t_log *logger;
 #endif /* SOCKET_FUNCIONESCONEXIONES_H_ */

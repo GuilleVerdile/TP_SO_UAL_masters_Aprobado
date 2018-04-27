@@ -21,5 +21,4 @@
 #include <commons/config.h>
 #include <pthread.h>
 void *conexionESI(void* listener);
-t_log *logger;
 #endif /* COORDINADORHILOS_H_ */

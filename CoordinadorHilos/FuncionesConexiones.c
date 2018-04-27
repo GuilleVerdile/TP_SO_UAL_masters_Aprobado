@@ -6,6 +6,8 @@
  */
 #include "FuncionesConexiones.h"
 
+const char* ESI = "e";
+const char* INSTANCIA = "i";
 const int SET=0;
 const int GET=1;
 const int STORE=2;
@@ -174,4 +176,11 @@ void enviar(int socket,Paquete pack){
 	send(socket,buff,string_length(buff)+1,0);
 	free(cantBytes);
 	free(buff);
+}
+
+void enviarTipoDeCliente(int socket,char* tipo){
+	if(send(socket,tipo,2,0)<0){
+		log_error(logger,"Se produjo un error al enviar el tipo de cliente");
+		exit(-1);
+	}
 }

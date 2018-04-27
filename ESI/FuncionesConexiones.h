@@ -25,6 +25,8 @@ typedef struct{
 	char *value;
 }Paquete;
 
+const char* ESI;
+const char* INSTANCIA;
 extern const int SET;
 extern const int GET;
 extern const int STORE;
@@ -46,11 +48,11 @@ int crearConexionCliente(char*path);
 //Funciones utilizadas por el Coordinador
 int crearConexionServidor(char*path);
 int transformarNumero(char *a,int start);
-Paquete deserializacion(char* texto);
-Paquete recibir(int socket);
+void deserializacion(char* texto, int* tipo, char clave[40], char** valor);
+int recibir(int socket,Paquete* pack);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);
 void serealizarPaquete(Paquete pack,char** buff);
 void enviar(int socket,Paquete pack);
-
+t_log *logger;
 #endif /* SOCKET_FUNCIONESCONEXIONES_H_ */

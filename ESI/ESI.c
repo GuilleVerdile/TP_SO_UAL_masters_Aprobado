@@ -18,6 +18,7 @@ int esi(Paquete pack){
 	   }
 	   printf("Se crearon sockets cliente!");
 	   printf("Se conecto a los 2 servidores\n");
+	   enviarTipoDeCliente(sockcoordinador,ESI);
 	   enviar(sockcoordinador,pack);
 		while(1){
 

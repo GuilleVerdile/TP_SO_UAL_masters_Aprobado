@@ -37,13 +37,20 @@ int main(){
 	//ACA COMIENZA LO DIVERTIDO =)
 	while( (nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
-		puts("Connection accepted");
-	    if(pthread_create(&idHilo , NULL , conexionESI, (void*) &nuevoCliente) < 0)
-	    {
-	       log_error(logger,"No se pudo crear un hilo");
-	       return -1;
-	    }
-	        log_info(logger,"Se asigno una conexion con hilos");
+		log_info(logger,"Se acepto una nueva conexion");
+		int tipoCliente = esEsi(nuevoCliente);
+		if(tipoCliente == 0){ //VERIFICO SI ES ESI O INSTANCIA
+			log_info(logger,"El cliente es ESI");
+			if(pthread_create(&idHilo , NULL , conexionESI, (void*) &nuevoCliente) < 0)
+	    	{
+				log_error(logger,"No se pudo crear un hilo");
+				return -1;
+	    	}
+	    		log_info(logger,"Se asigno una conexion con hilos");
+		}else if(tipoCliente == 1){
+			log_info(logger,"El cliente es INSTANCIA");
+		}
+		log_info(logger,"El cliente se desconecto");
 	}
 	if(nuevoCliente <0){
 		log_error(logger,"No se pudo aceptar la conexion al cliente");
@@ -60,6 +67,7 @@ void *conexionESI(void* cliente)
     Paquete pack;
     while((recibirValor = recibir(socket,&pack)) > 0)
     {
+    	log_info(logger,"Se recibio correctamente el paquete");
     	printf("Paquete recibido %d %s %s\n", pack.a,pack.key,pack.value);
     	free(pack.value);
     }
@@ -74,4 +82,25 @@ void *conexionESI(void* cliente)
     }
     close(socket);
     return 0;
+}
+
+int esEsi(int socket){
+	int recvValor;
+	char* buff = malloc(2);
+	int esEsi;
+	if((recvValor = recv(socket, buff, 2, 0) > 0)){
+		esEsi= strcmp(buff,ESI); //SI RECIBO ESI ENTONCES NO PROBLEM SI ES MAYOR A 0 QUIERE DECIR QUE ES INSTANCIA
+		free(buff);
+		return esEsi;
+	}
+	if(recvValor == 0){
+		log_info(logger,"Se desconecto el cliente");
+		free(buff);
+		return -1; //POR OTRO LADO NO ESTA EL CASO DE QUE SEA MENOR A 0, ACA SIGNIFICA QUE SE CORTO LA CONEXION
+	}else if(recvValor == -1){
+		log_error(logger,"Error al recibir el paquete");
+		free(buff);
+		exit(-1);
+	}
+
 }
