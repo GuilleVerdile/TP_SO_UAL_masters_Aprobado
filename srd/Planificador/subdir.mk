@@ -7,6 +7,10 @@ C_SRCS += \
 ../Planificador/FuncionesConexiones.c \
 ../Planificador/Planificador.c 
 
+O_SRCS += \
+../Planificador/FuncionesConexiones.o \
+../Planificador/Planificador.o 
+
 OBJS += \
 ./Planificador/FuncionesConexiones.o \
 ./Planificador/Planificador.o 

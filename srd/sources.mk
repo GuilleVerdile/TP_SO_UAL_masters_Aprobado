@@ -16,6 +16,7 @@ SUBDIRS := \
 Config \
 Consola \
 Coordinador \
+CoordinadorHilos \
 ESI \
 Instancia \
 Planificador \
