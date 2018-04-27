@@ -6,6 +6,8 @@
  */
 #include "FuncionesConexiones.h"
 
+const char* ESI = "e";
+const char* INSTANCIA = "i";
 const int SET=0;
 const int GET=1;
 const int STORE=2;
@@ -79,38 +81,42 @@ int transformarNumero(char *a,int start){
 	}
 	return resultado;
 }
-Paquete deserializacion(char* texto){
-	Paquete pack;
-	char* clave;
-	pack.a = texto[0] -48;
-	if(!pack.a){
+void deserializacion(char* texto, int* tipo, char clave[40], char** valor){
+	*tipo = texto[0] -48;
+	char* claveALiberar;
+	if(!*tipo){
 		int tam = ((texto[1])-48)*10 + texto[2]-48;
-		clave =string_substring(texto,3,tam);
-		strcpy(pack.key,clave);
-		free(clave);
-		pack.value = string_substring_from(texto,tam+3);
+		claveALiberar =string_substring(texto,3,tam);
+
+		*valor = string_substring_from(texto,tam+3);
 	}
 	else{
-		clave = string_substring_from(texto,1);
-		strcpy(pack.key, clave);
-		free(clave);
+		claveALiberar = string_substring_from(texto,1);
 	}
-	return pack;
+	strcpy(clave,claveALiberar);
+	free(claveALiberar);
 }
-Paquete recibir(int socket){
-	char *total= malloc(1);
-	char *buff=malloc(5);
+
+int recibir(int socket, Paquete* pack){
+	char *total= string_new();
+	char *buff=NULL;
+	buff = malloc(5);
+	int recvValor;
+	char *aux = NULL;
 	while(1){
-		recv(socket, buff, 5, 0);
-			if(string_contains(buff, "z")){
-				char *aux=malloc(5);
-				strcpy(aux,buff);
-				aux[string_length(buff)-1]='\0';
-				printf("\n%d\n",strlen(total)+strlen(aux));
-				fflush(stdout);
-				string_append(&total,aux);
-				free(aux);
-				break;
+		recvValor = recv(socket, buff, 5, 0);
+		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
+			free(total);
+			free(buff);
+			return recvValor;
+		}
+		if(string_contains(buff, "z")){
+			aux =malloc(5);
+			strcpy(aux,buff);
+			aux[string_length(buff)-1]='\0';
+			string_append(&total,aux);
+			free(aux);
+			break;
 			}
 		string_append(&total, buff);
 	}
@@ -118,10 +124,14 @@ Paquete recibir(int socket){
 	int tot=transformarNumero(total,0);
 	free(total);
 	char* buf=malloc(tot);
-	recv(socket,buf,tot,0);
-	Paquete pack=deserializacion(buf);
+	recvValor = recv(socket,buf,tot,0);
+	if(recvValor <1){  //Se verifica si fallo el recv o el cliente se desconecto
+		free(buf);
+		return recvValor;
+	}
+	deserializacion(buf, &(*pack).a, (*pack).key, &(*pack).value);
 	free(buf);
-	return pack;
+	return 1; //No hubo problema en recibir
 }
 //Funciones ESI
 char* transformarTamagnoKey(char key[]){
@@ -166,4 +176,11 @@ void enviar(int socket,Paquete pack){
 	send(socket,buff,string_length(buff)+1,0);
 	free(cantBytes);
 	free(buff);
+}
+
+void enviarTipoDeCliente(int socket,char* tipo){
+	if(send(socket,tipo,2,0)<0){
+		log_error(logger,"Se produjo un error al enviar el tipo de cliente");
+		exit(-1);
+	}
 }

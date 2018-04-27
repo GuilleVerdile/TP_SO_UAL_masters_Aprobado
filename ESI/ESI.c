@@ -13,22 +13,20 @@ int esi(Paquete pack){
 		int sockplanificador=crearConexionCliente(pathPlanificador);
 		int sockcoordinador=crearConexionCliente(pathCoordinador);
 	   if(sockplanificador<0 || sockcoordinador<0){
-		   printf("Error de conexion a los servidores\n");
+		   log_error(logger,"Error en la conexion con los clientes");
 		   return 1;
 	   }
-	   printf("Se crearon sockets cliente!");
-	   printf("Se conecto a los 2 servidores\n");
+	   log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
 	   enviarTipoDeCliente(sockcoordinador,ESI);
 	   enviar(sockcoordinador,pack);
-		while(1){
-
-		}
+	   log_destroy(logger);
 	   close(sockplanificador);
 	   close(sockcoordinador);
 	   return 0;
 }
 
 int main(){
+	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	Paquete pack;
 	pack.a=SET;
 	strcpy (pack.key,"MILLAVE");
