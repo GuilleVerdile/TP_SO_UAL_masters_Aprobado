@@ -39,15 +39,16 @@ int main(){
 	{
 		log_info(logger,"Se acepto una nueva conexion");
 		int tipoCliente = esEsi(nuevoCliente);
-		if(tipoCliente == 0){ //VERIFICO SI ES ESI O INSTANCIA
+		if(tipoCliente == 0){ //VERIFICO SI ES ESI O INSTANCIA, SI ES 0 SIGNIFICA ESI
 			log_info(logger,"El cliente es ESI");
 			if(pthread_create(&idHilo , NULL , conexionESI, (void*) &nuevoCliente) < 0)
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
 	    	}
-	    		log_info(logger,"Se asigno una conexion con hilos");
-		}else if(tipoCliente == 1){
+			log_info(logger,"Se asigno una conexion con hilos");
+			pthread_join(idHilo,NULL);
+		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
 		}
 		log_info(logger,"El cliente se desconecto");

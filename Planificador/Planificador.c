@@ -10,11 +10,12 @@
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 char* path;
 	 int listener;
+	 char* buf;
 	 if(soyCoordinador)
 		path=logCoordinador;
 	 else
 		path=logPlanificador;
-	 t_log *logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
+	 logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -27,7 +28,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
 	 else
 		 log_info(logger, "Se creao el socket de Servidor");
      int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
-     char *buf=malloc(1024);    // buffer para datos del cliente
+
      int nbytes;
      int yes=1;        // para setsockopt() SO_REUSEADDR, más abajo
      int addrlen;
@@ -52,23 +53,6 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
      }
      else
     	 log_info(logger, "Se esta escuchando");
-     if(soyCoordinador==1){
-    	 addrlen = sizeof(their_addr);
-    	 if((casoDiscriminador = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){
-    		 log_error(logger, "No se aceptar la conexion");
-    		 log_destroy(logger);
-    		 exit(-1);
-    	 }
-    	 else
-    		 log_info(logger, "Se acepto la conexion");
-    	 printf("Nuevo cliente, se conecto el Planificador\n");
-    	 fflush(stdout);
-    	 if(send(casoDiscriminador,"Hola capo soy el Coordinador\n",1024,0)==-1){
-    		 log_error(logger, "No se pudo enviar el mensaje");
-    	 }
-    	 else
-    		 log_info(logger, "Mensaje enviado correctamente");
-     }
 
      FD_SET(listener, &master);
      FD_SET(casoDiscriminador, &master);
@@ -107,12 +91,15 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
 
                          }
                          else if(i==casoDiscriminador){//aca trato al coordinador//Caso discriminador
+                        	buf = malloc(1024);
                         	log_info(logger, "Conexion entrante del discriminador");
                          	recv(casoDiscriminador,buf,1024,0);//funcion relacionada
                          	printf("%s\n",buf);
                          	fflush(stdout);
+                         	free(buf);
                          }
                          else {
+                        	 buf = malloc(1024);
                              // gestionar datos de un cliente
                              if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
@@ -132,6 +119,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                fflush(stdout);
                                send(i,"Dale Esi",1024,0);
                              }
+                             free(buf);
                          }
                      }
              }
