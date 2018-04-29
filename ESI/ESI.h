@@ -19,9 +19,9 @@
 #include <commons/string.h>
 #include <commons/log.h>
 #include <commons/config.h>
+#include <parsi/parser.h>
 
-
-int esi(Paquete pack);
+int esi(char* path);
 
 
 #endif /* SOCKET_ESI_H_ */

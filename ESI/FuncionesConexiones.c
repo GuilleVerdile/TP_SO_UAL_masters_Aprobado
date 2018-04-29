@@ -8,9 +8,6 @@
 
 const char* ESI = "e";
 const char* INSTANCIA = "i";
-const int SET=0;
-const int GET=1;
-const int STORE=2;
 
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
@@ -147,26 +144,41 @@ char* transformarTamagnoKey(char key[]){
 	else
 		return string_itoa(tam);
 }
-void serealizarPaquete(Paquete pack,char** buff){
-	*buff=string_itoa(pack.a);
-	if(!pack.a){
-		char* tamkey = transformarTamagnoKey(pack.key);
-		string_append(buff,tamkey);
-		free(tamkey);
-	}
-	string_append(buff, pack.key);
-	if(!pack.a){
-	string_append(buff, pack.value);
+void serealizarPaquete(t_esi_operacion operacion,char** buff){
+
+	switch(operacion.keyword){
+		case SET:
+			*buff = string_itoa(0);// 0 es SET
+			char* tamkey = transformarTamagnoKey(operacion.argumentos.SET.clave);
+			string_append(*buff,tamkey);
+			string_append(*buff, operacion.argumentos.SET.clave);
+			string_append(*buff, operacion.argumentos.SET.valor);
+			free(tamkey);
+			break;
+		case GET:
+			*buff = string_itoa(1);// 1 es GET
+			string_append(*buff,operacion.argumentos.GET.clave);
+			break;
+		case STORE:
+			*buff = string_itoa(2);// 2 es STORE
+			string_append(*buff,operacion.argumentos.STORE.clave);
+			break;
+		default:
+			log_error(logger, "No se entendio el comando");
+			exit(-1);
 	}
 }
 
-void enviar(int socket,Paquete pack){
+void enviar(int socket,t_esi_operacion operacion){
 	int i =0;
 	char *enviar;
 	char *buff;
-	serealizarPaquete(pack,&buff);
+	serealizarPaquete(operacion,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
+
+
+
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);

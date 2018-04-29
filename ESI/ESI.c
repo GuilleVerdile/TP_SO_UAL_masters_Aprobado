@@ -9,7 +9,17 @@
 #include "ESI.h"
 
 
-int esi(Paquete pack){
+int esi(char* path){
+		FILE* f;
+		size_t length = 0;
+		ssize_t read;
+		char* linea;
+		f = fopen(path,"r");
+		if(f == NULL){
+			log_error(logger, "No se pudo abrir el archivo");
+			exit(-1);
+		}
+
 		int sockplanificador=crearConexionCliente(pathPlanificador);
 		int sockcoordinador=crearConexionCliente(pathCoordinador);
 	   if(sockplanificador<0 || sockcoordinador<0){
@@ -18,21 +28,26 @@ int esi(Paquete pack){
 	   }
 	   log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
 	   enviarTipoDeCliente(sockcoordinador,ESI);
-	   enviar(sockcoordinador,pack);
+
+		while((read = getline(&linea,&length,f)) != -1 ){
+			t_esi_operacion operacion = parse(linea);
+			if(operacion.valido){
+				enviar(sockcoordinador,operacion);
+			}
+			else{
+				log_error(logger, "La linea <%s> no es valida",linea);
+				exit(-1);
+			}
+		}
 	   log_destroy(logger);
 	   close(sockplanificador);
 	   close(sockcoordinador);
 	   return 0;
 }
 
-int main(){
+int main(int argc, char**argv){
 	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
-	Paquete pack;
-	pack.a=SET;
-	strcpy (pack.key,"MILLAVE");
-	pack.value="MIVALOR";
-	esi(pack);
-
+	esi(argv[1]);
 	return 0;
 }
 
