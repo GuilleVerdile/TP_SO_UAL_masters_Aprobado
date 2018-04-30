@@ -15,6 +15,9 @@ int main(){
     }
     log_info(logger,"Se realizo correctamente la conexion con el coordinador");
     enviarTipoDeCliente(sockcoordinador,INSTANCIA);
+    while(1){
+
+    }
     log_destroy(logger);
     close(sockcoordinador);
 	 return 0;

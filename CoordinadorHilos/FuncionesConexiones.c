@@ -97,34 +97,44 @@ void deserializacion(char* texto, int* tipo, char clave[40], char** valor){
 	free(claveALiberar);
 }
 
-int recibir(int socket, Paquete* pack){
-	char *total= string_new();
-	char *buff=NULL;
-	buff = malloc(5);
+int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
 	int recvValor;
+	char *total= string_new();
+	char *buff=malloc(5);
 	char *aux = NULL;
 	while(1){
-		recvValor = recv(socket, buff, 5, 0);
+		recvValor = recv(socketConMsg, buff, 5, 0);
+		if(socketInstancia != NULL){
+			send(socketInstancia,buff,5,0);
+		}
 		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
 			free(total);
 			free(buff);
 			return recvValor;
-		}
-		if(string_contains(buff, "z")){
-			aux =malloc(5);
-			strcpy(aux,buff);
-			aux[string_length(buff)-1]='\0';
-			string_append(&total,aux);
-			free(aux);
-			break;
 			}
-		string_append(&total, buff);
-	}
-	free(buff);
+			if(string_contains(buff, "z")){
+				aux =malloc(5);
+				strcpy(aux,buff);
+				aux[string_length(buff)-1]='\0';
+				string_append(&total,aux);
+				free(aux);
+				break;
+				}
+			string_append(&total, buff);
+		}
 	int tot=transformarNumero(total,0);
 	free(total);
+	free(buff);
+	return tot;
+}
+
+int recibir(int socket, Paquete* pack){
+	int tot = obtenerTamDelSigBuffer(socket,NULL);
+	if(tot < 1){
+		return tot;
+	}
 	char* buf=malloc(tot);
-	recvValor = recv(socket,buf,tot,0);
+	int recvValor = recv(socket,buf,tot,0);
 	if(recvValor <1){  //Se verifica si fallo el recv o el cliente se desconecto
 		free(buf);
 		return recvValor;

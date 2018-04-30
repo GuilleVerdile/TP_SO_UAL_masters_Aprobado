@@ -150,18 +150,18 @@ void serealizarPaquete(t_esi_operacion operacion,char** buff){
 		case SET:
 			*buff = string_itoa(0);// 0 es SET
 			char* tamkey = transformarTamagnoKey(operacion.argumentos.SET.clave);
-			string_append(*buff,tamkey);
-			string_append(*buff, operacion.argumentos.SET.clave);
-			string_append(*buff, operacion.argumentos.SET.valor);
+			string_append(buff,tamkey);
+			string_append(buff, operacion.argumentos.SET.clave);
+			string_append(buff, operacion.argumentos.SET.valor);
 			free(tamkey);
 			break;
 		case GET:
 			*buff = string_itoa(1);// 1 es GET
-			string_append(*buff,operacion.argumentos.GET.clave);
+			string_append(buff,operacion.argumentos.GET.clave);
 			break;
 		case STORE:
 			*buff = string_itoa(2);// 2 es STORE
-			string_append(*buff,operacion.argumentos.STORE.clave);
+			string_append(buff,operacion.argumentos.STORE.clave);
 			break;
 		default:
 			log_error(logger, "No se entendio el comando");

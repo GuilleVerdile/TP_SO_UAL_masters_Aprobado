@@ -52,6 +52,7 @@ void deserializacion(char* texto, int* tipo, char clave[40], char** valor);
 int recibir(int socket,Paquete* pack);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);
+int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia);
 void serealizarPaquete(Paquete pack,char** buff);
 void enviar(int socket,Paquete pack);
 t_log *logger;

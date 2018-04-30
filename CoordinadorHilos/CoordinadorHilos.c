@@ -1,6 +1,8 @@
 #include "CoordinadorHilos.h"
+t_list* instancias;
 
 int main(){
+	instancias =list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
@@ -47,9 +49,9 @@ int main(){
 				return -1;
 	    	}
 			log_info(logger,"Se asigno una conexion con hilos");
-			pthread_join(idHilo,NULL);
 		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
+			algoritmoDeDistribucion(&nuevoCliente); //LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
 		}
 		log_info(logger,"El cliente se desconecto");
 	}
@@ -63,25 +65,31 @@ int main(){
 void *conexionESI(void* cliente)
 {
 	log_info(logger,"ESTAMOS DENTRO DEL HILO");
-    int socket = *(int*)cliente; //Lo casteamos
-    int recibirValor;
-    Paquete pack;
-    while((recibirValor = recibir(socket,&pack)) > 0)
-    {
-    	log_info(logger,"Se recibio correctamente el paquete");
-    	printf("Paquete recibido %d %s %s\n", pack.a,pack.key,pack.value);
-    	free(pack.value);
+    int socketEsi = *(int*)cliente; //Lo casteamos
+    int tam;
+    char* buff;
+    int* sockInstancia = malloc(sizeof(int));
+	*sockInstancia= algoritmoDeDistribucion(NULL);
+   while((tam = obtenerTamDelSigBuffer(socketEsi,sockInstancia))>0){
+    	buff = malloc(tam);
+    	recv(socketEsi,buff,tam,0);
+    	printf("%s\n",buff);
+    	fflush(stdout);
+    	send(sockInstancia,buff,tam,0);
+    	free(buff);
     }
-
-    if(recibirValor == 0)
+   algoritmoDeDistribucion(sockInstancia);
+   free(sockInstancia);
+    if(tam == 0)
     {
         log_info(logger,"Se desconecto un ESI");
     }
-    else if(recibirValor == -1)
+    else if(tam == -1)
     {
-        log_error(logger,"Error al recibir el paquete");
+        log_error(logger,"Error al recibir el tam del codigo serializado");
     }
-    close(socket);
+
+    close(socketEsi);
     return 0;
 }
 
@@ -99,9 +107,39 @@ int esEsi(int socket){
 		free(buff);
 		return -1; //POR OTRO LADO NO ESTA EL CASO DE QUE SEA MENOR A 0, ACA SIGNIFICA QUE SE CORTO LA CONEXION
 	}else if(recvValor == -1){
-		log_error(logger,"Error al recibir el paquete");
+		log_error(logger,"Error al recibir el tipo de cliente");
 		free(buff);
 		exit(-1);
 	}
-
 }
+
+int equitativeLoad(int* sockInstancia){
+	int instancia;
+	if(sockInstancia == NULL){ //ES DE LECTURA SI ES NULL
+		int* valor = (int*)list_remove(instancias,0);
+		instancia = *valor; //SACA EL PRIMERO DE LA LISTA Y LO ELIMINO
+		return instancia;
+	}
+	list_add(instancias, (void*)&sockInstancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
+	return instancia; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
+}
+
+int algoritmoDeDistribucion(int* sockInstancia){
+	t_config *config=config_create(pathCoordinador);
+	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
+	config_destroy(config);
+	case 0: //0 ES PARA EQUITATIVE LOAD
+		return equitativeLoad(sockInstancia);
+		break;
+	case 1: //1 ES PARA LSU
+		//lsu(sockInstancia);
+		break;
+	case 2: //2 ES PARA KEYEXPLICIT
+		//keyExplicit(sockInstancia);
+		break;
+	default:
+		log_error(logger,"No se reconocio el algoritmo de distribucion");
+		exit(-1);
+	}
+}
+

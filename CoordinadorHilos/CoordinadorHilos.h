@@ -19,6 +19,9 @@
 #include <commons/string.h>
 #include <commons/log.h>
 #include <commons/config.h>
+#include <commons/collections/list.h>
 #include <pthread.h>
 void *conexionESI(void* listener);
+int algoritmoDeDistribucion(int* sockInstancia);
+int equitativeLoad(int* sockInstancia);
 #endif /* COORDINADORHILOS_H_ */
