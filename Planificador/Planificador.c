@@ -7,6 +7,7 @@
 #include "Planificador.h"
 
 
+
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 char* path;
 	 int listener;
@@ -60,6 +61,12 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
     	 	fdmax=casoDiscriminador;
      else
          	fdmax = listener;
+     t_queue *listos;
+     listos=queue_create();
+     t_queue *ejecucion;
+     ejecucion=queue_create();
+     t_queue *terminados;
+     terminados=queue_create();
      for(;;) {
                  read_fds = master; // cópialo
                  if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
@@ -83,10 +90,12 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
                                      fdmax = nuevoCliente;
                                  }
+                                 int *aux = malloc(sizeof(int));
+                                 *aux=nuevoCliente;
+                                 queue_push(listos, aux);
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
-                                 send(nuevoCliente,"Hola capo soy tu Servidor Select\n",1024,0);
                              }
 
                          }
@@ -99,9 +108,10 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                          	free(buf);
                          }
                          else {
-                        	 buf = malloc(1024);
+
+                        	 buf = malloc(2);
                              // gestionar datos de un cliente
-                             if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
+                             if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
                                      // conexión cerrada
@@ -117,7 +127,26 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                             	log_info(logger, "Conexion entrante del cliente");
                                printf("%s\n",buf);
                                fflush(stdout);
-                               send(i,"Dale Esi",1024,0);
+                               int *primerElemento=queue_peek(listos);
+                               if(*primerElemento==i){
+                            	   int *aux = malloc(sizeof(int));
+                            	   *aux=i;
+                            	   send(i,"1",2,0);
+                            	   log_info(logger, "Se le permitio al esi parsear");
+                            	   queue_pop(listos);
+                            	   log_info(logger, "Se saco el esi de la cola de listos");
+                            	   queue_push(ejecucion,aux);
+                            	   log_info(logger, "Se metio el esi a la cola de ejecucion");
+                            	   if(recv(i,buf,2,0)-48)
+                            		   queue_pop(ejecucion);
+                            	   log_info(logger, "Se saco el esi a la cola de ejecucion");
+                            	   queue_push(terminados,aux);
+                            	   log_info(logger, "se termino el esi");
+                            	   // no se si usar este JIJOOOO
+                               }
+                               else
+                            	   send(i,"0",2,0);
+
                              }
                              free(buf);
                          }
@@ -129,6 +158,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
 
 int planificador()
     {
+
 		crearSelect(0,pathPlanificador,pathCoordinador);
         return 0;
     }

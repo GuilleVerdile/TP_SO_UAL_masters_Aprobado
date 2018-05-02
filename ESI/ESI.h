@@ -21,7 +21,9 @@
 #include <commons/config.h>
 #include <parsi/parser.h>
 
-int esi(char* path);
+ #include <unistd.h>
+
+int esi(char* path,int sockcoordinador,int sockplanificador);
 
 
 #endif /* SOCKET_ESI_H_ */

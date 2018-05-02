@@ -12,7 +12,7 @@ struct TE{
 
 int main(int argc, char* argv[]){
 	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
-	FILE* TE=fopen("/home/utnso/Escritorio/archivito","r+b");
+	FILE* TE=fopen(argv[1],"r+b");
 	tablaEntradas tablaAux;
 	tablaEntradas *tablas = NULL;
 	int cantTablas = 0;

@@ -49,6 +49,7 @@ int main(){
 				return -1;
 	    	}
 			log_info(logger,"Se asigno una conexion con hilos");
+			pthread_join(idHilo,NULL);//No vamos a usar esta implementacion pero se usa para testear
 
 		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
