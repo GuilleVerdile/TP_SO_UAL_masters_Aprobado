@@ -22,6 +22,7 @@
 #include <commons/collections/list.h>
 #include <pthread.h>
 void *conexionESI(void* listener);
-int algoritmoDeDistribucion(int* sockInstancia);
-int equitativeLoad(int* sockInstancia);
+int* algoritmoDeDistribucion(int sockInstancia);
+int* equitativeLoad(int sockInstancia);
+extern t_list* instancias;
 #endif /* COORDINADORHILOS_H_ */

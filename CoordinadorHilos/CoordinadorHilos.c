@@ -2,7 +2,7 @@
 t_list* instancias;
 
 int main(){
-	instancias =list_create();
+	instancias = list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
@@ -37,7 +37,7 @@ int main(){
 	    log_info(logger, "Mensaje enviado correctamente");
 	pthread_t idHilo;
 	//ACA COMIENZA LO DIVERTIDO =)
-	while( (nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
+	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
 		log_info(logger,"Se acepto una nueva conexion");
 		int tipoCliente = esEsi(nuevoCliente);
@@ -49,11 +49,12 @@ int main(){
 				return -1;
 	    	}
 			log_info(logger,"Se asigno una conexion con hilos");
+
 		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
-			algoritmoDeDistribucion(&nuevoCliente); //LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
+			printf("%d\n",nuevoCliente);
+			algoritmoDeDistribucion(nuevoCliente); //LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
 		}
-		log_info(logger,"El cliente se desconecto");
 	}
 	if(nuevoCliente <0){
 		log_error(logger,"No se pudo aceptar la conexion al cliente");
@@ -68,14 +69,14 @@ void *conexionESI(void* cliente)
     int socketEsi = *(int*)cliente; //Lo casteamos
     int tam;
     char* buff;
-    int* sockInstancia = malloc(sizeof(int));
-	*sockInstancia= algoritmoDeDistribucion(NULL);
-   while((tam = obtenerTamDelSigBuffer(socketEsi,sockInstancia))>0){
+    int *sockInstancia = algoritmoDeDistribucion(NULL);
+	printf("%d\n",*sockInstancia);
+   while((tam = obtenerTamDelSigBuffer(socketEsi,*sockInstancia))>0){
     	buff = malloc(tam);
     	recv(socketEsi,buff,tam,0);
     	printf("%s\n",buff);
     	fflush(stdout);
-    	send(sockInstancia,buff,tam,0);
+    	send(*sockInstancia,buff,tam,0);
     	free(buff);
     }
    algoritmoDeDistribucion(sockInstancia);
@@ -113,18 +114,17 @@ int esEsi(int socket){
 	}
 }
 
-int equitativeLoad(int* sockInstancia){
-	int instancia;
+int* equitativeLoad(int sockInstancia){
 	if(sockInstancia == NULL){ //ES DE LECTURA SI ES NULL
-		int* valor = (int*)list_remove(instancias,0);
-		instancia = *valor; //SACA EL PRIMERO DE LA LISTA Y LO ELIMINO
-		return instancia;
+		return list_remove(instancias,0);//SACA EL PRIMERO DE LA LISTA Y LO ELIMINO
 	}
-	list_add(instancias, (void*)&sockInstancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
-	return instancia; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
+	int* instancia = malloc(sizeof(int));
+	*instancia = sockInstancia;
+	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
+	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
 }
 
-int algoritmoDeDistribucion(int* sockInstancia){
+int* algoritmoDeDistribucion(int sockInstancia){
 	t_config *config=config_create(pathCoordinador);
 	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
 	config_destroy(config);

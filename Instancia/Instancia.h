@@ -16,7 +16,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "FuncionesConexiones.h"
-
+#include <parsi/parser.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <string.h>
 int instancia(char*path);
 
 #endif /* SOCKET_INSTANCIA_H_ */

@@ -46,8 +46,9 @@ int crearConexionCliente(char*path);
 //Funciones utilizadas por el Coordinador
 int crearConexionServidor(char*path);
 int transformarNumero(char *a,int start);
-void deserializacion(char* texto, int* tipo, char clave[40], char** valor);
-int recibir(int socket,Paquete* pack);
+void deserializacion(char* texto, t_esi_operacion* paquete);
+obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia);
+int recibir(int socket, t_esi_operacion* paquete);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);
 void serealizarPaquete(t_esi_operacion operacion,char** buff);

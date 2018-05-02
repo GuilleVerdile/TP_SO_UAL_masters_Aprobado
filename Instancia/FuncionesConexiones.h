@@ -18,6 +18,7 @@
 #include <commons/string.h>
 #include <commons/log.h>
 #include <commons/config.h>
+#include <parsi/parser.h>
 
 typedef struct{
 	int a;
@@ -27,9 +28,6 @@ typedef struct{
 
 const char* ESI;
 const char* INSTANCIA;
-extern const int SET;
-extern const int GET;
-extern const int STORE;
 
 //Path de los servidores
 extern const char *pathCoordinador;
@@ -48,11 +46,12 @@ int crearConexionCliente(char*path);
 //Funciones utilizadas por el Coordinador
 int crearConexionServidor(char*path);
 int transformarNumero(char *a,int start);
-void deserializacion(char* texto, int* tipo, char clave[40], char** valor);
-int recibir(int socket,Paquete* pack);
+void deserializacion(char* texto, t_esi_operacion* paquete);
+obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia);
+int recibir(int socket, t_esi_operacion* paquete);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);
-void serealizarPaquete(Paquete pack,char** buff);
-void enviar(int socket,Paquete pack);
+void serealizarPaquete(t_esi_operacion operacion,char** buff);
+void enviar(int socket,t_esi_operacion operacion);
 t_log *logger;
 #endif /* SOCKET_FUNCIONESCONEXIONES_H_ */

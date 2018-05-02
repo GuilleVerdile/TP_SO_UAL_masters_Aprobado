@@ -78,59 +78,78 @@ int transformarNumero(char *a,int start){
 	}
 	return resultado;
 }
-void deserializacion(char* texto, int* tipo, char clave[40], char** valor){
-	*tipo = texto[0] -48;
-	char* claveALiberar;
-	if(!*tipo){
+void deserializacion(char* texto, t_esi_operacion* paquete){
+	int tipo = texto[0] -48;
+	switch(tipo){
+	case 0:
+		(*paquete).keyword = SET;
 		int tam = ((texto[1])-48)*10 + texto[2]-48;
-		claveALiberar =string_substring(texto,3,tam);
+		(*paquete).argumentos.SET.clave = string_substring(texto,3,tam);
+		(*paquete).argumentos.SET.valor = string_substring_from(texto,tam+3);
+		break;
+	case 1:
+		(*paquete).keyword = GET;
+		(*paquete).argumentos.GET.clave = string_substring_from(texto,1);
+		break;
+	case 2:
+		(*paquete).keyword = STORE;
+		(*paquete).argumentos.STORE.clave = string_substring_from(texto,1);
+		break;
+	default:
+		log_error(logger,"No se pudo deserializar el paquete");
+		exit(-1);
+	}
 
-		*valor = string_substring_from(texto,tam+3);
-	}
-	else{
-		claveALiberar = string_substring_from(texto,1);
-	}
-	strcpy(clave,claveALiberar);
-	free(claveALiberar);
 }
 
-int recibir(int socket, Paquete* pack){
-	char *total= string_new();
-	char *buff=NULL;
-	buff = malloc(5);
+int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
 	int recvValor;
+	char *total= string_new();
+	char *buff=malloc(5);
 	char *aux = NULL;
 	while(1){
-		recvValor = recv(socket, buff, 5, 0);
+		recvValor = recv(socketConMsg, buff, 5, 0);
+		if(socketInstancia != NULL){
+			send(socketInstancia,buff,5,0);
+		}
 		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
 			free(total);
 			free(buff);
 			return recvValor;
-		}
-		if(string_contains(buff, "z")){
-			aux =malloc(5);
-			strcpy(aux,buff);
-			aux[string_length(buff)-1]='\0';
-			string_append(&total,aux);
-			free(aux);
-			break;
 			}
-		string_append(&total, buff);
-	}
-	free(buff);
+			if(string_contains(buff, "z")){
+				aux =malloc(5);
+				strcpy(aux,buff);
+				aux[string_length(buff)-1]='\0';
+				string_append(&total,aux);
+				free(aux);
+				break;
+				}
+			string_append(&total, buff);
+		}
 	int tot=transformarNumero(total,0);
 	free(total);
+	free(buff);
+	return tot;
+}
+
+int recibir(int socket, t_esi_operacion* paquete){
+	int tot = obtenerTamDelSigBuffer(socket,NULL);
+	if(tot < 1){
+		return tot;
+	}
 	char* buf=malloc(tot);
-	recvValor = recv(socket,buf,tot,0);
+	int recvValor = recv(socket,buf,tot,0);
 	if(recvValor <1){  //Se verifica si fallo el recv o el cliente se desconecto
 		free(buf);
 		return recvValor;
 	}
-	deserializacion(buf, &(*pack).a, (*pack).key, &(*pack).value);
+	deserializacion(buf, paquete);
 	free(buf);
 	return 1; //No hubo problema en recibir
 }
 //Funciones ESI
+
 char* transformarTamagnoKey(char key[]){
 	int tam=string_length(key);
 	if(tam<10){

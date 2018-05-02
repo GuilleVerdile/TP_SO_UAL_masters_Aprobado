@@ -8,9 +8,6 @@
 
 const char* ESI = "e";
 const char* INSTANCIA = "i";
-const int SET=0;
-const int GET=1;
-const int STORE=2;
 
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
@@ -81,59 +78,78 @@ int transformarNumero(char *a,int start){
 	}
 	return resultado;
 }
-void deserializacion(char* texto, int* tipo, char clave[40], char** valor){
-	*tipo = texto[0] -48;
-	char* claveALiberar;
-	if(!*tipo){
+void deserializacion(char* texto, t_esi_operacion* paquete){
+	int tipo = texto[0] -48;
+	switch(tipo){
+	case 0:
+		(*paquete).keyword = SET;
 		int tam = ((texto[1])-48)*10 + texto[2]-48;
-		claveALiberar =string_substring(texto,3,tam);
+		(*paquete).argumentos.SET.clave = string_substring(texto,3,tam);
+		(*paquete).argumentos.SET.valor = string_substring_from(texto,tam+3);
+		break;
+	case 1:
+		(*paquete).keyword = GET;
+		(*paquete).argumentos.GET.clave = string_substring_from(texto,1);
+		break;
+	case 2:
+		(*paquete).keyword = STORE;
+		(*paquete).argumentos.STORE.clave = string_substring_from(texto,1);
+		break;
+	default:
+		log_error(logger,"No se pudo deserializar el paquete");
+		exit(-1);
+	}
 
-		*valor = string_substring_from(texto,tam+3);
-	}
-	else{
-		claveALiberar = string_substring_from(texto,1);
-	}
-	strcpy(clave,claveALiberar);
-	free(claveALiberar);
 }
 
-int recibir(int socket, Paquete* pack){
-	char *total= string_new();
-	char *buff=NULL;
-	buff = malloc(5);
+int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
 	int recvValor;
+	char *total= string_new();
+	char *buff=malloc(5);
 	char *aux = NULL;
 	while(1){
-		recvValor = recv(socket, buff, 5, 0);
+		recvValor = recv(socketConMsg, buff, 5, 0);
+		if(socketInstancia != NULL){
+			send(socketInstancia,buff,5,0);
+		}
 		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
 			free(total);
 			free(buff);
 			return recvValor;
-		}
-		if(string_contains(buff, "z")){
-			aux =malloc(5);
-			strcpy(aux,buff);
-			aux[string_length(buff)-1]='\0';
-			string_append(&total,aux);
-			free(aux);
-			break;
 			}
-		string_append(&total, buff);
-	}
-	free(buff);
+			if(string_contains(buff, "z")){
+				aux =malloc(5);
+				strcpy(aux,buff);
+				aux[string_length(buff)-1]='\0';
+				string_append(&total,aux);
+				free(aux);
+				break;
+				}
+			string_append(&total, buff);
+		}
 	int tot=transformarNumero(total,0);
 	free(total);
+	free(buff);
+	return tot;
+}
+
+int recibir(int socket, t_esi_operacion* paquete){
+	int tot = obtenerTamDelSigBuffer(socket,NULL);
+	if(tot < 1){
+		return tot;
+	}
 	char* buf=malloc(tot);
-	recvValor = recv(socket,buf,tot,0);
+	int recvValor = recv(socket,buf,tot,0);
 	if(recvValor <1){  //Se verifica si fallo el recv o el cliente se desconecto
 		free(buf);
 		return recvValor;
 	}
-	deserializacion(buf, &(*pack).a, (*pack).key, &(*pack).value);
+	deserializacion(buf, paquete);
 	free(buf);
 	return 1; //No hubo problema en recibir
 }
 //Funciones ESI
+
 char* transformarTamagnoKey(char key[]){
 	int tam=string_length(key);
 	if(tam<10){
@@ -147,26 +163,41 @@ char* transformarTamagnoKey(char key[]){
 	else
 		return string_itoa(tam);
 }
-void serealizarPaquete(Paquete pack,char** buff){
-	*buff=string_itoa(pack.a);
-	if(!pack.a){
-		char* tamkey = transformarTamagnoKey(pack.key);
-		string_append(buff,tamkey);
-		free(tamkey);
-	}
-	string_append(buff, pack.key);
-	if(!pack.a){
-	string_append(buff, pack.value);
+void serealizarPaquete(t_esi_operacion operacion,char** buff){
+
+	switch(operacion.keyword){
+		case SET:
+			*buff = string_itoa(0);// 0 es SET
+			char* tamkey = transformarTamagnoKey(operacion.argumentos.SET.clave);
+			string_append(buff,tamkey);
+			string_append(buff, operacion.argumentos.SET.clave);
+			string_append(buff, operacion.argumentos.SET.valor);
+			free(tamkey);
+			break;
+		case GET:
+			*buff = string_itoa(1);// 1 es GET
+			string_append(buff,operacion.argumentos.GET.clave);
+			break;
+		case STORE:
+			*buff = string_itoa(2);// 2 es STORE
+			string_append(buff,operacion.argumentos.STORE.clave);
+			break;
+		default:
+			log_error(logger, "No se entendio el comando");
+			exit(-1);
 	}
 }
 
-void enviar(int socket,Paquete pack){
+void enviar(int socket,t_esi_operacion operacion){
 	int i =0;
 	char *enviar;
 	char *buff;
-	serealizarPaquete(pack,&buff);
+	serealizarPaquete(operacion,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
+
+
+
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);
