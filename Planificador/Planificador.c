@@ -6,9 +6,33 @@
  */
 #include "Planificador.h"
 
-
-
-void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+t_list *listos;
+t_list *ejecucion;
+t_list *terminados;
+void fifo(int i,char *buf){
+    int *primerElemento=list_get(listos,0);
+    if(*primerElemento==i){
+    int *aux = malloc(sizeof(int));
+    *aux=i;
+    send(i,"1",2,0);
+    log_info(logger, "Se le permitio al esi parsear");
+    list_remove(listos,0);
+    log_info(logger, "Se saco el esi de la cola de listos");
+    list_add(ejecucion,aux);
+    log_info(logger, "Se metio el esi a la cola de ejecucion");
+    if(recv(i,buf,2,0)-48)
+         list_remove(ejecucion,0);
+    log_info(logger, "Se saco el esi a la cola de ejecucion");
+     list_add(terminados,aux);
+     log_info(logger, "se termino el esi");
+                           	   // no se si usar este JIJOOOO
+      }
+                              else{
+                            	  send(i,"0",2,0);
+                            	  log_info(logger, "Se le nego al esi parsear");
+                              }
+}
+void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,void(*miAlgoritmo)(int,char*)){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 char* path;
 	 int listener;
 	 char* buf;
@@ -61,12 +85,9 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
     	 	fdmax=casoDiscriminador;
      else
          	fdmax = listener;
-     t_queue *listos;
-     listos=queue_create();
-     t_queue *ejecucion;
-     ejecucion=queue_create();
-     t_queue *terminados;
-     terminados=queue_create();
+     listos=list_create();
+     ejecucion=list_create();
+     terminados=list_create();
      for(;;) {
                  read_fds = master; // cópialo
                  if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
@@ -92,7 +113,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                                  }
                                  int *aux = malloc(sizeof(int));
                                  *aux=nuevoCliente;
-                                 queue_push(listos, aux);
+                                 list_add(listos, aux);
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
@@ -127,26 +148,8 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
                             	log_info(logger, "Conexion entrante del cliente");
                                printf("%s\n",buf);
                                fflush(stdout);
-                               int *primerElemento=queue_peek(listos);
-                               if(*primerElemento==i){
-                            	   int *aux = malloc(sizeof(int));
-                            	   *aux=i;
-                            	   send(i,"1",2,0);
-                            	   log_info(logger, "Se le permitio al esi parsear");
-                            	   queue_pop(listos);
-                            	   log_info(logger, "Se saco el esi de la cola de listos");
-                            	   queue_push(ejecucion,aux);
-                            	   log_info(logger, "Se metio el esi a la cola de ejecucion");
-                            	   if(recv(i,buf,2,0)-48)
-                            		   queue_pop(ejecucion);
-                            	   log_info(logger, "Se saco el esi a la cola de ejecucion");
-                            	   queue_push(terminados,aux);
-                            	   log_info(logger, "se termino el esi");
-                            	   // no se si usar este JIJOOOO
-                               }
-                               else
-                            	   send(i,"0",2,0);
-
+                               //aca va el algoritmo
+                               (*miAlgoritmo)(i,buf);
                              }
                              free(buf);
                          }
@@ -158,8 +161,15 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente){//
 
 int planificador()
     {
-
-		crearSelect(0,pathPlanificador,pathCoordinador);
+	void(*miAlgoritmo)(int,char*);
+	t_config *config=config_create(pathPlanificador);
+	switch (config_get_int_value(config, "AlgoritmoDePlanificador")){
+	config_destroy(config);
+	case 0: // este es el fifo
+		miAlgoritmo=&fifo;
+		break;
+	}
+		crearSelect(0,pathPlanificador,pathCoordinador,miAlgoritmo);
         return 0;
     }
 int main(){
