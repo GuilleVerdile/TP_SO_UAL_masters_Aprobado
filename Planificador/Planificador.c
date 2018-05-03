@@ -121,12 +121,28 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,voi
 
                          }
                          else if(i==casoDiscriminador){//aca trato al coordinador//Caso discriminador
-                        	buf = malloc(1024);
-                        	log_info(logger, "Conexion entrante del discriminador");
-                         	recv(casoDiscriminador,buf,1024,0);//funcion relacionada
-                         	printf("%s\n",buf);
-                         	fflush(stdout);
-                         	free(buf);
+                        	 buf = malloc(1024);
+                        	 if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
+
+                        	                                 // error o conexión cerrada por el cliente
+                        		 if (nbytes == 0) {
+                        	                                     // conexión cerrada
+                        	                                	 log_info(logger, "El coordinator se fue");
+                        	                                     printf("selectserver: socket %d hung up\n", i);
+                        	                                 } else {
+                        	                                	 log_info(logger, "Problema de conexion con el coordinador");
+                        	                                     perror("recv");
+                        	                                 }
+                        	                                 close(i); // cierra socket
+                        	                                 FD_CLR(i, &master); // eliminar del conjunto maestro
+                        	                             }
+                        	 else{
+
+                        		                         	log_info(logger, "Conexion entrante del discriminador");
+                        		                          	printf("%s\n",buf);
+                        		                          	fflush(stdout);
+                        		                          	free(buf);
+                        	 }
                          }
                          else {
 
