@@ -20,7 +20,7 @@ int esi(char* path,int sockcoordinador,int sockplanificador){
 		FILE* f;
 		size_t length = 0;
 		ssize_t read;
-		char* linea;
+		char* linea = NULL;
 		f = fopen(path,"r");
 		if(f == NULL){
 			log_error(logger, "No se pudo abrir el archivo");
@@ -36,8 +36,9 @@ int esi(char* path,int sockcoordinador,int sockplanificador){
 				log_error(logger, "La linea <%s> no es valida",linea);
 				exit(-1);
 			}
+			free(linea);
 		}
-	   log_destroy(logger);
+		fclose(f);
 	   return 0;
 }
 
@@ -57,6 +58,8 @@ int main(int argc, char**argv){
 			puedoEnviar=0;
 		}
 	}
+	free(buff);
+	log_destroy(logger);
 	close(sockcoordinador);
 	close(sockplanificador);
 	return 0;

@@ -50,11 +50,24 @@ int main(){
 	    	}
 			log_info(logger,"Se asigno una conexion con hilos");
 			pthread_join(idHilo,NULL);//No vamos a usar esta implementacion pero se usa para testear
-
 		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
-			printf("%d\n",nuevoCliente);
-			algoritmoDeDistribucion(nuevoCliente); //LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
+			t_config *config=config_create(pathCoordinador);
+			char* buff=config_get_string_value(config, "CantidadEntradas");
+			string_append(&buff,"z");
+			string_append(&buff,config_get_string_value(config, "TamagnoEntradas"));
+			config_destroy(config);
+			enviarCantBytes(nuevoCliente,buff);
+			send(nuevoCliente,buff,string_length(buff)+1,0); //Le envio la cantidad de entradas y tamagno, tiene un z en el medio para separarlas!
+			free(buff);
+			int tam = obtenerTamDelSigBuffer(nuevoCliente,NULL);
+			buff = malloc(tam);
+			recv(nuevoCliente,buff,tam,0);
+			instancia* instanciaNueva = crearInstancia(nuevoCliente,buff);
+			free(buff);
+			if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!
+				algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
+			}
 		}
 	}
 	if(nuevoCliente <0){
@@ -70,18 +83,18 @@ void *conexionESI(void* cliente)
     int socketEsi = *(int*)cliente; //Lo casteamos
     int tam;
     char* buff;
-    int *sockInstancia = algoritmoDeDistribucion(NULL);
-	printf("%d\n",*sockInstancia);
-   while((tam = obtenerTamDelSigBuffer(socketEsi,*sockInstancia))>0){
+    instancia* instanciaAEnviar = algoritmoDeDistribucion(NULL); //[3,4,5,1,2]
+
+ /*  while((tam = obtenerTamDelSigBuffer(socketEsi,*sockInstancia))>0){
     	buff = malloc(tam);
     	recv(socketEsi,buff,tam,0);
     	printf("%s\n",buff);
     	fflush(stdout);
     	send(*sockInstancia,buff,tam,0);
     	free(buff);
-    }
-   algoritmoDeDistribucion(sockInstancia);
-   free(sockInstancia);
+    }*/ //GET SET STORE IMPLEMENTACION
+
+   algoritmoDeDistribucion(instanciaAEnviar);
     if(tam == 0)
     {
         log_info(logger,"Se desconecto un ESI");
@@ -115,27 +128,29 @@ int esEsi(int socket){
 	}
 }
 
-int* equitativeLoad(int sockInstancia){
-	if(sockInstancia == NULL){ //ES DE LECTURA SI ES NULL
-		return list_remove(instancias,0);//SACA EL PRIMERO DE LA LISTA Y LO ELIMINO
+instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
+	instancia* instanciaNueva = NULL;
+	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
+		(*instanciaNueva).socket = sockInstancia;
+		//reestablecerInformacionInstancia(instanciaNueva); ACA SE MODELA MAS TARDE PARA CUANDO UNA INSTANCIA SE TRATA DE RECONECTAR
+		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
 	}
-	int* instancia = malloc(sizeof(int));
-	*instancia = sockInstancia;
-	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
-	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
+	instanciaNueva = malloc(sizeof(instancia));
+	inicializarInstancia(instanciaNueva,sockInstancia,nombreInstancia); //Inicializamos la instancia.
+	return instanciaNueva;
 }
 
-int* algoritmoDeDistribucion(int sockInstancia){
+instancia* algoritmoDeDistribucion(instancia* instanciaNueva){
 	t_config *config=config_create(pathCoordinador);
 	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
 	config_destroy(config);
-	case 0: //0 ES PARA EQUITATIVE LOAD
-		return equitativeLoad(sockInstancia);
+	case EL: //EQUITATIVE LOAD
+		return equitativeLoad(instanciaNueva);
 		break;
-	case 1: //1 ES PARA LSU
+	case LSU: //LSU
 		//lsu(sockInstancia);
 		break;
-	case 2: //2 ES PARA KEYEXPLICIT
+	case KE: //KEYEXPLICIT
 		//keyExplicit(sockInstancia);
 		break;
 	default:
@@ -144,3 +159,41 @@ int* algoritmoDeDistribucion(int sockInstancia){
 	}
 }
 
+void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nombreInstancia){
+	t_config *config=config_create(pathCoordinador);
+	(*instanciaNueva).cantEntradasDisponibles = config_get_int_value(config, "CantidadEntradas");
+	config_destroy(config);
+	(*instanciaNueva).clavesBloqueadas = NULL;
+	(*instanciaNueva).estaDisponible = 1;
+	(*instanciaNueva).nombreInstancia = malloc(strlen(nombreInstancia)+1);
+	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
+	(*instanciaNueva).socket = sockInstancia;
+}
+
+instancia* existeEnLaLista(char* id){
+	int i =0;
+	instancia* instancia;
+	int noEncontrado = 1;
+	while((noEncontrado != 0) && ((instancia = list_get(instancias,i))!= NULL)){
+		noEncontrado = strcmp(id,(*instancia).nombreInstancia);
+		if(noEncontrado == 0){
+			(*instancia).socket = socket;
+		}
+		i++;
+	}
+	return instancia;
+}
+
+instancia* equitativeLoad(instancia* instancia){
+	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
+		int i = 0;
+		instancia = list_get(instancias,i);
+		while(!(*instancia).estaDisponible){
+			i++;
+			instancia = list_get(instancias,i);
+		}
+		return list_remove(instancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
+	}
+	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
+	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
+}

@@ -188,24 +188,25 @@ void serealizarPaquete(t_esi_operacion operacion,char** buff){
 	}
 }
 
-void enviar(int socket,t_esi_operacion operacion){
+void enviarCantBytes(int socket,char* buff){
 	int i =0;
 	char *enviar;
-	char *buff;
-	serealizarPaquete(operacion,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
-
-
-
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);
 		i=i+4;
 		free(enviar);
 	}
-	send(socket,buff,string_length(buff)+1,0);
 	free(cantBytes);
+}
+
+void enviar(int socket,t_esi_operacion operacion){
+	char *buff;
+	serealizarPaquete(operacion,&buff);
+	enviarCantBytes(socket,buff);
+	send(socket,buff,string_length(buff)+1,0);
 	free(buff);
 }
 

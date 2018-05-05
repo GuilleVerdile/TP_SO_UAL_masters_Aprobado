@@ -43,6 +43,7 @@ extern const char *logInstancias;
 //Funciones utilizadas en general
 struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica);
 int crearConexionCliente(char*path);
+void enviarCantBytes(int socket,char* buff);
 //Funciones utilizadas por el Coordinador
 int crearConexionServidor(char*path);
 int transformarNumero(char *a,int start);

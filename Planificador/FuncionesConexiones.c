@@ -195,9 +195,6 @@ void enviar(int socket,t_esi_operacion operacion){
 	serealizarPaquete(operacion,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
-
-
-
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);
