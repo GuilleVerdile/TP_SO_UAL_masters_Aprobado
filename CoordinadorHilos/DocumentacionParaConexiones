@@ -1,8 +1,11 @@
 Conexion de coordinador a instancia:
-Ante una primera conexion, la instancia le envia "i" al Coordinador para decirle que el cliente que le llego es una instancia. Despues le envia a la instancia la cantidad y el tamagno de entradas que debe tener con el siguiente formato "cantEntradasztamEntradas", donde ambos estan
+Ante una primera conexion, la instancia le envia "i" al Coordinador para decirle que el cliente que le llego es una instancia.
+Despues le envia a la instancia la cantidad y el tamagno de entradas que debe tener con el siguiente formato
+"cantEntradasztamEntradas", donde ambos estan
 separados con el caracter 'z'. La instancia nueva le envia el nombre que identifica unicamente a cada instancia (se encuentra en
 un archivo de configuracion).
-El Coordinador agrega la instancia nueva en una lista dependiendo el algoritmo de distribucion asignado en el archivo de configuracion, esa instancia se le va asignar el siguiente formato:
+El Coordinador agrega la instancia nueva en una lista dependiendo el algoritmo de distribucion asignado en el archivo de configuracion,
+esa instancia se le va asignar el siguiente formato:
 
 - socketInstancia: Es el socket de la instancia, va cambiar ante una reconexion.
 - nombreInstancia: Cada instancia se puede identificar de forma unica con su nombre.
@@ -12,9 +15,13 @@ El Coordinador agrega la instancia nueva en una lista dependiendo el algoritmo d
 
 Cuando una instancia requiere una reconexion al servidor, este lo que va hacer es verificar que esa instancia, a traves de su "nombreInstancia", se encuentre en la lista y que disponibilidad sea = 0, si es asi el coordinador le envia una "r" a la instancia avisandole que este ya tuvo una conexion
 con ella. La instancia tiene en su carpeta un archivo que tiene todas las instrucciones ejecutadas antes de la desconexion, por lo tanto lo que va hacer es realizar todas esas instrucciones para volver a su estado anterior.
+En varios momentos de la ejecucion se va realizar una verificacion de conexion con la instancia, se le envia un "v".
 
 Conexion de coordinador a ESI:
 Ante una primera conexion, el esi le envia "e" al Coordinador para avisarle que el cliente que llego es un esi. El esi le envia si id que lo identifica y una sentencia, el coordinador lo va analizar, en caso de un GET, se va verificar que la clave no se encuentre bloqueada y
 se va realizar el algoritmo de distribucion para saber a que instancia se le va asignar tal clave, si se encuentra bloqueada el coordinador le envia una solicitud de bloqueo al Planificador con el id del ESI a bloquear.
 en caso de un SET o STORE, este se va fijar en cada elemento de la lista si posee tal clave en "clavesBloqueadas", si lo encuentra se verifica primero que la instancia este disponible y
-se lo envia a la instancia asignada, en de que no se encuentre la clave se va enviar una senial para abortar la ejecucion del esi. Por otro lado, si no esta disponible la instancia se va enviar al Planificador una senial para bloquear un proceso esi y el id.
+se lo envia a la instancia asignada, en de que no se encuentre la clave se va enviar una senial para abortar la ejecucion del esi con el caracter "a".
+Por otro lado, si no esta disponible la instancia se va enviar al Planificador una senial para bloquear un proceso esi y el id.
+Cuando se le envia una sentencia al esi primero envia un "p" diciendole que llego un paquete a enviar.
+Basicamente todos van a hacer lo mismo en get set y store solo que cada uno tiene una forma diferente de saber a que instancia enviarle

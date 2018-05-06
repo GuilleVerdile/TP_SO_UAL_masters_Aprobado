@@ -77,34 +77,129 @@ int main(){
 	return 0;
 }
 
+instancia* estaBloqueada(char* clave){
+	int bloqueada = 0;
+	int i =0;
+	instancia* instancia;
+	while((instancia = list_get(instancias,i))!= NULL){ //ME FIJO HASTA LA ULTIMA LISTA
+		if((*instancia).clavesBloqueadas != NULL){ //PRIMERO ME FIJO QUE EXISTA AL MENOS UNA CLAVE
+			int j =0;
+			while((*instancia).clavesBloqueadas[j] != NULL){ //BUSCO HASTA ENCONTRAR LA ULTIMA CLAVE
+				if(strcmp(clave,(*instancia).clavesBloqueadas[j]) == 0){ //SI ENCUENTRO UNA CLAVE QUE COINCIDA ENTONCES RETORNO LA INSTANCIA
+					return instancia; //RETORNO LA INSTANCIA ASOCIADA A ESA CLAVE
+				}
+				j++;
+			}
+		}
+		i++;
+	}
+	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
+}
+
+void verificarConexion(instancia* instancia){
+	send((*instancia).socketInstancia, "v", 2,0);
+	char* buff = malloc(2);
+	int recvValor = recv((*instancia).socketInstancia,buff,2,0);
+	if(recvValor == 0){
+		log_info(logger,"Se desconecto la instancia %s", (*instancia).nombreInstancia);
+		close((*instancia).socketInstancia);
+		(*instancia).estaDisponible = 0;
+	}
+	return;
+}
+
+void liberarClave(instancia* instancia,char* clave){
+	int j = 0;
+	while(strcmp((*instancia).clavesBloqueadas[j],clave) == 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
+		j++;
+	}
+	char *aux = (*instancia).clavesBloqueadas[j]; //ASIGNO EL PUNTERO A UN AUXILIAR PARA HACER EL FREE
+	char* aux2; //AUXILIAR PARA REORDENAR LAS CLAVES
+	while((*instancia).clavesBloqueadas[j] !=NULL){ //REORDENO LAS CLAVES
+		aux2 = (*instancia).clavesBloqueadas[j+1];
+		(*instancia).clavesBloqueadas[j] = aux2; //EL ANTERIOR SE LA ASIGNA EL SIGUIENTE
+		j++;
+	}
+	free(aux);//LIBERO LA CLAVE BLOQUEADA
+}
+
+void agregarClave(instancia* instancia,char* clave){
+	if((*instancia).clavesBloqueadas == NULL){
+		(*instancia).clavesBloqueadas = malloc(sizeof(char*)); //LE ASIGNO UNA DIRECCION DE MEMORIA
+		(*instancia).clavesBloqueadas[0] = malloc(strlen(clave)+1);
+		strcpy((*instancia).clavesBloqueadas[0],clave);
+		(*instancia).clavesBloqueadas[1] = NULL; //EL SIGUIENTE ES NULL PARA HACER ALGUNAS VERIFICACIONES EN OTRAS FUNCIONES
+	}
+	else{
+		int j =0;
+		while((*instancia).clavesBloqueadas[j] !=NULL){
+			j++; //BUSCO HASTA ENCONTRAR UN NULL
+		}
+		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*j); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
+		(*instancia).clavesBloqueadas[j] = malloc(strlen(clave)+1); //LE ASIGNO MEMORIA PARA LA CLAVE
+		strcpy((*instancia).clavesBloqueadas[j],clave);
+		(*instancia).clavesBloqueadas[j+1] = NULL; //PONGO NULL AL SIGUIENTE PARA VERIFICACIONES
+	}
+}
+
 void *conexionESI(void* cliente)
 {
 	log_info(logger,"ESTAMOS DENTRO DEL HILO");
     int socketEsi = *(int*)cliente; //Lo casteamos
-    int tam;
-    char* buff;
-    instancia* instanciaAEnviar = algoritmoDeDistribucion(NULL); //[3,4,5,1,2]
-
- /*  while((tam = obtenerTamDelSigBuffer(socketEsi,*sockInstancia))>0){
-    	buff = malloc(tam);
-    	recv(socketEsi,buff,tam,0);
-    	printf("%s\n",buff);
-    	fflush(stdout);
-    	send(*sockInstancia,buff,tam,0);
-    	free(buff);
-    }*/ //GET SET STORE IMPLEMENTACION
-
-   algoritmoDeDistribucion(instanciaAEnviar);
-    if(tam == 0)
+    int recvValor;
+    t_esi_operacion paquete;
+    instancia* instanciaAEnviar;
+    if((recvValor = recibir(socketEsi,&paquete)) >0){
+    	switch (paquete.keyword){
+    	case GET:
+    		if(estaBloqueada(paquete.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    			//bloquearEsi(socketEsi); IMPLEMENTAR COMO BLOQUEAR UN ESI, SEGURO TENGO QUE AVISARLE AL PLANIFICADOR CON EL ID DE LA ESI.
+    			return 0;
+    		}
+    		instanciaAEnviar = algoritmoDeDistribucion(NULL);
+    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		algoritmoDeDistribucion(instanciaAEnviar);
+    		//CREO QUE CONVIENE PONER ACA AVISAR AL PLANIFICADOR QUE TAL CLAVE ESTA BLOQUEADA
+    		agregarClave(instanciaAEnviar,paquete.argumentos.SET.clave); //BLOQUEO LA CLAVE PARA LAS SIGUIENTES SOLICITUDES
+    		break;
+    	case SET:
+    		if((instanciaAEnviar = estaBloqueada(paquete.argumentos.SET.clave))== NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    		    send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE
+    		    return 0;
+    		 }
+    		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
+    		if(!(*instanciaAEnviar).estaDisponible){
+    			//bloquearEsi(socketEsi);
+    		}
+    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		break;
+    	case STORE:
+    		if((instanciaAEnviar = estaBloqueada(paquete.argumentos.STORE.clave))== NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE
+    			return 0;
+    		}
+    		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
+    		if(!(*instanciaAEnviar).estaDisponible){
+    			//bloquearEsi(socketEsi);
+    		}
+    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		liberarClave(instanciaAEnviar,paquete.argumentos.STORE.clave);
+    		//FALTA AVISAR AL PLANIFICADOR QUE TAL CLAVE ESTA LIBERADA
+    		break;
+    	}
+    }//GET SET STORE IMPLEMENTACION
+    if(recvValor == 0)
     {
         log_info(logger,"Se desconecto un ESI");
     }
-    else if(tam == -1)
+    else if(recvValor == -1)
     {
         log_error(logger,"Error al recibir el tam del codigo serializado");
     }
-
-    close(socketEsi);
+    close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
     return 0;
 }
 
@@ -131,12 +226,14 @@ int esEsi(int socket){
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 	instancia* instanciaNueva = NULL;
 	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
-		(*instanciaNueva).socket = sockInstancia;
-		//reestablecerInformacionInstancia(instanciaNueva); ACA SE MODELA MAS TARDE PARA CUANDO UNA INSTANCIA SE TRATA DE RECONECTAR
+		(*instanciaNueva).socketInstancia = sockInstancia;
+		(*instanciaNueva).estaDisponible = 1;
+		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
 		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
 	}
 	instanciaNueva = malloc(sizeof(instancia));
 	inicializarInstancia(instanciaNueva,sockInstancia,nombreInstancia); //Inicializamos la instancia.
+	send(sockInstancia, "c", 2,0); //SE LE ENVIA UN C DE QUE ES UNA PRIMERA CONEXION.
 	return instanciaNueva;
 }
 
@@ -148,10 +245,10 @@ instancia* algoritmoDeDistribucion(instancia* instanciaNueva){
 		return equitativeLoad(instanciaNueva);
 		break;
 	case LSU: //LSU
-		//lsu(sockInstancia);
+		//return lsu(sockInstancia);
 		break;
 	case KE: //KEYEXPLICIT
-		//keyExplicit(sockInstancia);
+		//return keyExplicit(sockInstancia);
 		break;
 	default:
 		log_error(logger,"No se reconocio el algoritmo de distribucion");
@@ -167,7 +264,7 @@ void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nomb
 	(*instanciaNueva).estaDisponible = 1;
 	(*instanciaNueva).nombreInstancia = malloc(strlen(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
-	(*instanciaNueva).socket = sockInstancia;
+	(*instanciaNueva).socketInstancia = sockInstancia;
 }
 
 instancia* existeEnLaLista(char* id){
@@ -176,9 +273,6 @@ instancia* existeEnLaLista(char* id){
 	int noEncontrado = 1;
 	while((noEncontrado != 0) && ((instancia = list_get(instancias,i))!= NULL)){
 		noEncontrado = strcmp(id,(*instancia).nombreInstancia);
-		if(noEncontrado == 0){
-			(*instancia).socket = socket;
-		}
 		i++;
 	}
 	return instancia;
@@ -187,10 +281,12 @@ instancia* existeEnLaLista(char* id){
 instancia* equitativeLoad(instancia* instancia){
 	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
 		int i = 0;
-		instancia = list_get(instancias,i);
-		while(!(*instancia).estaDisponible){
-			i++;
+		int disponibilidad = 0;
+		while(!disponibilidad && instancia != NULL){
 			instancia = list_get(instancias,i);
+			verificarConexion(instancia);
+			disponibilidad = (*instancia).estaDisponible;
+			i++;
 		}
 		return list_remove(instancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
 	}

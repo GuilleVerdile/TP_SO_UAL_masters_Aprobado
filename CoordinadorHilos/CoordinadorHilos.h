@@ -29,7 +29,7 @@ enum algoritmos {EL, KE , LSU}; //PARA LOS ALGORITMOS DE DISTRIBUCION
 struct Instancia{
 	int estaDisponible; //ESTE VALOR DEFINE SI SE SIGUE MANTENIENDO UNA CONEXION CON EL SERVIDOR
 	char* nombreInstancia; //ME VA SERVIR COMO CLAVE PARA LA RECONEXION
-	int socket; //EL SOCKET VARIA CON LAS RECONEXIONES
+	int socketInstancia; //EL SOCKET VARIA CON LAS RECONEXIONES
 	char** clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int cantEntradasDisponibles; //PARA EL LSU
 }typedef instancia;
