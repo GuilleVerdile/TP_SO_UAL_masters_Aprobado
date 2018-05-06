@@ -16,6 +16,7 @@ esa instancia se le va asignar el siguiente formato:
 Cuando una instancia requiere una reconexion al servidor, este lo que va hacer es verificar que esa instancia, a traves de su "nombreInstancia", se encuentre en la lista y que disponibilidad sea = 0, si es asi el coordinador le envia una "r" a la instancia avisandole que este ya tuvo una conexion
 con ella. La instancia tiene en su carpeta un archivo que tiene todas las instrucciones ejecutadas antes de la desconexion, por lo tanto lo que va hacer es realizar todas esas instrucciones para volver a su estado anterior.
 En varios momentos de la ejecucion se va realizar una verificacion de conexion con la instancia, se le envia un "v".
+En caso de que no sea una reconexion el Coordinador le envia "c" a la instancia.
 
 Conexion de coordinador a ESI:
 Ante una primera conexion, el esi le envia "e" al Coordinador para avisarle que el cliente que llego es un esi. El esi le envia si id que lo identifica y una sentencia, el coordinador lo va analizar, en caso de un GET, se va verificar que la clave no se encuentre bloqueada y
