@@ -52,20 +52,16 @@ int main(){
 			pthread_join(idHilo,NULL);//No vamos a usar esta implementacion pero se usa para testear
 		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
 			log_info(logger,"El cliente es INSTANCIA");
-			t_config *config=config_create(pathCoordinador);
-			char* buff=config_get_string_value(config, "CantidadEntradas");
-			string_append(&buff,"z");
-			string_append(&buff,config_get_string_value(config, "TamagnoEntradas"));
-			config_destroy(config);
-			enviarCantBytes(nuevoCliente,buff);
-			send(nuevoCliente,buff,string_length(buff)+1,0); //Le envio la cantidad de entradas y tamagno, tiene un z en el medio para separarlas!
-			free(buff);
-			int tam = obtenerTamDelSigBuffer(nuevoCliente,NULL);
-			buff = malloc(tam);
+			enviarDatosInstancia(nuevoCliente,"CantidadEntradas"); //PRIMERO LE ENVIO LA CANTIDAD DE ENTRADAS
+			enviarDatosInstancia(nuevoCliente,"TamagnoEntradas"); //DESPUES LE ENVIO EL TAMAGNO DE ESAS ENTRADAS
+			int tam = obtenerTamDelSigBuffer(nuevoCliente);
+			char* buff = malloc(tam);
+			log_info(logger,"El tam del buffer es %d",tam);
 			recv(nuevoCliente,buff,tam,0);
+			log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
 			instancia* instanciaNueva = crearInstancia(nuevoCliente,buff);
 			free(buff);
-			if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!
+			if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
 				algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
 			}
 		}
@@ -76,6 +72,15 @@ int main(){
 	}
 	return 0;
 }
+
+void enviarDatosInstancia(int sockInstancia, char* tipo){
+	t_config *config=config_create(pathCoordinador);
+	char* buff=config_get_string_value(config, tipo);
+	enviarCantBytes(sockInstancia,buff);
+	send(sockInstancia,buff,string_length(buff)+1,0);
+	config_destroy(config); //EL CONFIG DESTROY HACE FREE DEL BUFF!
+}
+
 
 instancia* estaBloqueada(char* clave){
 	int bloqueada = 0;
@@ -229,6 +234,7 @@ instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 		(*instanciaNueva).socketInstancia = sockInstancia;
 		(*instanciaNueva).estaDisponible = 1;
 		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
+		log_info(logger,"Es una reconexion de la instancia %s", nombreInstancia);
 		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
 	}
 	instanciaNueva = malloc(sizeof(instancia));
@@ -262,7 +268,7 @@ void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nomb
 	config_destroy(config);
 	(*instanciaNueva).clavesBloqueadas = NULL;
 	(*instanciaNueva).estaDisponible = 1;
-	(*instanciaNueva).nombreInstancia = malloc(strlen(nombreInstancia)+1);
+	(*instanciaNueva).nombreInstancia = malloc(string_length(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
 	(*instanciaNueva).socketInstancia = sockInstancia;
 }

@@ -12,7 +12,6 @@ const char* INSTANCIA = "i";
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 const char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
-
 //Los pongo en escritorio para que no tengamos problemas al commitear
 const char *logCoordinador="/home/utnso/Escritorio/Coordinador.log";
 const char *logPlanificador="/home/utnso/Escritorio/Planificador.log";
@@ -69,7 +68,6 @@ int crearConexionServidor(char*path){//Retorna el sock del Servidor
 }
 
 
-//1024
 int transformarNumero(char *a,int start){
 	int tam=string_length(a);
 	int resultado=0;
@@ -102,16 +100,13 @@ void deserializacion(char* texto, t_esi_operacion* paquete){
 
 }
 
-int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
+int obtenerTamDelSigBuffer(int socketConMsg){
 	int recvValor;
 	char *total= string_new();
 	char *buff=malloc(5);
 	char *aux = NULL;
 	while(1){
 		recvValor = recv(socketConMsg, buff, 5, 0);
-		if(socketInstancia != NULL){
-			send(socketInstancia,buff,5,0);
-		}
 		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
 			free(total);
 			free(buff);
@@ -134,7 +129,7 @@ int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
 }
 
 int recibir(int socket, t_esi_operacion* paquete){
-	int tot = obtenerTamDelSigBuffer(socket,NULL);
+	int tot = obtenerTamDelSigBuffer(socket);
 	if(tot < 1){
 		return tot;
 	}
@@ -188,24 +183,25 @@ void serealizarPaquete(t_esi_operacion operacion,char** buff){
 	}
 }
 
-void enviar(int socket,t_esi_operacion operacion){
+void enviarCantBytes(int socket,char* buff){
 	int i =0;
 	char *enviar;
-	char *buff;
-	serealizarPaquete(operacion,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
-
-
-
 	while(i<string_length(cantBytes)){
 		enviar =string_substring(cantBytes, i, 4);
 		send(socket,enviar,5,0);
 		i=i+4;
 		free(enviar);
 	}
-	send(socket,buff,string_length(buff)+1,0);
 	free(cantBytes);
+}
+
+void enviar(int socket,t_esi_operacion operacion){
+	char *buff;
+	serealizarPaquete(operacion,&buff);
+	enviarCantBytes(socket,buff);
+	send(socket,buff,string_length(buff)+1,0);
 	free(buff);
 }
 

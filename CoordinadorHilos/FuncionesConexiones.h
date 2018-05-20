@@ -48,7 +48,7 @@ void enviarCantBytes(int socket,char* buff);
 int crearConexionServidor(char*path);
 int transformarNumero(char *a,int start);
 void deserializacion(char* texto, t_esi_operacion* paquete);
-obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia);
+obtenerTamDelSigBuffer(int socketConMsg);
 int recibir(int socket, t_esi_operacion* paquete);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);

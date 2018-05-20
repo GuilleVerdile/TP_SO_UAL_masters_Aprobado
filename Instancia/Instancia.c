@@ -1,5 +1,3 @@
-
-
 #include "Instancia.h";
 
 struct TE{
@@ -8,43 +6,44 @@ struct TE{
 	int tamValor; //Tamanio del valor asociado a la clave
 }typedef tablaEntradas;
 
+tablaEntradas *tablas =NULL;
+int cantEntradasDisponibles;
+int tamEntradas;
 
-
-int main(int argc, char* argv[]){
-	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
-	FILE* TE=fopen(argv[1],"r+b");
-	tablaEntradas tablaAux;
-	tablaEntradas *tablas = NULL;
-	int cantTablas = 0;
-	if(TE  == NULL){
-		log_error(logger,"No se puede leer tal archivo");
-		return 1;
-	}
-	while(fread(&tablaAux,sizeof(tablaEntradas),1,TE)){
-		cantTablas++;
-		tablas = realloc(tablas,cantTablas*sizeof(tablaEntradas));
-		tablas[cantTablas-1] = tablaAux;
-	}
-
+int main(){
+	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	int sockcoordinador;
-    if((sockcoordinador =crearConexionCliente(pathCoordinador)) == -1){
+    if((sockcoordinador =crearConexionCliente("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg")) == -1){
     	log_error(logger,"Error en la conexion con el coordinador");
     }
     log_info(logger,"Se realizo correctamente la conexion con el coordinador");
     enviarTipoDeCliente(sockcoordinador,INSTANCIA);
-    t_esi_operacion paquete;
-    recibir(sockcoordinador,&paquete);
-    printf("%s",paquete.argumentos.SET.valor);
-    recibir(sockcoordinador,&paquete);
-    printf("%s",paquete.argumentos.SET.valor);
+    inicializarTablaEntradas(sockcoordinador);
+    t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+    char *buff = config_get_string_value(config, "nombreInstancia"); //obtengo el id
+    enviarCantBytes(sockcoordinador,buff);
+    send(sockcoordinador,buff,string_length(buff) + 1,0); //ENVIO EL NOMBRE DE LA INSTANCIA
+    //NO HACE FALTA HACER FREE AL BUFF YA QUE EL CONFIG DESTROY LO HACE SOLO
+    config_destroy(config);
     log_destroy(logger);
     close(sockcoordinador);
-    free(tablas);
-    fclose(TE);
 	 return 0;
 }
 
-
+void inicializarTablaEntradas(int sockcoordinador){
+    int tam = obtenerTamDelSigBuffer(sockcoordinador);
+    char* buff = malloc(tam);
+    recv(sockcoordinador,buff, tam , 0);
+    cantEntradasDisponibles = transformarNumero(buff,0);
+    log_info(logger,"La cantidad de entradas es %d", cantEntradasDisponibles);
+    free(buff);
+    tam = obtenerTamDelSigBuffer(sockcoordinador);
+    buff = malloc(tam);
+    recv(sockcoordinador,buff, tam , 0);
+    tamEntradas = transformarNumero(buff,0);
+    log_info(logger,"El tamagno de entradas es %d", tamEntradas);
+    free(buff);
+}
 
 
 

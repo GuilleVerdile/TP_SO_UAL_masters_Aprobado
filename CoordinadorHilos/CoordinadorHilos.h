@@ -33,7 +33,7 @@ struct Instancia{
 	char** clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int cantEntradasDisponibles; //PARA EL LSU
 }typedef instancia;
-
+void enviarDatosInstancia(int sockInstancia, char* tipo);
 instancia* algoritmoDeDistribucion(instancia* instanciaNueva);
 instancia* equitativeLoad(instancia* instancia);
 void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nombreInstancia);

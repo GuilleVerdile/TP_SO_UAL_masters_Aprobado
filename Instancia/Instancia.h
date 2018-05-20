@@ -21,6 +21,5 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
-int instancia(char*path);
-
+void inicializarTablaEntradas(int sockcoordinador);
 #endif /* SOCKET_INSTANCIA_H_ */

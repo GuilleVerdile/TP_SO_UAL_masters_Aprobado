@@ -102,16 +102,13 @@ void deserializacion(char* texto, t_esi_operacion* paquete){
 
 }
 
-int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
+int obtenerTamDelSigBuffer(int socketConMsg){
 	int recvValor;
 	char *total= string_new();
 	char *buff=malloc(5);
 	char *aux = NULL;
 	while(1){
 		recvValor = recv(socketConMsg, buff, 5, 0);
-		if(socketInstancia != NULL){
-			send(socketInstancia,buff,5,0);
-		}
 		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
 			free(total);
 			free(buff);
@@ -134,7 +131,7 @@ int obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia){
 }
 
 int recibir(int socket, t_esi_operacion* paquete){
-	int tot = obtenerTamDelSigBuffer(socket,NULL);
+	int tot = obtenerTamDelSigBuffer(socket);
 	if(tot < 1){
 		return tot;
 	}
