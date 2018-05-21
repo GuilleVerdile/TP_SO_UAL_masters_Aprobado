@@ -76,8 +76,10 @@ void *ejecutarEsi(void *esi){
 		wait(procesoEnEjecucion);
 		while((*procesoEnEjecucion).estado==ejecucion){
 		send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
+		(*procesoEnEjecucion).rafagaRealActual++;
 		}
-
+		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
+		(*procesoEnEjecucion).rafagaRealActual=0;
 		sem_post(sem_finDeEjecucion);
 	}
 }
@@ -108,16 +110,19 @@ Proceso* fifo(){
 }
 void *estimar(void *proceso){
 	Proceso *proc=(Proceso *) proceso;
-	float aux;
+	float *aux=malloc(sizeof(float));
 	if(!(*proc).rafagaRealActual){
-		return (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+	}
+	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
+		(*aux)=(*proc).estimacionAnterior;
 	}
 	else
-		aux = alfaPlanificador*(*proc).rafagaRealAnterior -(1-alfaPlanificador)*(*proc).estimacionAnterior;
-	return aux;
+		(*aux) = alfaPlanificador*(*proc).rafagaRealAnterior -(1-alfaPlanificador)*(*proc).estimacionAnterior;
+	return (void*) aux;
 }
 bool comparar(void *a,void *b){
-	return (float) a>(float) b;
+	return (*(float*) a>*(float*) b);
 }
 Proceso *sjf(){
 	t_list *aux;
@@ -125,6 +130,7 @@ Proceso *sjf(){
 	aux =list_map(listos, &estimar);
 	list_sort(aux, &comparar);
 	proceso=list_get(aux,0);
+	list_destroy(aux);
 	return proceso;
 }
 /*void fifo(int i,char *buf){
@@ -312,17 +318,17 @@ int planificador()
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
 	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
-	char*algoritmo= (config_get_string_value(config, "AlgoritmoDePlanificador"))
+	char*algoritmo= (config_get_string_value(config, "AlgoritmoDePlanificador"));
 	config_destroy(config);
-	if(!strcomp(algoritmo,"fifo")){
+	if(!strcmp(algoritmo,"fifo")){
 		miAlgoritmo=&fifo;
 		flag_desalojo=0;
 	}
-	if(!strcomp(algoritmo,"SJF-CD")){
+	if(!strcmp(algoritmo,"SJF-CD")){
 			miAlgoritmo=&fifo;
 			flag_desalojo=1;
 		}
-	if(!strcomp(algoritmo,"SJF-SD")){
+	if(!strcmp(algoritmo,"SJF-SD")){
 			miAlgoritmo=&fifo;
 			flag_desalojo=0;
 		}
