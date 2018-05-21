@@ -10,12 +10,18 @@ int idGlobal=0;// esto es por ahora
 t_list *procesos;
 t_list *listos;
 t_list *terminados;
+sem_t *sem_procesosListos;
+sem_t *sem_procesoEnEjecucion;
+sem_t *sem_finDeEjecucion;
+int flag_desalojo;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
 typedef struct{
 	int idProceso;
 	int socketProceso;
 	Estado estado;
 }Proceso;
+pthread_mutex_t planiCorto;
+Proceso *procesoEnEjecucion;
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -48,25 +54,42 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
+	sem_wait(sem_procesosListos);
+	sem_wait(sem_finDeEjecucion);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
 	(*proceso).estado=ejecucion;
+	procesoEnEjecucion=proceso;
+	sem_post(procesoEnEjecucion);
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
-		while((*proceso).estado==ejecucion){
-			send((*proceso).socketProceso,"1",2,0);// este send va a perimitir al hilo ejecturar uan sententencia
-		}
+
 	}
 }
-void *planificadorLargoPlazo(void *id){
+void *ejecutarEsi(void *esi){
+	while(1){
+		wait(procesoEnEjecucion);
+		while((*procesoEnEjecucion).estado==ejecucion){
+		send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
+		}
+
+		sem_post(sem_finDeEjecucion);
+	}
+}
+void planificadorLargoPlazo(int id){
+	if(flag_desalojo&&procesoEnEjecucion!=NULL&&(*procesoEnEjecucion).estado==ejecucion){
+		(*procesoEnEjecucion).estado=listo;
+		list_add(listos, procesoEnEjecucion);
+	}
 	Proceso *proceso=malloc(sizeof(Proceso));
 	(*proceso).idProceso=idGlobal;
-	(*proceso).socketProceso=(int) id;
+	(*proceso).socketProceso=id;
 	(*proceso).estado=listo;
 	 list_add(listos, proceso);
 	 list_add(procesos, proceso);
 	 idGlobal++;
+	 sem_post(sem_procesosListos);
 	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
 }
 //ALGORITMOS RETORNAN DE ACUERDO A SU CRITERIO EL PROCESO QUE DEBE EJECTURA DE LA COLA DE LISTO
@@ -103,7 +126,12 @@ Proceso* fifo(){
 }*/
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)()){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 pthread_t planificadrCortoPlazo;
-	 pthread_create(&planificador,NULL,planificadorCortoPlazo,(void *) algoritmo);
+	 pthread_t ejecutarEsi;
+	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
+	 pthread_create(&ejecutarEsi,NULL,ejecutarEsi,NULL);
+	 sem_init(sem_procesosListos,0,0);
+	 sem_init(sem_procesoEnEjecucion,0,0);
+	 sem_init(sem_finDeEjecucion,0,1);
 	char* path;
 	 int listener;
 	 char* buf;
@@ -181,7 +209,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
                                      fdmax = nuevoCliente;
                                  }
-                                 planificadorLargoPlazo(i);
+                                 planificadorLargoPlazo(nuevoCliente);
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
