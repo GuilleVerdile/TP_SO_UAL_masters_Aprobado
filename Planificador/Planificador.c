@@ -14,11 +14,15 @@ sem_t *sem_procesosListos;
 sem_t *sem_procesoEnEjecucion;
 sem_t *sem_finDeEjecucion;
 int flag_desalojo;
+float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
 typedef struct{
 	int idProceso;
 	int socketProceso;
 	Estado estado;
+	float estimacionAnterior;
+	float rafagaRealActual;
+	float rafagaRealAnterior;
 }Proceso;
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
@@ -77,7 +81,7 @@ void *ejecutarEsi(void *esi){
 		sem_post(sem_finDeEjecucion);
 	}
 }
-void planificadorLargoPlazo(int id){
+void planificadorLargoPlazo(int id,int estimacionInicial){
 	if(flag_desalojo&&procesoEnEjecucion!=NULL&&(*procesoEnEjecucion).estado==ejecucion){
 		(*procesoEnEjecucion).estado=listo;
 		list_add(listos, procesoEnEjecucion);
@@ -86,6 +90,9 @@ void planificadorLargoPlazo(int id){
 	(*proceso).idProceso=idGlobal;
 	(*proceso).socketProceso=id;
 	(*proceso).estado=listo;
+	(*proceso).estimacionAnterior=(float)estimacionInicial;
+	(*proceso).rafagaRealActual=0;
+	(*proceso).rafagaRealAnterior=0;
 	 list_add(listos, proceso);
 	 list_add(procesos, proceso);
 	 idGlobal++;
@@ -97,6 +104,27 @@ void planificadorLargoPlazo(int id){
 Proceso* fifo(){
 	Proceso *proceso=list_get(listos,0);
 	list_remove(listos,0);
+	return proceso;
+}
+void *estimar(void *proceso){
+	Proceso *proc=(Proceso *) proceso;
+	float aux;
+	if(!(*proc).rafagaRealActual){
+		return (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+	}
+	else
+		aux = alfaPlanificador*(*proc).rafagaRealAnterior -(1-alfaPlanificador)*(*proc).estimacionAnterior;
+	return aux;
+}
+bool comparar(void *a,void *b){
+	return (float) a>(float) b;
+}
+Proceso *sjf(){
+	t_list *aux;
+	Proceso *proceso;
+	aux =list_map(listos, &estimar);
+	list_sort(aux, &comparar);
+	proceso=list_get(aux,0);
 	return proceso;
 }
 /*void fifo(int i,char *buf){
@@ -124,7 +152,7 @@ Proceso* fifo(){
                             	  log_info(logger, "Se le nego al esi parsear");
                               }
 }*/
-void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)()){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 pthread_t planificadrCortoPlazo;
 	 pthread_t ejecutarEsi;
 	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
@@ -209,7 +237,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
                                      fdmax = nuevoCliente;
                                  }
-                                 planificadorLargoPlazo(nuevoCliente);
+                                 planificadorLargoPlazo(nuevoCliente,estimacionInicial);
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
@@ -283,13 +311,22 @@ int planificador()
     {
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
-	switch (config_get_int_value(config, "AlgoritmoDePlanificador")){
+	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
+	char*algoritmo= (config_get_string_value(config, "AlgoritmoDePlanificador"))
 	config_destroy(config);
-	case 0: // este es el fifo
+	if(!strcomp(algoritmo,"fifo")){
 		miAlgoritmo=&fifo;
-		break;
+		flag_desalojo=0;
 	}
-		crearSelect(0,pathPlanificador,pathCoordinador,miAlgoritmo);
+	if(!strcomp(algoritmo,"SJF-CD")){
+			miAlgoritmo=&fifo;
+			flag_desalojo=1;
+		}
+	if(!strcomp(algoritmo,"SJF-SD")){
+			miAlgoritmo=&fifo;
+			flag_desalojo=0;
+		}
+		crearSelect(0,pathPlanificador,pathCoordinador,miAlgoritmo,estimacionInicial);
         return 0;
     }
 int main(){
