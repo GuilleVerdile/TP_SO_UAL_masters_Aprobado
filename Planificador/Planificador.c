@@ -5,13 +5,81 @@
  *      Author: utnso
  */
 #include "Planificador.h"
-
+int idBuscar;// esto es por ahora
+int idGlobal=0;// esto es por ahora
+t_list *procesos;
 t_list *listos;
-t_list *ejecucion;
 t_list *terminados;
-void fifo(int i,char *buf){
+typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
+typedef struct{
+	int idProceso;
+	int socketProceso;
+	Estado estado;
+}Proceso;
+// tengo 2 funciones bastantes parecidas ver como poder refactorizar
+bool procesoEsIdABuscar(void * proceso){
+	Proceso *proc=(Proceso*) proceso;
+	if((*proc).idProceso==idBuscar)
+		return true;
+	else
+		return false;
+}
+bool procesoEsIdABuscarSocket(void * proceso){
+	Proceso *proc=(Proceso*) proceso;
+	if((*proc).socketProceso==idBuscar)
+		return true;
+	else
+		return false;
+}
+void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda normal, otra cosa si es por socket
+	//si voy a usar esta variable global falta mutex
+		idBuscar= id;
+		bool(*criterio)(void*);
+
+	if(porSocket)
+		criterio=&procesoEsIdABuscarSocket;
+	else
+		criterio=&procesoEsIdABuscar;
+	Proceso *proceso =(Proceso *) list_find(procesos, criterio);
+	(*proceso).estado=estado;
+}
+void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
+	Proceso*(*algoritmo)();
+	algoritmo=(Proceso*(*)()) miAlgoritmo;
+	// se tiene que ejecutar todo el tiempo en un hilo aparte
+	while(1){
+	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
+	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
+	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
+	proceso = (*algoritmo)();
+	(*proceso).estado=ejecucion;
+	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
+		while((*proceso).estado==ejecucion){
+			send((*proceso).socketProceso,"1",2,0);// este send va a perimitir al hilo ejecturar uan sententencia
+		}
+	}
+}
+void *planificadorLargoPlazo(void *id){
+	Proceso *proceso=malloc(sizeof(Proceso));
+	(*proceso).idProceso=idGlobal;
+	(*proceso).socketProceso=(int) id;
+	(*proceso).estado=listo;
+	 list_add(listos, proceso);
+	 list_add(procesos, proceso);
+	 idGlobal++;
+	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
+}
+//ALGORITMOS RETORNAN DE ACUERDO A SU CRITERIO EL PROCESO QUE DEBE EJECTURA DE LA COLA DE LISTO
+// y elimina este proceso de la cola de listos
+Proceso* fifo(){
+	Proceso *proceso=list_get(listos,0);
+	list_remove(listos,0);
+	return proceso;
+}
+/*void fifo(int i,char *buf){
     int *primerElemento=list_get(listos,0);
     if(*primerElemento==i){
+
     int *aux = malloc(sizeof(int));
     *aux=i;
     send(i,"1",2,0);
@@ -26,12 +94,13 @@ void fifo(int i,char *buf){
      list_add(terminados,aux);
      log_info(logger, "se termino el esi");
                            	   // no se si usar este JIJOOOO
+
       }
                               else{
                             	  send(i,"0",2,0);
                             	  log_info(logger, "Se le nego al esi parsear");
                               }
-}
+}*/
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,void(*miAlgoritmo)(int,char*)){// en el caso del coordinador el pathYoCliente lo pasa como NULL
 	 char* path;
 	 int listener;
