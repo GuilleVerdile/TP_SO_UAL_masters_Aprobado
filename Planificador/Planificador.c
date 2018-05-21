@@ -101,8 +101,10 @@ Proceso* fifo(){
                             	  log_info(logger, "Se le nego al esi parsear");
                               }
 }*/
-void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,void(*miAlgoritmo)(int,char*)){// en el caso del coordinador el pathYoCliente lo pasa como NULL
-	 char* path;
+void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)()){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+	 pthread_t planificadrCortoPlazo;
+	 pthread_create(&planificador,NULL,planificadorCortoPlazo,(void *) algoritmo);
+	char* path;
 	 int listener;
 	 char* buf;
 	 if(soyCoordinador)
@@ -155,7 +157,6 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,voi
      else
          	fdmax = listener;
      listos=list_create();
-     ejecucion=list_create();
      terminados=list_create();
      for(;;) {
                  read_fds = master; // cópialo
@@ -180,9 +181,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,voi
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
                                      fdmax = nuevoCliente;
                                  }
-                                 int *aux = malloc(sizeof(int));
-                                 *aux=nuevoCliente;
-                                 list_add(listos, aux);
+                                 planificadorLargoPlazo(i);
                                  printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
                                  fflush(stdout);
@@ -230,11 +229,19 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,voi
                                  close(i); // cierra socket
                                  FD_CLR(i, &master); // eliminar del conjunto maestro
                              } else {
-                            	log_info(logger, "Conexion entrante del cliente");
+                            	 log_info(logger, "Conexion entrante del cliente");
                                printf("%s\n",buf);
+                               //aca hago un case de los posibles send de un esi, que son
+                               //1.- termino ejecucion el esi y nos esta informando
+                               int caso = buf[0]-48;
+                               Estado estado;
+                               switch(caso){
+                               case 1:
+                            	   estado=finalizado;
+                            	   actualizarEstado(i,finalizado,1);// puse 1 en el ultimo parametro por que la actualizacion la tengo que hacer por socket
+                            	   break;
+                               }
                                fflush(stdout);
-                               //aca va el algoritmo
-                               (*miAlgoritmo)(i,buf);
                              }
                              free(buf);
                          }
