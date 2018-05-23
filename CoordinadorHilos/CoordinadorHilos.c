@@ -105,6 +105,7 @@ void verificarConexion(instancia* instancia){
 	send((*instancia).socketInstancia, "v", 2,0);
 	char* buff = malloc(2);
 	int recvValor = recv((*instancia).socketInstancia,buff,2,0);
+	free(buff);
 	if(recvValor == 0){
 		log_info(logger,"Se desconecto la instancia %s", (*instancia).nombreInstancia);
 		close((*instancia).socketInstancia);
@@ -239,7 +240,6 @@ instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 	}
 	instanciaNueva = malloc(sizeof(instancia));
 	inicializarInstancia(instanciaNueva,sockInstancia,nombreInstancia); //Inicializamos la instancia.
-	send(sockInstancia, "c", 2,0); //SE LE ENVIA UN C DE QUE ES UNA PRIMERA CONEXION.
 	return instanciaNueva;
 }
 
