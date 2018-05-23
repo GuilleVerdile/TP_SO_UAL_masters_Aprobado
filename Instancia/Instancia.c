@@ -1,7 +1,7 @@
 #include "Instancia.h";
 
 struct TE{
-	char clave[40]; //Clave xd
+	char clave[40]; //Clave
 	char** entradas; //Direcciones de memoria de las entradas de la clave
 	int tamValor; //Tamanio del valor asociado a la clave
 }typedef tablaEntradas;
@@ -28,6 +28,8 @@ int main(){
     int recvValor;
     buff = malloc(2);
     t_esi_operacion paquete;
+	pthread_t id;
+	pthread_create(&id,NULL,hacerDump,NULL);
     while((recvValor =recv(sockcoordinador,buff,2,0))>0){
     	switch(buff[0]){
     		case 'r': //RECONEXION LE PIDO AL COORDINADOR CUALES FUERON LAS CLAVES BLOQUEADAS EN ESTA INSTANCIA
@@ -70,6 +72,38 @@ void inicializarTablaEntradas(int sockcoordinador){
     }
     free(buff);
 }
+void* hacerDump(){
+	while(1){
+		t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+		sleep(config_get_int_value(config,"dump"));
+		almacenarInformacion(config);
+		config_destroy(config);
+	}
+}
+
+void almacenarInformacion(t_config* config){
+	int i = 0;
+	if(tablas != NULL){
+		while((&tablas)[i] != NULL && tablas[i].entradas !=NULL){
+			char* path = config_get_string_value(config,"PuntoMontaje");
+			string_append(&path,tablas[i].clave);
+			char* valor = string_new();
+			int j =0;
+			while(tablas[i].entradas[j] != NULL){
+				string_append(&valor, tablas[i].entradas[j]);
+				j++;
+			}
+			int desc = open(path, O_RDWR | O_CREAT | O_TRUNC, 0777);
+			ftruncate(desc,strlen(valor));
+			char* map = mmap(NULL,strlen(valor),PROT_WRITE,MAP_SHARED,desc,0);
+			memcpy(map,valor,strlen(valor));
+			munmap(map,strlen(valor));
+			close(desc);
+			free(valor);
+			i++;
+		}
+	}
+}
 
 void manejarPaquete(t_esi_operacion paquete){
 	switch(paquete.keyword){
@@ -105,6 +139,13 @@ void meterClaveALaTabla(char clave[40]){
 		(&tablas)[i+1] = NULL;
 	}
 	tablas[i].entradas = NULL;
+	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+	char* path =config_get_string_value(config,"PuntoMontaje");
+	string_append(&path,clave);
+	int desc = open(path, O_RDWR | O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
+	close(desc);
+	config_destroy(config);
+
 }
 
 void meterValorParTalClave(char clave[40], char*valor){
@@ -135,8 +176,8 @@ void meterValorParTalClave(char clave[40], char*valor){
 		k++;
 		j++;
 	}
+
 	if(cantEntradasDisponibles == 0 && valorAux>0){
 		//ALGORITMO DE REEMPLAZO
 	}
-	//TAL VEZ TENGO QUE TRABAJAR CON HILOS ACA POR EL DUMP
 }

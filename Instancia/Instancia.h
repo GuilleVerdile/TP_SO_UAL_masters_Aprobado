@@ -25,4 +25,6 @@ void inicializarTablaEntradas(int sockcoordinador);
 void manejarPaquete(t_esi_operacion paquete);
 void meterClaveALaTabla(char* clave);
 void meterValorParTalClave(char clave[40], char*valor);
+void hacerDump();
+void almacenarInformacion(t_config* config);
 #endif /* SOCKET_INSTANCIA_H_ */

@@ -19,6 +19,7 @@
 #include <commons/log.h>
 #include <commons/config.h>
 #include <parsi/parser.h>
+#include <pthread.h>
 
 typedef struct{
 	int a;
