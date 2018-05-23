@@ -39,7 +39,7 @@ int main(){
     				free(buff);
     				exit(-1);
     			}
-    			manejarPaquete(paquete);
+    			manejarPaquete(paquete,sockcoordinador);
     			break;
     		case 'v':
     			send(sockcoordinador,"v",2,1); //LE DIGO AL COORDINADOR QUE SIGO VIVO
@@ -105,10 +105,19 @@ void almacenarInformacion(t_config* config){
 	}
 }
 
-void manejarPaquete(t_esi_operacion paquete){
+void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
+	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
+			if(send(sockcoordinador,"Operacion GET realizada con exito\n",1024,0)==-1)
+			{
+				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
+			}
+			else
+			{
+				log_info(logger, "Mensaje enviado correctamente");
+			}
 			break;
 		case SET:
 			if(cantEntradasDisponibles < 0){
@@ -117,10 +126,19 @@ void manejarPaquete(t_esi_operacion paquete){
 			else{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
 			}
+			if(send(sockcoordinador,"Operacion SET realizada con exito\n",1024,0)==-1)
+			{
+				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
+			}
+			else
+			{
+				log_info(logger, "Mensaje enviado correctamente");
+			}
 			break;
 		case STORE:
 			break;
 	}
+	log_destroy(logger);
 }
 
 void meterClaveALaTabla(char clave[40]){
