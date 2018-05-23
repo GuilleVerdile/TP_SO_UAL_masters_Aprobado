@@ -10,6 +10,7 @@ tablaEntradas *tablas =NULL;
 int cantEntradasDisponibles;
 int tamEntradas;
 char** entradas;
+char** punteroReemplazo = entradas[0];
 
 int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
@@ -120,8 +121,15 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			}
 			break;
 		case SET:
-			if(cantEntradasDisponibles < 0){
-					//ALGORITMO DE REEMPLAZO
+			if(cantEntradasDisponibles < 0)
+			{
+				//ALGORITMO DE REEMPLAZO
+				while(&tablas[i] !=NULL)
+				{
+					i++;
+				}
+				tablas = realloc(tablas,sizeof(tablaEntradas)*(i+1));
+				algoritmoCircular(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,i,0,punteroReemplazo,string_length(paquete.argumentos.SET.valor) + 1) ;	//No estoy seguro del tercer parametro todavia	
 			}
 			else{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
@@ -197,5 +205,33 @@ void meterValorParTalClave(char clave[40], char*valor){
 
 	if(cantEntradasDisponibles == 0 && valorAux>0){
 		//ALGORITMO DE REEMPLAZO
+		algoritmoCircular(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,i,j,k,valorAux) ;	
 	}
 }
+
+void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicionEntradaDeTabla,int posicionEnEntradas, int cuantoFaltaGuardar) 
+{
+	while(cuantoFaltaGuardar>0)
+	{
+		entradas[posicionEnEntradas] = malloc(tamEntradas); //LE ASIGNO MEMORIA A LA ENTRADA NULL
+		strcpy(entradas[posicionEnEntradas],string_substring(valor,tamEntradas*posicionEntradaDeTabla,tamEntradas*(posicionEntradaDeTabla+1))); //LE ASIGNO EL VALOR
+		if(tablas[posicionTablaE].entradas ==NULL){
+			tablas[posicionTablaE].entradas = malloc(sizeof(char*));
+			tablas[posicionTablaE].entradas[0]=NULL;
+		}
+		if(tablas[posicionTablaE].entradas[posicionEntradaDeTabla] == NULL){
+			tablas[posicionTablaE].entradas[posicionEntradaDeTabla] = entradas[posicionEnEntradas]; //LE ASIGNO LA DIRECCION DE MEMORIA DE LA ENTRADA
+			tablas[posicionTablaE].entradas[posicionEntradaDeTabla+1] = NULL;
+		}
+		cantEntradasDisponibles--; //LA CANTIDAD DE ENTRADAS SE RESTAN POR CADA ENTRADA USADA
+		cuantoFaltaGuardar-= tamEntradas; //LE RESTO AL VALOR POR LA CANTIDAD DE ENTRADAS QUE CONSUMIO
+		posicionEnEntradas++;
+		posicionEntradaDeTabla++;
+		punteroReemplazo = entradas[posicionEnEntradas] ;	//El punteroReemplazo se va corriendo
+		if((&punteroReemplazo) == NULL)
+		{
+			punteroReemplazo = entradas[0];		//apunto al principio de las entradas
+		}
+	}	
+}
+
