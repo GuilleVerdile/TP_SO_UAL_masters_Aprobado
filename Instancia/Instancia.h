@@ -22,7 +22,7 @@
 #include <sys/mman.h>
 #include <string.h>
 void inicializarTablaEntradas(int sockcoordinador);
-void manejarPaquete(t_esi_operacion paquete);
+void manejarPaquete(t_esi_operacion paquete,int sockcoordinador);
 void meterClaveALaTabla(char* clave);
 void meterValorParTalClave(char clave[40], char*valor);
 void hacerDump();
