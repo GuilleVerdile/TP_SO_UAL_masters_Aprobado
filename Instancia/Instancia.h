@@ -27,4 +27,5 @@ void meterClaveALaTabla(char* clave);
 void meterValorParTalClave(char clave[40], char*valor);
 void hacerDump();
 void almacenarInformacion(t_config* config);
+void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicionEntradaDeTabla,int posicionEnEntradas, int cuantoFaltaGuardar) ;
 #endif /* SOCKET_INSTANCIA_H_ */
