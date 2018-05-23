@@ -7,13 +7,16 @@
 #include "Planificador.h"
 int idBuscar;// esto es por ahora
 int idGlobal=0;// esto es por ahora
+char *claveABuscar;
 t_list *procesos;
 t_list *listos;
 t_list *terminados;
+t_list *bloqueados;
 sem_t *sem_procesosListos;
 sem_t *sem_procesoEnEjecucion;
 sem_t *sem_finDeEjecucion;
 int flag_desalojo;
+int tiempo_de_ejecucion;
 float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
 typedef struct{
@@ -24,6 +27,10 @@ typedef struct{
 	float rafagaRealActual;
 	float rafagaRealAnterior;
 }Proceso;
+typedef struct{
+	char *clave;
+	t_list *bloqueados;
+} Bloqueo;
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
@@ -108,8 +115,7 @@ Proceso* fifo(){
 	list_remove(listos,0);
 	return proceso;
 }
-void *estimar(void *proceso){
-	Proceso *proc=(Proceso *) proceso;
+float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
 	if(!(*proc).rafagaRealActual){
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
@@ -121,18 +127,23 @@ void *estimar(void *proceso){
 		(*aux) = alfaPlanificador*(*proc).rafagaRealAnterior -(1-alfaPlanificador)*(*proc).estimacionAnterior;
 	return (void*) aux;
 }
-bool comparar(void *a,void *b){
-	return (*(float*) a>*(float*) b);
+bool compararSJF(void *a,void *b){
+	Proceso *primero=(Proceso *) a;
+	Proceso *segundo=(Proceso *) b;
+	return (*(estimarSJF(a)))>(*(estimarSJF(b)));
 }
-Proceso *sjf(){
-	t_list *aux;
+Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
+	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;
-	aux =list_map(listos, &estimar);
-	list_sort(aux, &comparar);
+	list_sort(aux,&comparar);
 	proceso=list_get(aux,0);
 	list_destroy(aux);
 	return proceso;
 }
+Proceso *sjf(){
+	return obtenerSegunCriterio(&compararSJF);
+}
+
 /*void fifo(int i,char *buf){
     int *primerElemento=list_get(listos,0);
     if(*primerElemento==i){
@@ -158,7 +169,36 @@ Proceso *sjf(){
                             	  log_info(logger, "Se le nego al esi parsear");
                               }
 }*/
+bool esIgualAClaveABuscar(void *a){
+	Bloqueo *b=(Bloqueo*) a;
+	if(!strcmp((*b).clave,claveABuscar)){
+		return true;
+	}
+	else
+		return false;
+}
+Bloqueo *buscarClave(){
+	return list_find(bloqueados,&esIgualAClaveABuscar);
+}
+void bloquear(Proceso* proceso,char *valor){
+	claveABuscar=valor;
+	Bloqueo *block=buscarClave();
+	if(block!=NULL){
+		list_add((*block).bloqueados,proceso);
+	}
+	else{
+		block=malloc(sizeof(Bloqueo));
+		(*block).clave=valor;
+		(*block).bloqueados=list_create();
+		list_add((*block).bloqueados,proceso);
+	}
+}
+
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+     procesos=list_create();
+	 listos=list_create();
+     terminados=list_create();
+     bloqueados=list_create();
 	 pthread_t planificadrCortoPlazo;
 	 pthread_t ejecutarEsi;
 	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
@@ -218,8 +258,6 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
     	 	fdmax=casoDiscriminador;
      else
          	fdmax = listener;
-     listos=list_create();
-     terminados=list_create();
      for(;;) {
                  read_fds = master; // cópialo
                  if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
