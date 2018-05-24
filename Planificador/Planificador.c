@@ -23,6 +23,7 @@ typedef struct{
 	int idProceso;
 	int socketProceso;
 	Estado estado;
+	int tiempo_que_entro;
 	float estimacionAnterior;
 	float rafagaRealActual;
 	float rafagaRealAnterior;
@@ -101,6 +102,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).estimacionAnterior=(float)estimacionInicial;
 	(*proceso).rafagaRealActual=0;
 	(*proceso).rafagaRealAnterior=0;
+	(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
 	 list_add(listos, proceso);
 	 list_add(procesos, proceso);
 	 idGlobal++;
@@ -131,6 +133,18 @@ bool compararSJF(void *a,void *b){
 	Proceso *segundo=(Proceso *) b;
 	return (*(estimarSJF(a)))>(*(estimarSJF(b)));
 }
+float* compararHRRN(Proceso *proc){
+	float *s;
+	float *w=malloc(sizeof(float));
+	s=estimarSJF(proc);
+	(*w)=tiempo_de_ejecucion-(*proc).tiempo_que_entro;
+	float *aux=malloc(sizeof(float));
+	(*aux)=(*w)/(*s);
+	free(s);
+	free(w);
+	return aux;
+}
+
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;
@@ -142,7 +156,9 @@ Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 Proceso *sjf(){
 	return obtenerSegunCriterio(&compararSJF);
 }
-
+Proceso *hrrn(){
+	return obtenerSegunCriterio(&compararHRRN);
+}
 /*void fifo(int i,char *buf){
     int *primerElemento=list_get(listos,0);
     if(*primerElemento==i){
@@ -187,14 +203,6 @@ bool esIgualAClaveABuscar(void *a){
 	else
 		return false;
 }
-bool esIgualAClaveABuscar(void *a){
-	Bloqueo *b=(Bloqueo*) a;
-	if(!strcmp((*b).clave,claveABuscar)){
-		return true;
-	}
-	else
-		return false;
-}
 Bloqueo *buscarClave(){
 	return list_find(bloqueados,&esIgualAClaveABuscar);
 }
@@ -211,14 +219,15 @@ Proceso *buscarProcesoPorId(int id){
 void eliminarDeLista(int id){
 	//aca mutex
 	Proceso *proceso =buscarProcesoPorId(id);
-	t_list t;
+	t_list *t;
+	Bloqueo *a;
 	switch((*proceso).estado){
 	case listo:
 			t=listos;
 			list_remove_by_condition(t,&procesoEsIdABuscar);
 			break;
 	case bloqueado:
-			Bloqueo *a=buscarBloqueoPorProceso(id);
+			a=buscarBloqueoPorProceso(id);
 			t=(*a).bloqueados;
 			list_remove_by_condition(t,&procesoEsIdABuscar);
 			break;
