@@ -83,7 +83,6 @@ void *ejecutarEsi(void *esi){
 		wait(procesoEnEjecucion);
 		while((*procesoEnEjecucion).estado==ejecucion){
 		send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
-		(*procesoEnEjecucion).rafagaRealActual++;
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
@@ -169,6 +168,25 @@ Proceso *sjf(){
                             	  log_info(logger, "Se le nego al esi parsear");
                               }
 }*/
+//Programas de Busqueda
+
+//
+bool contieneAlProceso(void *a){
+	Bloqueo *b=(Bloqueo*) a;
+	Proceso *proceso=list_find((*b).bloqueados,&procesoEsIdABuscar);
+	if(!proceso)
+		return true;
+	else
+		return false;
+}
+bool esIgualAClaveABuscar(void *a){
+	Bloqueo *b=(Bloqueo*) a;
+	if(!strcmp((*b).clave,claveABuscar)){
+		return true;
+	}
+	else
+		return false;
+}
 bool esIgualAClaveABuscar(void *a){
 	Bloqueo *b=(Bloqueo*) a;
 	if(!strcmp((*b).clave,claveABuscar)){
@@ -180,9 +198,42 @@ bool esIgualAClaveABuscar(void *a){
 Bloqueo *buscarClave(){
 	return list_find(bloqueados,&esIgualAClaveABuscar);
 }
-void bloquear(Proceso* proceso,char *valor){
+//antes de esta funcion un mutex
+Bloqueo *buscarBloqueoPorProceso(int id){
+	idBuscar=id;
+	return list_find(bloqueados,&contieneAlProceso);
+}
+Proceso *buscarProcesoPorId(int id){
+	idBuscar=id;
+	return list_find(procesos,&procesoEsIdABuscar);
+}
+
+void eliminarDeLista(int id){
+	//aca mutex
+	Proceso *proceso =buscarProcesoPorId(id);
+	t_list t;
+	switch((*proceso).estado){
+	case listo:
+			t=listos;
+			list_remove_by_condition(t,&procesoEsIdABuscar);
+			break;
+	case bloqueado:
+			Bloqueo *a=buscarBloqueoPorProceso(id);
+			t=(*a).bloqueados;
+			list_remove_by_condition(t,&procesoEsIdABuscar);
+			break;
+	case ejecucion:
+			procesoEnEjecucion=NULL;
+			break;
+	}
+}
+// este lo uso cuando el coordinador me dice que esi bloquear
+
+void bloquear(int id,char *valor){
+	Proceso* proceso=buscarProcesoPorId(id);
 	claveABuscar=valor;
 	Bloqueo *block=buscarClave();
+	(*proceso).estado=bloqueado;
 	if(block!=NULL){
 		list_add((*block).bloqueados,proceso);
 	}
@@ -192,8 +243,14 @@ void bloquear(Proceso* proceso,char *valor){
 		(*block).bloqueados=list_create();
 		list_add((*block).bloqueados,proceso);
 	}
-}
+	//Con este send le aviso al proceso que fue bloqueado
+	send((*proceso).socketProceso,"2",2,0);
 
+}
+//este lo tengo que usar cuando el esi me dice que hace un store;
+void desbloquear(int id){
+	Proceso *proceso =buscarProcesoPorId(id);
+}
 void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesos=list_create();
 	 listos=list_create();
@@ -340,6 +397,10 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                             	   estado=finalizado;
                             	   actualizarEstado(i,finalizado,1);// puse 1 en el ultimo parametro por que la actualizacion la tengo que hacer por socket
                             	   break;
+                               case 2:
+                            	   tiempo_de_ejecucion++;
+                            	   (*procesoEnEjecucion).rafagaRealActual++;
+                                   break;
                                }
                                fflush(stdout);
                              }
