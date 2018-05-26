@@ -189,6 +189,7 @@ Proceso *hrrn(){
 //Programas de Busqueda
 
 //
+
 bool contieneAlProceso(void *a){
 	Bloqueo *b=(Bloqueo*) a;
 	Proceso *proceso=list_find((*b).bloqueados,&procesoEsIdABuscar);
@@ -305,6 +306,14 @@ void liberaClave(char *clave){
 			(*block).idProceso=-1;
 	}
 }
+char *verificarClave(Proceso *proceso,char *clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if((*block).idProceso==(*proceso).idProceso)
+		return "1";
+	else
+		return "0";
+}
 ///
 ///
 ///
@@ -410,8 +419,8 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
 
                          }
                          else if(i==casoDiscriminador){//aca trato al coordinador//Caso discriminador
-                        	 buf = malloc(1024);
-                        	 if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
+                        	 buf = malloc(2);
+                        	 if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
 
                         	                                 // error o conexión cerrada por el cliente
                         		 if (nbytes == 0) {
@@ -428,9 +437,26 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                         	 else{
 
                         		                         	log_info(logger, "Conexion entrante del discriminador");
-                        		                          	printf("%s\n",buf);
-                        		                          	fflush(stdout);
-                        		                          	free(buf);
+                        		                         	char *aux= malloc(2);
+                        		                         	strcpy(aux,buf);
+                        		                         	free(buf);
+                        		                         	int tam=obtenerTamDelSigBuffer(i);
+                        		                         	buf=malloc(tam);
+                        		                         	recv(i, buf, tam, 0);
+
+                        		                         	switch(aux[0]){
+                        		                         	case 'v':
+                        		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
+                        		                         		break;
+                        		                         	case 'b':
+                        		                         		bloquear(procesoEnEjecucion,buf);
+                        		                         		break;
+                        		                         	case 'l':
+                        		                         		liberaClave(buf);
+                        		                         		break;
+                        		                         	}
+                        		                         	free(buf);
+                        		                         	free(aux);
                         	 }
                          }
                          else {
