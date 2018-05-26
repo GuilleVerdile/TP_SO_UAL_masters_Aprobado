@@ -31,6 +31,7 @@ typedef struct{
 typedef struct{
 	char *clave;
 	t_list *bloqueados;
+	int idProceso;
 } Bloqueo;
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
@@ -109,6 +110,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	 sem_post(sem_procesosListos);
 	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
 }
+
 //ALGORITMOS RETORNAN DE ACUERDO A SU CRITERIO EL PROCESO QUE DEBE EJECTURA DE LA COLA DE LISTO
 // y elimina este proceso de la cola de listos
 Proceso* fifo(){
@@ -187,6 +189,7 @@ Proceso *hrrn(){
 //Programas de Busqueda
 
 //
+
 bool contieneAlProceso(void *a){
 	Bloqueo *b=(Bloqueo*) a;
 	Proceso *proceso=list_find((*b).bloqueados,&procesoEsIdABuscar);
@@ -218,9 +221,12 @@ Proceso *buscarProcesoPorId(int id){
 
 void eliminarDeLista(int id){
 	//aca mutex
+	idBuscar=id;
+	//
 	Proceso *proceso =buscarProcesoPorId(id);
 	t_list *t;
 	Bloqueo *a;
+
 	switch((*proceso).estado){
 	case listo:
 			t=listos;
@@ -236,26 +242,84 @@ void eliminarDeLista(int id){
 			break;
 	}
 }
-// este lo uso cuando el coordinador me dice que esi bloquear
+void agregarLista(int id,Estado estado){// sustituye el estado previamente hay que haber eliminado de la lista correspondiente
+	idBuscar=id;
+	Proceso *proceso =buscarProcesoPorId(id);
+	if(!list_find(procesos,&procesoEsIdABuscar)){
+		list_add(procesos,proceso);
+	}
+	switch(estado){
+		case listo:
+				(*proceso).estado=listo;
+				list_add(listos,proceso);
+				break;
+		case finalizado:
+				(*proceso).estado=finalizado;
+				list_add(terminados,proceso);
+				break;
+		case ejecucion:
+				(*proceso).estado=ejecucion;
+				procesoEnEjecucion=proceso;
+				break;
 
-void bloquear(int id,char *valor){
-	Proceso* proceso=buscarProcesoPorId(id);
-	claveABuscar=valor;
+		}
+}
+// este lo uso cuando el coordinador me dice que esi bloquear
+///
+///
+///
+//crea la cola de bloqueados con clave a id
+//bloquea clave a , id tanto
+//libera clave a
+
+void bloquear(Proceso *proceso,char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
+	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	(*proceso).estado=bloqueado;
-	if(block!=NULL){
-		list_add((*block).bloqueados,proceso);
+	if(!block){
+		block=malloc(sizeof(Bloqueo));
+		(*block).clave=clave;
+		(*block).bloqueados=list_create();
+		(*block).idProceso=(*proceso).idProceso;
 	}
 	else{
-		block=malloc(sizeof(Bloqueo));
-		(*block).clave=valor;
-		(*block).bloqueados=list_create();
-		list_add((*block).bloqueados,proceso);
+		if((*block).idProceso==-1){
+			(*block).idProceso=(*proceso).idProceso;
+		}
+		else{
+			list_add((*block).bloqueados,proceso);
+		}
 	}
-	//Con este send le aviso al proceso que fue bloqueado
-	send((*proceso).socketProceso,"2",2,0);
-
 }
+
+void liberaClave(char *clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(!(*block).bloqueados){
+		Proceso *proceso=list_remove((*block).bloqueados,0);
+		agregarLista((*proceso).idProceso,listo);
+		if((*block).bloqueados){
+			list_destroy((*block).bloqueados);
+			claveABuscar=clave;
+			free(list_remove(bloqueados,&esIgualAClaveABuscar));
+		}
+		else
+			(*block).idProceso=-1;
+	}
+}
+char *verificarClave(Proceso *proceso,char *clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if((*block).idProceso==(*proceso).idProceso)
+		return "1";
+	else
+		return "0";
+}
+///
+///
+///
+
+
+
 //este lo tengo que usar cuando el esi me dice que hace un store;
 void desbloquear(int id){
 	Proceso *proceso =buscarProcesoPorId(id);
@@ -355,8 +419,8 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
 
                          }
                          else if(i==casoDiscriminador){//aca trato al coordinador//Caso discriminador
-                        	 buf = malloc(1024);
-                        	 if ((nbytes = recv(i, buf, 1024, 0)) <= 0) {
+                        	 buf = malloc(2);
+                        	 if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
 
                         	                                 // error o conexión cerrada por el cliente
                         		 if (nbytes == 0) {
@@ -373,9 +437,26 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                         	 else{
 
                         		                         	log_info(logger, "Conexion entrante del discriminador");
-                        		                          	printf("%s\n",buf);
-                        		                          	fflush(stdout);
-                        		                          	free(buf);
+                        		                         	char *aux= malloc(2);
+                        		                         	strcpy(aux,buf);
+                        		                         	free(buf);
+                        		                         	int tam=obtenerTamDelSigBuffer(i);
+                        		                         	buf=malloc(tam);
+                        		                         	recv(i, buf, tam, 0);
+
+                        		                         	switch(aux[0]){
+                        		                         	case 'v':
+                        		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
+                        		                         		break;
+                        		                         	case 'b':
+                        		                         		bloquear(procesoEnEjecucion,buf);
+                        		                         		break;
+                        		                         	case 'l':
+                        		                         		liberaClave(buf);
+                        		                         		break;
+                        		                         	}
+                        		                         	free(buf);
+                        		                         	free(aux);
                         	 }
                          }
                          else {
