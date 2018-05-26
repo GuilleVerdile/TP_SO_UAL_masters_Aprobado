@@ -31,7 +31,7 @@ typedef struct{
 typedef struct{
 	char *clave;
 	t_list *bloqueados;
-	Proceso *proceso;
+	int idProceso;
 } Bloqueo;
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
@@ -220,9 +220,12 @@ Proceso *buscarProcesoPorId(int id){
 
 void eliminarDeLista(int id){
 	//aca mutex
+	idBuscar=id;
+	//
 	Proceso *proceso =buscarProcesoPorId(id);
 	t_list *t;
 	Bloqueo *a;
+
 	switch((*proceso).estado){
 	case listo:
 			t=listos;
@@ -238,59 +241,75 @@ void eliminarDeLista(int id){
 			break;
 	}
 }
+void agregarLista(int id,Estado estado){// sustituye el estado previamente hay que haber eliminado de la lista correspondiente
+	idBuscar=id;
+	Proceso *proceso =buscarProcesoPorId(id);
+	if(!list_find(procesos,&procesoEsIdABuscar)){
+		list_add(procesos,proceso);
+	}
+	switch(estado){
+		case listo:
+				(*proceso).estado=listo;
+				list_add(listos,proceso);
+				break;
+		case finalizado:
+				(*proceso).estado=finalizado;
+				list_add(terminados,proceso);
+				break;
+		case ejecucion:
+				(*proceso).estado=ejecucion;
+				procesoEnEjecucion=proceso;
+				break;
+
+		}
+}
 // este lo uso cuando el coordinador me dice que esi bloquear
+///
+///
+///
+//crea la cola de bloqueados con clave a id
+//bloquea clave a , id tanto
+//libera clave a
 
-void bloquear(int id,char *valor){
-	Proceso* proceso=buscarProcesoPorId(id);
-	claveABuscar=valor;
-	Bloqueo *block=buscarClave();
-	(*proceso).estado=bloqueado;
-	if(block!=NULL){
-		list_add((*block).bloqueados,proceso);
-	}
-	else{
-		block=malloc(sizeof(Bloqueo));
-		(*block).clave=valor;
-		(*block).bloqueados=list_create();
-		list_add((*block).bloqueados,proceso);
-	}
-	//Con este send le aviso al proceso que fue bloqueado
-	send((*proceso).socketProceso,"2",2,0);
-
-}
-// ver como refactorizar estas 2 funciones
-bool contieneClave(int id,char *clave){
-	Proceso* proceso=buscarProcesoPorId(id);
+void bloquear(Proceso *proceso,char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(block!=NULL){
-		if((*block).proceso==proceso)
-			return true;
-		else
-			return false;
-		}
-	else
-		return false;
-}
-void bloquear(int id,char *clave){
-	Proceso* proceso=buscarProcesoPorId(id);
-	claveABuscar=clave;
-	Bloqueo *block=buscarClave();
-	if(block!=NULL){
-		if((*block).proceso!=proceso){
-			(*proceso).estado=bloqueado;
-			list_add((*block).bloqueados,proceso);
-		}
-		}
-	else{
+	if(!block){
 		block=malloc(sizeof(Bloqueo));
 		(*block).clave=clave;
 		(*block).bloqueados=list_create();
-		list_add((*block).bloqueados,proceso);
-		list_add(bloqueados,block);
+		(*block).idProceso=(*proceso).idProceso;
+	}
+	else{
+		if((*block).idProceso==-1){
+			(*block).idProceso=(*proceso).idProceso;
+		}
+		else{
+			list_add((*block).bloqueados,proceso);
+		}
 	}
 }
-// las 2 fucniones de arriba hay que refactorizar
+
+void liberaClave(char *clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(!(*block).bloqueados){
+		Proceso *proceso=list_remove((*block).bloqueados,0);
+		agregarLista((*proceso).idProceso,listo);
+		if((*block).bloqueados){
+			list_destroy((*block).bloqueados);
+			claveABuscar=clave;
+			free(list_remove(bloqueados,&esIgualAClaveABuscar));
+		}
+		else
+			(*block).idProceso=-1;
+	}
+}
+///
+///
+///
+
+
 
 //este lo tengo que usar cuando el esi me dice que hace un store;
 void desbloquear(int id){
