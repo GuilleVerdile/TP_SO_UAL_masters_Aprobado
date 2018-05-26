@@ -30,11 +30,6 @@ int main(){
 	log_info(logger, "Se acepto la conexion");
 	printf("Nuevo cliente, se conecto el Planificador\n");
 	fflush(stdout);
-	if(send(socketPlanificador,"Hola capo soy el Coordinador\n",1024,0)==-1){
-	    log_error(logger, "No se pudo enviar el mensaje");
-	}
-	else
-	    log_info(logger, "Mensaje enviado correctamente");
 	pthread_t idHilo;
 	//ACA COMIENZA LO DIVERTIDO =)
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
@@ -81,17 +76,6 @@ void enviarDatosInstancia(int sockInstancia, char* tipo){
 	config_destroy(config); //EL CONFIG DESTROY HACE FREE DEL BUFF!
 }
 
-int estaBloqueado(char* clave, char* idEsi,char* bloquear){
-	enviarCantBytes(socketPlanificador,clave);
-	send(socketPlanificador,clave, strlen(clave)+1,0); //PREGUNTA SI LA CLAVE ESTA BLOQUEADA
-	enviarCantBytes(socketPlanificador,idEsi);
-	send(socketPlanificador,idEsi, strlen(idEsi)+1,0); //LE ENVIA EL ESI QUE LO VA BLOQUEAR
-	char* buffer = malloc(2);
-	recv(socketPlanificador,buffer,2,0); //OBTIENE TRUE O FALSE EN CHAR*
-	return buffer[0]; //OBTIENE TRUE SI SE LLEGO A BLOQUEAR LA CLAVE, SINO OBTIENE FALSE YA QUE LA CLAVE ESTA BLOQUEADA
-	send(socketPlanificador,bloquear,2,0); // bloquear menciona si se tiene que crear una lista de bloqueados o meterlo, o solo se requeria informacion si es "y" se mete o crea la lista de bloqueados, si es "n" solo busca info
-}
-
 instancia* buscarInstancia(char* clave){
 	int i =0;
 	instancia* instancia;
@@ -136,6 +120,8 @@ void liberarClave(instancia* instancia,char* clave){
 		j++;
 	}
 	free(aux);//LIBERO LA CLAVE BLOQUEADA
+	send(socketPlanificador, "d", 2,0); //SENIAL DE DESBLOQUEO
+	enviarDatosEsi(clave);
 }
 
 void agregarClave(instancia* instancia,char* clave){
@@ -157,22 +143,38 @@ void agregarClave(instancia* instancia,char* clave){
 	}
 }
 
-void *conexionESI(void* cliente)
+void enviarDatosEsi(char*clave){
+	enviarCantBytes(socketPlanificador,clave);
+	send(socketPlanificador,clave,strlen(clave)+1,0);
+}
+
+int verificacionEsi(char* clave){
+	send(socketPlanificador,"v",2,0); //LE ENVIO UNA SENIAL DE VERIFICAR
+	enviarDatosEsi(clave);
+	char* resultado = malloc(2);
+	recv(socketPlanificador,resultado,2,0); //OBTENGO EL RESULTADO
+	if(resultado[0]){ //ES HORRIBLE PERO ESTO ES POR EL MEMORY LEAK
+		free(resultado);
+		return 1;
+	}
+	free(resultado);
+	return 0;
+}
+
+void *conexionESI(void* cliente) //REFACTORIZAR EL FOKEN SWITCH
 {
 	log_info(logger,"ESTAMOS DENTRO DEL HILO");
-    int socketEsi = *(int*)cliente; //Lo casteamos
+    int socketEsi = *(int*)cliente; //LO CASTEAMOS
     int recvValor;
     t_esi_operacion paquete;
     instancia* instanciaAEnviar;
     int tam = obtenerTamDelSigBuffer(socketEsi);
-    char* idEsi = malloc(tam);
-    recv(socketEsi,idEsi,tam,0);
-    if((recvValor = recibir(socketEsi,&paquete)) >0){
+    while((recvValor = recibir(socketEsi,&paquete)) >0){
     	switch (paquete.keyword){
     	case GET:
-    		if(estaBloqueado(paquete.argumentos.GET.clave,idEsi,"y")){ //VERIFICO SI LA CLAVE ESTA TOMADA
-    			bloquearEsi(idEsi);
-    		    free(idEsi);
+    		if(buscarInstancia(paquete.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
+    			enviarDatosEsi(paquete.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
     			return 0;  //CON ESTO NOS ASEGURAMOS QUE LA CONEXION CON EL ESI MUERA.
     		}
     		instanciaAEnviar = algoritmoDeDistribucion(NULL);
@@ -182,38 +184,39 @@ void *conexionESI(void* cliente)
     		agregarClave(instanciaAEnviar,paquete.argumentos.SET.clave);
     		break;
     	case SET:
-    		if(!estaBloqueado(paquete.argumentos.SET.clave,idEsi,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
+    		if(!verificacionEsi(paquete.argumentos.SET.clave)){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
     		    send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    		    free(idEsi);
+    		    close(socketEsi);
     		    return 0;
     		 }
     		instanciaAEnviar = buscarInstancia(paquete.argumentos.SET.clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
     		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
     		if(!(*instanciaAEnviar).estaDisponible){
-    			//bloquearEsi(socketEsi);
+    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
+    			close(socketEsi);
+    			return 0;
     		}
     		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
     		enviar((*instanciaAEnviar).socketInstancia,paquete);
     		break;
     	case STORE:
-    		if(!estaBloqueado(paquete.argumentos.STORE.clave,idEsi,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
+    		if(!verificacionEsi(paquete.argumentos.STORE.clave)){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
     			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    		    free(idEsi);
     			return 0;
     		}
-    		instanciaAEnviar = buscarInstancia(paquete.argumentos.SET.clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
+    		instanciaAEnviar = buscarInstancia(paquete.argumentos.STORE.clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
     		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
     		if(!(*instanciaAEnviar).estaDisponible){
-    			//bloquearEsi(socketEsi);
+    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
+    			close(socketEsi);
+    			return 0;
     		}
     		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
     		enviar((*instanciaAEnviar).socketInstancia,paquete);
     		liberarClave(instanciaAEnviar,paquete.argumentos.STORE.clave);
-    		//FALTA AVISAR AL PLANIFICADOR QUE TAL CLAVE ESTA LIBERADA
     		break;
     	}
     }//GET SET STORE IMPLEMENTACION
-    free(idEsi);
     if(recvValor == 0)
     {
         log_info(logger,"Se desconecto un ESI");
