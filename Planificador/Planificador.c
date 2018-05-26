@@ -31,6 +31,7 @@ typedef struct{
 typedef struct{
 	char *clave;
 	t_list *bloqueados;
+	Proceso *proceso;
 } Bloqueo;
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
@@ -109,6 +110,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	 sem_post(sem_procesosListos);
 	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
 }
+
 //ALGORITMOS RETORNAN DE ACUERDO A SU CRITERIO EL PROCESO QUE DEBE EJECTURA DE LA COLA DE LISTO
 // y elimina este proceso de la cola de listos
 Proceso* fifo(){
@@ -256,6 +258,40 @@ void bloquear(int id,char *valor){
 	send((*proceso).socketProceso,"2",2,0);
 
 }
+// ver como refactorizar estas 2 funciones
+bool contieneClave(int id,char *clave){
+	Proceso* proceso=buscarProcesoPorId(id);
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(block!=NULL){
+		if((*block).proceso==proceso)
+			return true;
+		else
+			return false;
+		}
+	else
+		return false;
+}
+void bloquear(int id,char *clave){
+	Proceso* proceso=buscarProcesoPorId(id);
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(block!=NULL){
+		if((*block).proceso!=proceso){
+			(*proceso).estado=bloqueado;
+			list_add((*block).bloqueados,proceso);
+		}
+		}
+	else{
+		block=malloc(sizeof(Bloqueo));
+		(*block).clave=clave;
+		(*block).bloqueados=list_create();
+		list_add((*block).bloqueados,proceso);
+		list_add(bloqueados,block);
+	}
+}
+// las 2 fucniones de arriba hay que refactorizar
+
 //este lo tengo que usar cuando el esi me dice que hace un store;
 void desbloquear(int id){
 	Proceso *proceso =buscarProcesoPorId(id);
