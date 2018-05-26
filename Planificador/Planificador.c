@@ -480,17 +480,19 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                                printf("%s\n",buf);
                                //aca hago un case de los posibles send de un esi, que son
                                //1.- termino ejecucion el esi y nos esta informando
-                               int caso = buf[0]-48;
                                Estado estado;
-                               switch(caso){
-                               case 1:
+                               switch(buf[0]){
+                               case 'f':
                             	   estado=finalizado;
                             	   actualizarEstado(i,finalizado,1);// puse 1 en el ultimo parametro por que la actualizacion la tengo que hacer por socket
                             	   break;
-                               case 2:
+                               case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
                                    break;
+                               case 'a':
+                            	   //free(matarESI());
+                            	   break;
                                }
                                fflush(stdout);
                              }
@@ -500,6 +502,37 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
              }
              }
              free(buf);
+}
+Proceso * matarESI(int id){
+	idBuscar=id;
+	if(!list_find(listos,&procesoEsIdABuscar)){
+		list_remove_by_condition(listos,&procesoEsIdABuscar);
+	}
+	if((*procesoEnEjecucion).idProceso==id){
+		procesoEnEjecucion=NULL;
+	}
+	int i=0;
+	Bloqueo *block;
+	while((block=list_get(bloqueados,i))!=NULL){
+		if((*block).idProceso==id){
+			liberaClave((*block).clave);
+		}
+		else{
+			Proceso *proceso;
+			int j=0;
+			while((proceso=list_get((*block).bloqueados,j))!=NULL){
+				if((*proceso).idProceso==id){
+					list_remove((*block).bloqueados,j);
+					break;
+				}
+				j++;
+			}
+		}
+		i++;
+	}
+
+	return buscarProcesoPorId(id);
+
 }
 
 int planificador()
