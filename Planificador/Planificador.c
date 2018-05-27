@@ -68,7 +68,7 @@ void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda no
 void terminarProceso(){
 	liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
-	list_add(terminados,(*procesoEnEjecucion));
+	list_add(terminados,procesoEnEjecucion);
 	procesoEnEjecucion = NULL;
 }
 
@@ -252,22 +252,45 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		}
 	}
 }
-
+void liberarRecursos(int id){
+	Bloqueo *block;
+	int i=0;
+	while((block=list_get(bloqueados,i))!=NULL){
+		if((*block).idProceso==id){
+			liberaClave((*block).clave);
+		}
+		else{
+			Proceso *proceso;
+			int j=0;
+			while((proceso=list_get((*block).bloqueados,j))!=NULL){
+				if((*proceso).idProceso==id){
+					list_remove((*block).bloqueados,j);
+					break;
+				}
+				j++;
+			}
+		}
+		i++;
+	}
+}
 void liberaClave(char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!(*block).bloqueados){
+	if(!list_is_empty((*block).bloqueados)){
 		Proceso *proceso=list_remove((*block).bloqueados,0);
-		if((*block).bloqueados){
+		if(list_is_empty((*block).bloqueados)){
 			list_destroy((*block).bloqueados);
 			claveABuscar=clave;
 			free(list_remove(bloqueados,&esIgualAClaveABuscar));
 		}
 		else
 			(*block).idProceso=-1;
+		(*proceso).estado=listo;
+		list_add(listos,proceso);
 		sem_post(sem_replanificar);
 	}
 }
+
 char *verificarClave(Proceso *proceso,char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
@@ -287,7 +310,19 @@ void tirarErrorYexit(char* mensajeError) {
 	log_destroy(logger);
 	exit(-1);
 }
-
+void matarESI(int id){
+	idBuscar=id;
+	if(!list_find(listos,&procesoEsIdABuscar)){
+		list_remove_by_condition(listos,&procesoEsIdABuscar);
+	}
+	if((*procesoEnEjecucion).idProceso==id){
+		sem_post(sem_replanificar);
+	}
+	liberarRecursos(id);
+	idBuscar = id;
+	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
+	free(procesoAEliminar);
+}
 void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesos=list_create();
 	 listos=list_create();
@@ -405,7 +440,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
                         		                         		break;
                         		                         	case 'b':
-                        		                         		bloquear(procesoEnEjecucion,buf);
+                        		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
                         		                         		liberaClave(buf);
@@ -434,11 +469,11 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                //aca hago un case de los posibles send de un esi, que son
                                //1.- termino ejecucion el esi y nos esta informando
                                Estado estado;
+                               int tam;
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
                             	   sem_post(sem_replanificar);
-                            	   }
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
@@ -448,7 +483,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                             	   else sem_post(sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
-                            	   int tam = obtenerTamDelSigBuffer(i);
+                            	   tam = obtenerTamDelSigBuffer(i);
                             	   buf = realloc(buf,tam);
                             	   recv(i,buf,tam,0);
                             	   matarESI(transformarNumero(buf,0));
@@ -462,41 +497,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      free(buf);
 }
 
-void liberarRecursos(int id){
-	Bloqueo *block;
-	int i=0;
-	while((block=list_get(bloqueados,i))!=NULL){
-		if((*block).idProceso==id){
-			liberaClave((*block).clave);
-		}
-		else{
-			Proceso *proceso;
-			int j=0;
-			while((proceso=list_get((*block).bloqueados,j))!=NULL){
-				if((*proceso).idProceso==id){
-					list_remove((*block).bloqueados,j);
-					break;
-				}
-				j++;
-			}
-		}
-		i++;
-	}
-}
 
-void matarESI(int id){
-	idBuscar=id;
-	if(!list_find(listos,&procesoEsIdABuscar)){
-		list_remove_by_condition(listos,&procesoEsIdABuscar);
-	}
-	if((*procesoEnEjecucion).idProceso==id){
-		sem_post(sem_replanificar);
-	}
-	liberarRecursos(id);
-	idBuscar = id;
-	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
-	free(procesoAEliminar);
-}
 
 int main()
     {
@@ -521,3 +522,4 @@ int main()
 	crearSelect(miAlgoritmo,estimacionInicial);
         return 0;
     }
+}
