@@ -15,7 +15,9 @@ t_list *bloqueados;
 sem_t *sem_procesosListos;
 sem_t *sem_procesoEnEjecucion;
 sem_t *sem_finDeEjecucion;
+sem_t *sem_ESIejecutoUnaSentencia;
 int flag_desalojo;
+int flag_nuevoProceso;
 int tiempo_de_ejecucion;
 float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
@@ -82,9 +84,10 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 }
 void *ejecutarEsi(void *esi){
 	while(1){
-		wait(procesoEnEjecucion);
+		sem_wait(procesoEnEjecucion);
 		while((*procesoEnEjecucion).estado==ejecucion){
-		send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
+			sem_wait(sem_ESIejecutoUnaSentencia);
+			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
@@ -106,6 +109,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
 	 list_add(listos, proceso);
 	 list_add(procesos, proceso);
+	 flag_nuevoProceso = 1;
 	 idGlobal++;
 	 sem_post(sem_procesosListos);
 	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
@@ -324,7 +328,14 @@ char *verificarClave(Proceso *proceso,char *clave){
 void desbloquear(int id){
 	Proceso *proceso =buscarProcesoPorId(id);
 }
-void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Proceso(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+
+void tirarErrorYexit(char* mensajeError) {
+	log_error(logger, mensajeError);
+	log_destroy(logger);
+	exit(-1);
+}
+
+void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesos=list_create();
 	 listos=list_create();
      terminados=list_create();
@@ -336,48 +347,39 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
 	 sem_init(sem_procesosListos,0,0);
 	 sem_init(sem_procesoEnEjecucion,0,0);
 	 sem_init(sem_finDeEjecucion,0,1);
-	char* path;
+	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
 	 int listener;
 	 char* buf;
-	 if(soyCoordinador)
-		path=logCoordinador;
-	 else
-		path=logPlanificador;
-	 logger=log_create(path,"crearSelect",1, LOG_LEVEL_INFO);
+	 t_config *config=config_create(pathPlanificador);
+	 logger=log_create(pathPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
 	 int fdmax;        // el descriptor mas grande
-	 if((listener=crearConexionServidor(pathYoServidor))==-1){
-		 log_error(logger, "No se pudo crear el socket servidor");
-		 log_destroy(logger);
-		 exit(-1);
+	 if((listener=crearConexionServidor(config_get_int_value(config, "Puerto de Escucha de conexiones"),"127.0.0.2"))==-1){
+		 config_destroy(config);
+		tirarErrorYexit("No se pudo crear el socket servidor");
 	 }
 	 else
-		 log_info(logger, "Se creao el socket de Servidor");
+		 log_info(logger, "Se creo el socket de Servidor");
      int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
 
      int nbytes;
-     int yes=1;        // para setsockopt() SO_REUSEADDR, más abajo
      int addrlen;
      int i;
      int casoDiscriminador;
      FD_ZERO(&master);    // borra los conjuntos maestro
      FD_ZERO(&read_fds);	// borra los conjuntos maestro
 
-     if(soyCoordinador==0){
-    	if((casoDiscriminador=crearConexionCliente(pathYoCliente))==-1){
-    		 log_error(logger, "No se pudo crear socket de cliente");
-    		 log_destroy(logger);
-    		 exit(-1);
+    	if((casoDiscriminador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexión al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador")))==-1){
+    		config_destroy(config);
+    		tirarErrorYexit("No se pudo crear socket de cliente");
     	}
     	else
     		log_info(logger, "Se creo el socket de cliente");
-     }
+     config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
      if (listen(listener, 10) == -1){
-    	 log_error(logger, "No se pudo escuchar");
-		 log_destroy(logger);
-		 exit(-1);
+    	 tirarErrorYexit("No se pudo escuchar");
      }
      else
     	 log_info(logger, "Se esta escuchando");
@@ -391,8 +393,7 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
      for(;;) {
                  read_fds = master; // cópialo
                  if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
-                	 log_error(logger, "Error Al seleccionar");
-                	 exit(-1);
+                	 tirarErrorYexit("Error al seleccionar");
                  }
                  else
                 	 log_info(logger, "Se selecciono correctamente");
@@ -405,20 +406,18 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                              addrlen = sizeof(their_addr);
                              if ((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,
                                                                       &addrlen)) == -1) {
-                            	 log_error(logger, "Al Aceptar al nuevo cliente");
+                            	 log_error(logger, "Al aceptar al nuevo cliente");
                              } else {
                                  FD_SET(nuevoCliente, &master); // añadir al conjunto maestro
                                  if (nuevoCliente > fdmax) {    // actualizar el máximo
                                      fdmax = nuevoCliente;
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
-                                 printf("Nuevo cliente\n");
                                  log_info(logger, "Ingreso un nuevo cliente");
-                                 fflush(stdout);
                              }
 
                          }
-                         else if(i==casoDiscriminador){//aca trato al coordinador//Caso discriminador
+                         else if(i==casoDiscriminador){ //aca trato al coordinador//Caso discriminador
                         	 buf = malloc(2);
                         	 if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
 
@@ -462,22 +461,19 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                          else {
 
                         	 buf = malloc(2);
-                             // gestionar datos de un cliente
+                             // gestionar datos de ESI
                              if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
                                      // conexión cerrada
-                                	 log_info(logger, "El cliente se fue");
-                                     printf("selectserver: socket %d hung up\n", i);
+                                	 log_warning(logger, "El ESI se fue");
                                  } else {
-                                	 log_info(logger, "Problema de conexion con el cliente");
-                                     perror("recv");
+                                	 tirarErrorYexit("Problema de conexion con el ESI");
                                  }
                                  close(i); // cierra socket
                                  FD_CLR(i, &master); // eliminar del conjunto maestro
                              } else {
                             	 log_info(logger, "Conexion entrante del cliente");
-                               printf("%s\n",buf);
                                //aca hago un case de los posibles send de un esi, que son
                                //1.- termino ejecucion el esi y nos esta informando
                                Estado estado;
@@ -485,16 +481,21 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
                                case 'f':
                             	   estado=finalizado;
                             	   actualizarEstado(i,finalizado,1);// puse 1 en el ultimo parametro por que la actualizacion la tengo que hacer por socket
+                            	   replanificar(algoritmo);
+                            	   }
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
+                            	   if(flag_desalojo && flag_nuevoProceso){
+                            		   replanificar(algoritmo); flag_nuevoProceso = 0;}
+                            	   sem_post(sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
                             	   //free(matarESI());
+                            	   replanificar(algoritmo);
                             	   break;
                                }
-                               fflush(stdout);
                              }
                              free(buf);
                          }
@@ -503,6 +504,11 @@ void crearSelect(int soyCoordinador,char *pathYoServidor,char *pathYoCliente,Pro
              }
              free(buf);
 }
+
+void replanificar(Proceso*(*algoritmo)()){
+	Proceso *proceso = (*algoritmo)();
+}
+
 Proceso * matarESI(int id){
 	idBuscar=id;
 	if(!list_find(listos,&procesoEsIdABuscar)){
@@ -535,29 +541,26 @@ Proceso * matarESI(int id){
 
 }
 
-int planificador()
+int main()
     {
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
 	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
-	char*algoritmo= (config_get_string_value(config, "AlgoritmoDePlanificador"));
-	config_destroy(config);
+	char*algoritmo= config_get_string_value(config, "AlgoritmoDePlanificador");
+
 	if(!strcmp(algoritmo,"fifo")){
 		miAlgoritmo=&fifo;
 		flag_desalojo=0;
 	}
 	if(!strcmp(algoritmo,"SJF-CD")){
-			miAlgoritmo=&fifo;
+			miAlgoritmo=&sjf;
 			flag_desalojo=1;
 		}
 	if(!strcmp(algoritmo,"SJF-SD")){
-			miAlgoritmo=&fifo;
+			miAlgoritmo=&sjf;
 			flag_desalojo=0;
 		}
-		crearSelect(0,pathPlanificador,pathCoordinador,miAlgoritmo,estimacionInicial);
+	config_destroy(config);
+	crearSelect(miAlgoritmo,estimacionInicial);
         return 0;
     }
-int main(){
-	 planificador();
-	return 0;
-}

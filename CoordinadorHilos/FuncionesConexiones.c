@@ -6,8 +6,8 @@
  */
 #include "FuncionesConexiones.h"
 
-const char* ESI = "e";
-const char* INSTANCIA = "i";
+const char* ESI = "1";
+const char* INSTANCIA = "0";
 
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
