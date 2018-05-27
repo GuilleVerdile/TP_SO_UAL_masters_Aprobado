@@ -6,12 +6,13 @@
  */
 #include "FuncionesConexiones.h"
 
-const char* ESI = "e";
-const char* INSTANCIA = "i";
+const char* ESI = "1";
+const char* INSTANCIA = "0";
 
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 const char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
+
 //Los pongo en escritorio para que no tengamos problemas al commitear
 const char *logCoordinador="/home/utnso/Escritorio/Coordinador.log";
 const char *logPlanificador="/home/utnso/Escritorio/Planificador.log";
@@ -68,6 +69,7 @@ int crearConexionServidor(char*path){//Retorna el sock del Servidor
 }
 
 
+//1024
 int transformarNumero(char *a,int start){
 	int tam=string_length(a);
 	int resultado=0;

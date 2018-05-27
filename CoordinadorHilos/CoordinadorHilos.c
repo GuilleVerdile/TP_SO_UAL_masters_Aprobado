@@ -36,7 +36,14 @@ int main(){
 	{
 		log_info(logger,"Se acepto una nueva conexion");
 		int tipoCliente = esEsi(nuevoCliente);
-		if(tipoCliente == 0){ //VERIFICO SI ES ESI O INSTANCIA, SI ES 0 SIGNIFICA ESI
+		char* buff;
+		buff = malloc(2);
+		int recValor = recv(nuevoCliente, buff, 2, 0);
+		int tipoCliente = 2;
+		recValor == -1 ? exit():(recValor == 0 ? close(nuevoCliente):tipoCliente = transformarNumero(buff,0)); // borre funcion esEsi y uso operador ternario
+		free(buff);
+		switch(tipoCliente){
+		case 1:
 			log_info(logger,"El cliente es ESI");
 			if(pthread_create(&idHilo , NULL , conexionESI, (void*) &nuevoCliente) < 0)
 	    	{
@@ -45,7 +52,8 @@ int main(){
 	    	}
 			log_info(logger,"Se asigno una conexion con hilos");
 			pthread_join(idHilo,NULL);//No vamos a usar esta implementacion pero se usa para testear
-		}else if(tipoCliente == 1){ //EN CASO DE QUE DE 1 ES INSTANCIA
+			break;
+		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
 			enviarDatosInstancia(nuevoCliente,"CantidadEntradas"); //PRIMERO LE ENVIO LA CANTIDAD DE ENTRADAS
 			enviarDatosInstancia(nuevoCliente,"TamagnoEntradas"); //DESPUES LE ENVIO EL TAMAGNO DE ESAS ENTRADAS
@@ -59,11 +67,8 @@ int main(){
 			if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
 				algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
 			}
+			break;
 		}
-	}
-	if(nuevoCliente <0){
-		log_error(logger,"No se pudo aceptar la conexion al cliente");
-		return -1;
 	}
 	return 0;
 }
@@ -168,7 +173,6 @@ void *conexionESI(void* cliente) //REFACTORIZAR EL FOKEN SWITCH
     int recvValor;
     t_esi_operacion paquete;
     instancia* instanciaAEnviar;
-    int tam = obtenerTamDelSigBuffer(socketEsi);
     while((recvValor = recibir(socketEsi,&paquete)) >0){
     	switch (paquete.keyword){
     	case GET:
@@ -184,69 +188,40 @@ void *conexionESI(void* cliente) //REFACTORIZAR EL FOKEN SWITCH
     		agregarClave(instanciaAEnviar,paquete.argumentos.SET.clave);
     		break;
     	case SET:
-    		if(!verificacionEsi(paquete.argumentos.SET.clave)){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
-    		    send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    		    close(socketEsi);
-    		    return 0;
-    		 }
-    		instanciaAEnviar = buscarInstancia(paquete.argumentos.SET.clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
-    		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
-    		if(!(*instanciaAEnviar).estaDisponible){
-    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    			close(socketEsi);
-    			return 0;
-    		}
-    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
-    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		if(!validarYenviarPaquete(paquete.argumentos.SET.clave, socketEsi, paquete)) return 0;
     		break;
     	case STORE:
-    		if(!verificacionEsi(paquete.argumentos.STORE.clave)){ //VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
-    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    			return 0;
-    		}
-    		instanciaAEnviar = buscarInstancia(paquete.argumentos.STORE.clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
-    		verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
-    		if(!(*instanciaAEnviar).estaDisponible){
-    			send(socketEsi,"a",2,0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-    			close(socketEsi);
-    			return 0;
-    		}
-    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
-    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		if(!validarYenviarPaquete(paquete.argumentos.STORE.clave, socketEsi, paquete)) return 0;
     		liberarClave(instanciaAEnviar,paquete.argumentos.STORE.clave);
     		break;
     	}
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
-    {
-        log_info(logger,"Se desconecto un ESI");
-    }
-    else if(recvValor == -1)
-    {
-        log_error(logger,"Error al recibir el tam del codigo serializado");
-    }
+            log_info(logger,"Se desconecto un ESI");
+        else if(recvValor == -1)
+            log_error(logger,"Error al recibir el tam del codigo serializado");
     close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
     return 0;
 }
 
-int esEsi(int socket){
-	int recvValor;
-	char* buff = malloc(2);
-	int esEsi;
-	if((recvValor = recv(socket, buff, 2, 0) > 0)){
-		esEsi= strcmp(buff,ESI); //SI RECIBO ESI ENTONCES NO PROBLEM SI ES MAYOR A 0 QUIERE DECIR QUE ES INSTANCIA
-		free(buff);
-		return esEsi;
+int validarYenviarPaquete(char* clave, int socketEsi,t_esi_operacion* paquete) {
+	instancia* instanciaAEnviar;
+	if (!verificacionEsi(clave)) {
+		//VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
+		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
+		close(socketEsi);
+		return 0;
 	}
-	if(recvValor == 0){
-		log_info(logger,"Se desconecto el cliente");
-		free(buff);
-		return -1; //POR OTRO LADO NO ESTA EL CASO DE QUE SEA MENOR A 0, ACA SIGNIFICA QUE SE CORTO LA CONEXION
-	}else if(recvValor == -1){
-		log_error(logger,"Error al recibir el tipo de cliente");
-		free(buff);
-		exit(-1);
+	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
+	verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
+	if (!(*instanciaAEnviar).estaDisponible) {
+		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
+		close(socketEsi);
+		return 0;
 	}
+	send((*instanciaAEnviar).socketInstancia, "p", 2, 0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+	enviar((*instanciaAEnviar).socketInstancia, paquete);
+	return 1;
 }
 
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia){

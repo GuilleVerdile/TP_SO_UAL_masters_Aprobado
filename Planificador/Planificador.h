@@ -21,6 +21,4 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 #include <semaphore.h>
-int planificador();
-
 #endif /* SOCKET_PLANIFICADOR_H_ */
