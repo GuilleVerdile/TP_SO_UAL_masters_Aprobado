@@ -15,6 +15,7 @@ t_list *bloqueados;
 sem_t *sem_replanificar;
 sem_t *sem_procesoEnEjecucion;
 sem_t *sem_ESIejecutoUnaSentencia;
+sem_t * sem_finDeEjecucion;
 int flag_desalojo;
 int flag_nuevoProceso;
 int tiempo_de_ejecucion;
@@ -81,6 +82,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
+	sem_wait(sem_finDeEjecucion);
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
 	sem_post(sem_procesoEnEjecucion);
@@ -97,6 +99,7 @@ void *ejecutarEsi(void *esi){
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
+		sem_post(sem_finDeEjecucion);
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
@@ -296,6 +299,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 sem_init(sem_replanificar,0,0);
 	 sem_init(sem_procesoEnEjecucion,0,0);
 	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
+	 sem_init(sem_finDeEjecucion,0,1);
 	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
 	 pthread_create(&ejecutarEsi,NULL,ejecutarEsi,NULL);
 	 int listener;
@@ -480,7 +484,7 @@ void liberarRecursos(int id){
 	}
 }
 
-Proceso * matarESI(int id){
+void matarESI(int id){
 	idBuscar=id;
 	if(!list_find(listos,&procesoEsIdABuscar)){
 		list_remove_by_condition(listos,&procesoEsIdABuscar);
@@ -491,6 +495,7 @@ Proceso * matarESI(int id){
 	liberarRecursos(id);
 	idBuscar = id;
 	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
+	free(procesoAEliminar);
 }
 
 int main()
