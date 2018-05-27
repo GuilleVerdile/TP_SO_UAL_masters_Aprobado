@@ -12,9 +12,8 @@ t_list *procesos;
 t_list *listos;
 t_list *terminados;
 t_list *bloqueados;
-sem_t *sem_procesosListos;
+sem_t *sem_replanificar;
 sem_t *sem_procesoEnEjecucion;
-sem_t *sem_finDeEjecucion;
 sem_t *sem_ESIejecutoUnaSentencia;
 int flag_desalojo;
 int flag_nuevoProceso;
@@ -64,41 +63,43 @@ void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda no
 	Proceso *proceso =(Proceso *) list_find(procesos, criterio);
 	(*proceso).estado=estado;
 }
+
+void terminarProceso(){
+	liberarRecursos((*procesoEnEjecucion).idProceso);
+	(*procesoEnEjecucion).estado = finalizado;
+	list_add(terminados,(*procesoEnEjecucion));
+	procesoEnEjecucion = NULL;
+}
+
 void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
 	Proceso*(*algoritmo)();
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
-	sem_wait(sem_procesosListos);
-	sem_wait(sem_finDeEjecucion);
+	sem_wait(sem_replanificar);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
-	sem_post(procesoEnEjecucion);
+	sem_post(sem_procesoEnEjecucion);
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 
 	}
 }
 void *ejecutarEsi(void *esi){
 	while(1){
-		sem_wait(procesoEnEjecucion);
+		sem_wait(sem_procesoEnEjecucion);
 		while((*procesoEnEjecucion).estado==ejecucion){
 			sem_wait(sem_ESIejecutoUnaSentencia);
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
-		sem_post(sem_finDeEjecucion);
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
-	if(flag_desalojo&&procesoEnEjecucion!=NULL&&(*procesoEnEjecucion).estado==ejecucion){
-		(*procesoEnEjecucion).estado=listo;
-		list_add(listos, procesoEnEjecucion);
-	}
 	Proceso *proceso=malloc(sizeof(Proceso));
 	(*proceso).idProceso=idGlobal;
 	(*proceso).socketProceso=id;
@@ -111,8 +112,6 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	 list_add(procesos, proceso);
 	 flag_nuevoProceso = 1;
 	 idGlobal++;
-	 sem_post(sem_procesosListos);
-	 //no hago el free porque tiene que pone la direccion de memoria del proceso en la lista!
 }
 
 //ALGORITMOS RETORNAN DE ACUERDO A SU CRITERIO EL PROCESO QUE DEBE EJECTURA DE LA COLA DE LISTO
@@ -154,9 +153,11 @@ float* compararHRRN(Proceso *proc){
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;
-	list_sort(aux,&comparar);
-	proceso=list_get(aux,0);
+	list_sort(aux,&comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
+	proceso=list_remove(aux,0);
 	list_destroy(aux);
+	idBuscar = (*proceso).idProceso;
+	list_remove_by_condition(listos,&procesoEsIdABuscar); //ELIMINO EL PROCESO QUE COINCIDA CON TAL ID EN LA COLA DE LISTOS
 	return proceso;
 }
 Proceso *sjf(){
@@ -165,34 +166,8 @@ Proceso *sjf(){
 Proceso *hrrn(){
 	return obtenerSegunCriterio(&compararHRRN);
 }
-/*void fifo(int i,char *buf){
-    int *primerElemento=list_get(listos,0);
-    if(*primerElemento==i){
-
-    int *aux = malloc(sizeof(int));
-    *aux=i;
-    send(i,"1",2,0);
-    log_info(logger, "Se le permitio al esi parsear");
-    list_remove(listos,0);
-    log_info(logger, "Se saco el esi de la cola de listos");
-    list_add(ejecucion,aux);
-    log_info(logger, "Se metio el esi a la cola de ejecucion");
-    if(recv(i,buf,2,0)-48)
-         list_remove(ejecucion,0);
-    log_info(logger, "Se saco el esi a la cola de ejecucion");
-     list_add(terminados,aux);
-     log_info(logger, "se termino el esi");
-                           	   // no se si usar este JIJOOOO
-
-      }
-                              else{
-                            	  send(i,"0",2,0);
-                            	  log_info(logger, "Se le nego al esi parsear");
-                              }
-}*/
 //Programas de Busqueda
 
-//
 
 bool contieneAlProceso(void *a){
 	Bloqueo *b=(Bloqueo*) a;
@@ -246,28 +221,6 @@ void eliminarDeLista(int id){
 			break;
 	}
 }
-void agregarLista(int id,Estado estado){// sustituye el estado previamente hay que haber eliminado de la lista correspondiente
-	idBuscar=id;
-	Proceso *proceso =buscarProcesoPorId(id);
-	if(!list_find(procesos,&procesoEsIdABuscar)){
-		list_add(procesos,proceso);
-	}
-	switch(estado){
-		case listo:
-				(*proceso).estado=listo;
-				list_add(listos,proceso);
-				break;
-		case finalizado:
-				(*proceso).estado=finalizado;
-				list_add(terminados,proceso);
-				break;
-		case ejecucion:
-				(*proceso).estado=ejecucion;
-				procesoEnEjecucion=proceso;
-				break;
-
-		}
-}
 // este lo uso cuando el coordinador me dice que esi bloquear
 ///
 ///
@@ -276,21 +229,23 @@ void agregarLista(int id,Estado estado){// sustituye el estado previamente hay q
 //bloquea clave a , id tanto
 //libera clave a
 
-void bloquear(Proceso *proceso,char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
+void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
 	if(!block){
 		block=malloc(sizeof(Bloqueo));
 		(*block).clave=clave;
 		(*block).bloqueados=list_create();
-		(*block).idProceso=(*proceso).idProceso;
+		(*block).idProceso=(*procesoEnEjecucion).idProceso;
 	}
 	else{
 		if((*block).idProceso==-1){
-			(*block).idProceso=(*proceso).idProceso;
+			(*block).idProceso=(*procesoEnEjecucion).idProceso;
 		}
 		else{
-			list_add((*block).bloqueados,proceso);
+			list_add((*block).bloqueados,procesoEnEjecucion);
+			(*procesoEnEjecucion).estado = bloqueado;
+			sem_post(sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
 }
@@ -300,7 +255,6 @@ void liberaClave(char *clave){
 	Bloqueo *block=buscarClave();
 	if(!(*block).bloqueados){
 		Proceso *proceso=list_remove((*block).bloqueados,0);
-		agregarLista((*proceso).idProceso,listo);
 		if((*block).bloqueados){
 			list_destroy((*block).bloqueados);
 			claveABuscar=clave;
@@ -308,6 +262,7 @@ void liberaClave(char *clave){
 		}
 		else
 			(*block).idProceso=-1;
+		sem_post(sem_replanificar);
 	}
 }
 char *verificarClave(Proceso *proceso,char *clave){
@@ -318,11 +273,6 @@ char *verificarClave(Proceso *proceso,char *clave){
 	else
 		return "0";
 }
-///
-///
-///
-
-
 
 //este lo tengo que usar cuando el esi me dice que hace un store;
 void desbloquear(int id){
@@ -340,14 +290,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 listos=list_create();
      terminados=list_create();
      bloqueados=list_create();
+     procesoEnEjecucion = NULL;
 	 pthread_t planificadrCortoPlazo;
 	 pthread_t ejecutarEsi;
+	 sem_init(sem_replanificar,0,0);
+	 sem_init(sem_procesoEnEjecucion,0,0);
+	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
 	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
 	 pthread_create(&ejecutarEsi,NULL,ejecutarEsi,NULL);
-	 sem_init(sem_procesosListos,0,0);
-	 sem_init(sem_procesoEnEjecucion,0,0);
-	 sem_init(sem_finDeEjecucion,0,1);
-	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
@@ -413,9 +363,12 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                      fdmax = nuevoCliente;
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
+                                 if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
+                                	 sem_post(sem_replanificar);
+                                	 flag_nuevoProceso = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
+                                 }
                                  log_info(logger, "Ingreso un nuevo cliente");
                              }
-
                          }
                          else if(i==casoDiscriminador){ //aca trato al coordinador//Caso discriminador
                         	 buf = malloc(2);
@@ -424,7 +377,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         	                                 // error o conexión cerrada por el cliente
                         		 if (nbytes == 0) {
                         	                                     // conexión cerrada
-                        	                                	 log_info(logger, "El coordinator se fue");
+                        	                             	 log_info(logger, "El coordinator se fue");
                         	                                     printf("selectserver: socket %d hung up\n", i);
                         	                                 } else {
                         	                                	 log_info(logger, "Problema de conexion con el coordinador");
@@ -458,7 +411,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         	free(aux);
                         	 }
                          }
-                         else {
+                         else { // ACA COMIENZA EL HANDSHAKE CON LOS ESIS
 
                         	 buf = malloc(2);
                              // gestionar datos de ESI
@@ -473,27 +426,28 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                  close(i); // cierra socket
                                  FD_CLR(i, &master); // eliminar del conjunto maestro
                              } else {
-                            	 log_info(logger, "Conexion entrante del cliente");
+                            	 log_info(logger, "Conexion entrante del ESI");
                                //aca hago un case de los posibles send de un esi, que son
                                //1.- termino ejecucion el esi y nos esta informando
                                Estado estado;
                                switch(buf[0]){
                                case 'f':
-                            	   estado=finalizado;
-                            	   actualizarEstado(i,finalizado,1);// puse 1 en el ultimo parametro por que la actualizacion la tengo que hacer por socket
-                            	   replanificar(algoritmo);
+                            	   terminarProceso();
+                            	   sem_post(sem_replanificar);
                             	   }
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
                             	   if(flag_desalojo && flag_nuevoProceso){
-                            		   replanificar(algoritmo); flag_nuevoProceso = 0;}
-                            	   sem_post(sem_ESIejecutoUnaSentencia);
+                            		  sem_post(sem_replanificar); flag_nuevoProceso = 0;}
+                            	   else sem_post(sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
-                            	   //free(matarESI());
-                            	   replanificar(algoritmo);
+                            	   int tam = obtenerTamDelSigBuffer(i);
+                            	   buf = realloc(buf,tam);
+                            	   recv(i,buf,tam,0);
+                            	   matarESI(transformarNumero(buf,0));
                             	   break;
                                }
                              }
@@ -501,24 +455,12 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                          }
                      }
              }
-             }
-             free(buf);
+     free(buf);
 }
 
-void replanificar(Proceso*(*algoritmo)()){
-	Proceso *proceso = (*algoritmo)();
-}
-
-Proceso * matarESI(int id){
-	idBuscar=id;
-	if(!list_find(listos,&procesoEsIdABuscar)){
-		list_remove_by_condition(listos,&procesoEsIdABuscar);
-	}
-	if((*procesoEnEjecucion).idProceso==id){
-		procesoEnEjecucion=NULL;
-	}
-	int i=0;
+void liberarRecursos(int id){
 	Bloqueo *block;
+	int i=0;
 	while((block=list_get(bloqueados,i))!=NULL){
 		if((*block).idProceso==id){
 			liberaClave((*block).clave);
@@ -536,9 +478,19 @@ Proceso * matarESI(int id){
 		}
 		i++;
 	}
+}
 
-	return buscarProcesoPorId(id);
-
+Proceso * matarESI(int id){
+	idBuscar=id;
+	if(!list_find(listos,&procesoEsIdABuscar)){
+		list_remove_by_condition(listos,&procesoEsIdABuscar);
+	}
+	if((*procesoEnEjecucion).idProceso==id){
+		sem_post(sem_replanificar);
+	}
+	liberarRecursos(id);
+	idBuscar = id;
+	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
 }
 
 int main()
