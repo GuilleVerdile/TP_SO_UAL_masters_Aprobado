@@ -17,7 +17,7 @@ sem_t *sem_procesoEnEjecucion;
 sem_t *sem_ESIejecutoUnaSentencia;
 sem_t * sem_finDeEjecucion;
 int flag_desalojo;
-int flag_nuevoProceso;
+int flag_nuevoProcesoEnListo;
 int tiempo_de_ejecucion;
 float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
@@ -113,7 +113,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
 	 list_add(listos, proceso);
 	 list_add(procesos, proceso);
-	 flag_nuevoProceso = 1;
+	 flag_nuevoProcesoEnListo = 1;
 	 idGlobal++;
 }
 
@@ -404,7 +404,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
                                  if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
                                 	 sem_post(sem_replanificar);
-                                	 flag_nuevoProceso = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
+                                	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
                                  log_info(logger, "Ingreso un nuevo cliente");
                              }
@@ -478,8 +478,8 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
-                            	   if(flag_desalojo && flag_nuevoProceso){
-                            		  sem_post(sem_replanificar); flag_nuevoProceso = 0;}
+                            	   if(flag_desalojo && flag_nuevoProcesoEnListo){
+                            		  sem_post(sem_replanificar); flag_nuevoProcesoEnListo = 0;}
                             	   else sem_post(sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
