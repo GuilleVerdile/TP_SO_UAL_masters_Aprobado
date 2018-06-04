@@ -6,6 +6,7 @@
 #include <readline/history.h>
 #include <commons/string.h>
 #include <commons/log.h>
+#include "Planificador.h"
 
 int cantidadDeCentinelas(char** centinelas){
 	int i = 0;
@@ -16,6 +17,8 @@ int cantidadDeCentinelas(char** centinelas){
 }
 
 int main() {
+	pthread_t planificador;
+	pthread_create(&planificador,NULL,planificador,NULL);
 	t_log *logger=log_create("/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Planificador.log","Consola",0, LOG_LEVEL_INFO);
   char* linea;
   while(1) {
@@ -52,11 +55,13 @@ int main() {
 	    		printf("Usted ingreso desbloquear\n");
 	    		printf("con la clave: %s\n", centinelas[1]);
 	    		log_info(logger, "Se ingreso comando desbloquear");
+	    		liberaClave(centinelas[1]);
 	    	}
 	   		else if(!strcmp(centinelas[0],"listar")){
 	        	printf("Usted ingreso listar\n");
 	        	printf("con el recurso: %s\n",centinelas[1]);
 	        	log_info(logger, "Se ingreso comando listar");
+	        	listar(centinelas[1]);
 	        }
 	   		else if(!strcmp(centinelas[0],"kill")){
 	        	printf("Usted ingreso kill\n");
@@ -79,6 +84,7 @@ int main() {
 		    	printf("con la clave: %s\n", centinelas[1]);
 		    	printf("con el id: %s\n",centinelas[2]);
 		    	log_info(logger, "Se ingreso comando bloquear");
+		    	bloquearPorID(centinelas[1],transformarNumero(centinelas[2],0));
 			}
 			else{
     	    	printf("No se reconocio el comando %s\n", centinelas[0]);

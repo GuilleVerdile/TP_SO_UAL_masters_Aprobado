@@ -231,7 +231,30 @@ void eliminarDeLista(int id){
 //crea la cola de bloqueados con clave a id
 //bloquea clave a , id tanto
 //libera clave a
-
+// REFACTORIZAR BLOQUEARPORID y BLOQUEAR!!!!!!!!!!!!!!!!!!***********
+void bloquearPorID(char *clave,int id){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	//aca mutex
+	idBuscar=id;
+		//
+	Proceso *proceso =buscarProcesoPorId(id);
+	if(!block){
+		block=malloc(sizeof(Bloqueo));
+		(*block).clave=clave;
+		(*block).bloqueados=list_create();
+		(*block).idProceso=(*proceso).idProceso;
+	}
+	else{
+		if((*block).idProceso==-1){
+			(*block).idProceso=(*proceso).idProceso;
+		}
+		else{
+			list_add((*block).bloqueados,proceso);
+			(*proceso).estado = bloqueado;
+		}
+	}
+}
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
@@ -273,6 +296,7 @@ void liberarRecursos(int id){
 		i++;
 	}
 }
+
 void liberaClave(char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
@@ -284,7 +308,7 @@ void liberaClave(char *clave){
 			free(list_remove(bloqueados,&esIgualAClaveABuscar));
 		}
 		else
-			(*block).idProceso=-1;
+		(*block).idProceso=-1;
 		(*proceso).estado=listo;
 		list_add(listos,proceso);
 		sem_post(sem_replanificar);
@@ -499,7 +523,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 
 
 
-int main()
+void planificador()
     {
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
@@ -520,6 +544,19 @@ int main()
 		}
 	config_destroy(config);
 	crearSelect(miAlgoritmo,estimacionInicial);
-        return 0;
     }
+}
+
+void listar(char* clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(!list_is_empty((*block).bloqueados)){
+		printf("Proceso con id %d posee a la clave",(*block).idProceso);
+		int j=0;
+		Proceso *proceso;
+		while((proceso=list_get((*block).bloqueados,j))!=NULL){
+			printf("Proceso con id %d esta en la lista de clave",(*proceso).idProceso);
+			j++;
+		}
+		}
 }

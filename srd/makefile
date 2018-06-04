@@ -13,7 +13,6 @@ RM := rm -rf
 -include ESI/subdir.mk
 -include CoordinadorHilos/subdir.mk
 -include Coordinador/subdir.mk
--include Consola/subdir.mk
 -include Config/subdir.mk
 -include subdir.mk
 -include objects.mk
@@ -33,6 +32,9 @@ all: SistemasOperativos
 
 # Tool invocations
 SistemasOperativos: $(OBJS) $(USER_OBJS)
+	@echo 'Building target: $@'
+	@echo 'Invoking: GCC C Linker'
+	gcc  -o "SistemasOperativos" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -1,5 +1,5 @@
 #include "Instancia.h";
-
+/*
 struct TE{
 	char clave[40]; //Clave
 	char** entradas; //Direcciones de memoria de las entradas de la clave
@@ -234,4 +234,4 @@ void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicio
 		}
 	}	
 }
-
+*/

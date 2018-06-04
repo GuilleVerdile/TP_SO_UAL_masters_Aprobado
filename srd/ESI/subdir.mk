@@ -7,10 +7,6 @@ C_SRCS += \
 ../ESI/ESI.c \
 ../ESI/FuncionesConexiones.c 
 
-O_SRCS += \
-../ESI/ESI.o \
-../ESI/FuncionesConexiones.o 
-
 OBJS += \
 ./ESI/ESI.o \
 ./ESI/FuncionesConexiones.o 

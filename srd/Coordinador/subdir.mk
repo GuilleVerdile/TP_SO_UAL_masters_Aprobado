@@ -7,10 +7,6 @@ C_SRCS += \
 ../Coordinador/Coordinador.c \
 ../Coordinador/FuncionesConexiones.c 
 
-O_SRCS += \
-../Coordinador/Coordinador.o \
-../Coordinador/FuncionesConexiones.o 
-
 OBJS += \
 ./Coordinador/Coordinador.o \
 ./Coordinador/FuncionesConexiones.o 
