@@ -12,6 +12,7 @@ const char* INSTANCIA = "0";
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
 const char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
+const char *pathEsi="/home/utnso/git/tp-2018-1c-UAL-masters/Config/ESI.cfg";
 
 //Los pongo en escritorio para que no tengamos problemas al commitear
 const char *logCoordinador="/home/utnso/Escritorio/Coordinador.log";

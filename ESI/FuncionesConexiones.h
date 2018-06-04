@@ -41,13 +41,14 @@ extern const char *logConsola;
 extern const char *logInstancias;
 
 //Funciones utilizadas en general
-struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica);
-int crearConexionCliente(char*path);
+struct sockaddr_in dameUnaDireccion(int puerto,char* ip);
+int crearConexionCliente(int puerto,char* ip);
+void enviarCantBytes(int socket,char* buff);
 //Funciones utilizadas por el Coordinador
-int crearConexionServidor(char*path);
+int crearConexionServidor(int puerto, char* ip);
 int transformarNumero(char *a,int start);
 void deserializacion(char* texto, t_esi_operacion* paquete);
-obtenerTamDelSigBuffer(int socketConMsg,int socketInstancia);
+obtenerTamDelSigBuffer(int socketConMsg);
 int recibir(int socket, t_esi_operacion* paquete);
 //Funciones utilizadas por el ESI
 char* transformarTamagnoKey(char key[]);

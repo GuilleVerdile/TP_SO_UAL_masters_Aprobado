@@ -10,8 +10,9 @@ const char* ESI = "1";
 const char* INSTANCIA = "0";
 
 //Path de los servidores
-const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
-const char *pathPlanificador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg";
+const char *pathCoordinador="../Config/Coordinador.cfg";
+const char *pathPlanificador="../Config/Planificador.cfg";
+const char *pathEsi="../Config/ESI.cfg";
 
 //Los pongo en escritorio para que no tengamos problemas al commitear
 const char *logCoordinador="/home/utnso/Escritorio/Coordinador.log";
@@ -20,40 +21,34 @@ const char *logESI="/home/utnso/Escritorio/ESI.log";
 const char *logConsola="/home/utnso/Escritorio/Consola.log";
 const char *logInstancias="/home/utnso/Escritorio/Instancia.log";
 
-struct sockaddr_in dameUnaDireccion(char *path,int ipAutomatica){
-	t_config *config=config_create(path);
+struct sockaddr_in dameUnaDireccion(int puerto,char* ip){ // AHORA HAY QUE PASARLE LA IP!!
+
 	struct sockaddr_in midireccion;
 	midireccion.sin_family = AF_INET;
-	midireccion.sin_port = htons(config_get_int_value(config, "Puerto"));
-	if(ipAutomatica){
-		midireccion.sin_addr.s_addr = INADDR_ANY;
-	}
-	else{
-		midireccion.sin_addr.s_addr = inet_addr(config_get_string_value(config,"Ip"));
-	}
-	config_destroy(config);
+	midireccion.sin_port = htons(puerto);
+		midireccion.sin_addr.s_addr = inet_addr(ip);
 	return midireccion;
 }
 // estas Funciones retornan -1 en caso de error hay que ver despues como manejarlas
-int crearConexionCliente(char*path){//retorna el descriptor de fichero
+int crearConexionCliente(int puerto,char* ip){//retorna el descriptor de fichero
 	int sock=socket(AF_INET, SOCK_STREAM, 0);
 	if(sock<0){
 	return -1;// CASO DE ERROR
 	}
-	struct sockaddr_in midireccion=dameUnaDireccion(path,0);
+	struct sockaddr_in midireccion=dameUnaDireccion(puerto,ip);
 	memset(&midireccion.sin_zero, '\0', 8);
 	if(connect(sock, (struct sockaddr *)&midireccion, sizeof(struct sockaddr))<0){
 		return -1;
 	}
 	return sock;
 }
-int crearConexionServidor(char*path){//Retorna el sock del Servidor
+int crearConexionServidor(int puerto, char* ip){//Retorna el sock del Servidor
 	int sockYoServidor=socket(AF_INET, SOCK_STREAM, 0);// no lo retorno me sierve para la creacion del servidor
 	if(sockYoServidor<0){
 		printf("Error, no se pudo crear el socket\n");
 		return -1;// CASO DE ERROR
 	}
-	struct sockaddr_in miDireccion=dameUnaDireccion(path,0);
+	struct sockaddr_in miDireccion=dameUnaDireccion(puerto,ip);
 	memset(&miDireccion.sin_zero, '\0', 8);
 	struct sockaddr_in their_addr;//Aca queda almacenada la informacion del cliente
 	int activado = 1;
