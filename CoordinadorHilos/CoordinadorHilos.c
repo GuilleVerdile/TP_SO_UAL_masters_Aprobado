@@ -1,7 +1,15 @@
 #include "CoordinadorHilos.h"
 t_list* instancias;
-int socketPlanificador;
+int socketPlanificador,socketEsi;
+sem_t* semaforosInstancias;
+int cantidadDeInstancias;
+sem_t esperaInicializacion;
+sem_t semaforoEsi;
+t_esi_operacion paqueteAEnviar;
+int operacionValida;
 int main(){
+	cantidadDeInstancias =0;
+	semaforosInstancias = NULL;
 	instancias = list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
@@ -30,43 +38,44 @@ int main(){
 	log_info(logger, "Se acepto la conexion");
 	printf("Nuevo cliente, se conecto el Planificador\n");
 	fflush(stdout);
-	pthread_t idHilo;
+	pthread_t* hilosInstancias;
+	pthread_t hiloEsi;
+	sem_init(&esperaInicializacion,0,0);
+	sem_init(&semaforoEsi,0,0);
 	//ACA COMIENZA LO DIVERTIDO =)
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
 		log_info(logger,"Se acepto una nueva conexion");
-		int tipoCliente = esEsi(nuevoCliente);
 		char* buff;
 		buff = malloc(2);
 		int recValor = recv(nuevoCliente, buff, 2, 0);
 		int tipoCliente = 2;
-		recValor == -1 ? exit():(recValor == 0 ? close(nuevoCliente):tipoCliente = transformarNumero(buff,0)); // borre funcion esEsi y uso operador ternario
+		(recValor == -1)? exit(-1):((recValor == 0 )? close(nuevoCliente):(tipoCliente = transformarNumero(buff,0))); // borre funcion esEsi y uso operador ternario
 		free(buff);
 		switch(tipoCliente){
 		case 1:
 			log_info(logger,"El cliente es ESI");
-			if(pthread_create(&idHilo , NULL , conexionESI, (void*) &nuevoCliente) < 0)
+			socketEsi = nuevoCliente; //EL ESI EJECUTANDOSE ES UN VARIABLE GLOBAL
+			if(pthread_create(&hiloEsi , NULL , conexionESI, NULL) < 0)
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
 	    	}
-			log_info(logger,"Se asigno una conexion con hilos");
-			pthread_join(idHilo,NULL);//No vamos a usar esta implementacion pero se usa para testear
+			log_info(logger,"Se asigno una conexion con hilos al ESI");
 			break;
 		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
-			enviarDatosInstancia(nuevoCliente,"CantidadEntradas"); //PRIMERO LE ENVIO LA CANTIDAD DE ENTRADAS
-			enviarDatosInstancia(nuevoCliente,"TamagnoEntradas"); //DESPUES LE ENVIO EL TAMAGNO DE ESAS ENTRADAS
-			int tam = obtenerTamDelSigBuffer(nuevoCliente);
-			char* buff = malloc(tam);
-			log_info(logger,"El tam del buffer es %d",tam);
-			recv(nuevoCliente,buff,tam,0);
-			log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
-			instancia* instanciaNueva = crearInstancia(nuevoCliente,buff);
-			free(buff);
-			if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
-				algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
-			}
+			semaforosInstancias = realloc(semaforosInstancias,sizeof(sem_t)*(cantidadDeInstancias+1));
+			sem_init(&semaforosInstancias[cantidadDeInstancias],0,1);
+			hilosInstancias = realloc(hilosInstancias,sizeof(pthread_t)*(cantidadDeInstancias+1));
+			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)nuevoCliente) < 0)
+	    	{
+				log_error(logger,"No se pudo crear un hilo");
+				return -1;
+	    	}
+			sem_wait(&esperaInicializacion);
+			cantidadDeInstancias++;
+			log_info(logger,"Se asigno una conexion con hilos a la instancia");
 			break;
 		}
 	}
@@ -99,18 +108,6 @@ instancia* buscarInstancia(char* clave){
 	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
 }
 
-void verificarConexion(instancia* instancia){
-	send((*instancia).socketInstancia, "v", 2,0);
-	char* buff = malloc(2);
-	int recvValor = recv((*instancia).socketInstancia,buff,2,0);
-	free(buff);
-	if(recvValor == 0){
-		log_info(logger,"Se desconecto la instancia %s", (*instancia).nombreInstancia);
-		close((*instancia).socketInstancia);
-		(*instancia).estaDisponible = 0;
-	}
-	return;
-}
 
 void liberarClave(instancia* instancia,char* clave){
 	int j = 0;
@@ -166,35 +163,39 @@ int verificacionEsi(char* clave){
 	return 0;
 }
 
-void *conexionESI(void* cliente) //REFACTORIZAR EL FOKEN SWITCH
+void *conexionESI() //REFACTORIZAR EL FOKEN SWITCH
 {
-	log_info(logger,"ESTAMOS DENTRO DEL HILO");
-    int socketEsi = *(int*)cliente; //LO CASTEAMOS
     int recvValor;
-    t_esi_operacion paquete;
     instancia* instanciaAEnviar;
-    while((recvValor = recibir(socketEsi,&paquete)) >0){
-    	switch (paquete.keyword){
+    while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
+    	switch (paqueteAEnviar.keyword){
     	case GET:
-    		if(buscarInstancia(paquete.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    		if(buscarInstancia(paqueteAEnviar.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
     			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
-    			enviarDatosEsi(paquete.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
+    			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
     			return 0;  //CON ESTO NOS ASEGURAMOS QUE LA CONEXION CON EL ESI MUERA.
     		}
-    		instanciaAEnviar = algoritmoDeDistribucion(NULL);
-    		send((*instanciaAEnviar).socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
-    		enviar((*instanciaAEnviar).socketInstancia,paquete);
+    		while(true){
+    		instanciaAEnviar = algoritmoDeDistribucion(NULL); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
+    		sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]);  //LE DIGO A LA INSTANCIA QUE TRABAJE
     		algoritmoDeDistribucion(instanciaAEnviar);
-    		agregarClave(instanciaAEnviar,paquete.argumentos.SET.clave);
+    		sem_wait(&semaforoEsi);
+    		if(operacionValida){
+    			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.SET.clave);
+    			break;
+    		}
+    		(*instanciaAEnviar).estaDisponible = 0; //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
+    		}
     		break;
     	case SET:
-    		if(!validarYenviarPaquete(paquete.argumentos.SET.clave, socketEsi, paquete)) return 0;
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi, paqueteAEnviar)) return 0;
     		break;
     	case STORE:
-    		if(!validarYenviarPaquete(paquete.argumentos.STORE.clave, socketEsi, paquete)) return 0;
-    		liberarClave(instanciaAEnviar,paquete.argumentos.STORE.clave);
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi, paqueteAEnviar)) return 0;
+    		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;
     	}
+
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
             log_info(logger,"Se desconecto un ESI");
@@ -213,28 +214,26 @@ int validarYenviarPaquete(char* clave, int socketEsi,t_esi_operacion* paquete) {
 		return 0;
 	}
 	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
-	verificarConexion(instanciaAEnviar); //SE VERIFICA LA CONEXION ANTES
-	if (!(*instanciaAEnviar).estaDisponible) {
-		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
+	sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
+	sem_wait(&semaforoEsi);
+	if (!operacionValida) {
+		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR DESCONEXION DE LA INSTANCIA
 		close(socketEsi);
 		return 0;
 	}
-	send((*instanciaAEnviar).socketInstancia, "p", 2, 0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
-	enviar((*instanciaAEnviar).socketInstancia, paquete);
 	return 1;
 }
 
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 	instancia* instanciaNueva = NULL;
 	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
-		(*instanciaNueva).socketInstancia = sockInstancia;
 		(*instanciaNueva).estaDisponible = 1;
 		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
 		log_info(logger,"Es una reconexion de la instancia %s", nombreInstancia);
 		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
 	}
 	instanciaNueva = malloc(sizeof(instancia));
-	inicializarInstancia(instanciaNueva,sockInstancia,nombreInstancia); //Inicializamos la instancia.
+	inicializarInstancia(instanciaNueva,nombreInstancia); //Inicializamos la instancia.
 	return instanciaNueva;
 }
 
@@ -257,7 +256,7 @@ instancia* algoritmoDeDistribucion(instancia* instanciaNueva){
 	}
 }
 
-void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nombreInstancia){
+void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	t_config *config=config_create(pathCoordinador);
 	(*instanciaNueva).cantEntradasDisponibles = config_get_int_value(config, "CantidadEntradas");
 	config_destroy(config);
@@ -265,7 +264,7 @@ void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nomb
 	(*instanciaNueva).estaDisponible = 1;
 	(*instanciaNueva).nombreInstancia = malloc(string_length(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
-	(*instanciaNueva).socketInstancia = sockInstancia;
+	(*instanciaNueva).nroSemaforo = cantidadDeInstancias;
 }
 
 instancia* existeEnLaLista(char* id){
@@ -285,7 +284,6 @@ instancia* equitativeLoad(instancia* instancia){
 		int disponibilidad = 0;
 		while(!disponibilidad && instancia != NULL){
 			instancia = list_get(instancias,i);
-			verificarConexion(instancia);
 			disponibilidad = (*instancia).estaDisponible;
 			i++;
 		}
@@ -293,4 +291,38 @@ instancia* equitativeLoad(instancia* instancia){
 	}
 	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
 	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
+}
+
+void *conexionInstancia(void* cliente){
+	int socketInstancia = *(int*)cliente;
+	int nroSemaforo = cantidadDeInstancias;
+	enviarDatosInstancia(socketInstancia,"CantidadEntradas"); //PRIMERO LE ENVIO LA CANTIDAD DE ENTRADAS
+	enviarDatosInstancia(socketInstancia,"TamagnoEntradas"); //DESPUES LE ENVIO EL TAMAGNO DE ESAS ENTRADAS
+	int tam = obtenerTamDelSigBuffer(socketInstancia);
+	char* buff = malloc(tam);
+	log_info(logger,"El tam del buffer es %d",tam);
+	recv(socketInstancia,buff,tam,0);
+	log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
+	instancia* instanciaNueva = crearInstancia(socketInstancia,buff);
+	free(buff);
+	if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
+		algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
+	}
+	sem_post(&esperaInicializacion);
+	//ACA TERMINE DE INICIALIZAR LA INSTANCIA
+	buff = malloc(2);
+	int  recvValor;
+	while(true){
+		sem_wait(&semaforosInstancias[nroSemaforo]);
+		send(socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+		enviar(socketInstancia,paqueteAEnviar);
+		if(recv(socketInstancia,buff,2,0)<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
+			operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
+			sem_post(&semaforoEsi);
+			break;
+		}
+		operacionValida=1;
+		sem_post(&semaforoEsi);
+	}
+	free(buff);
 }

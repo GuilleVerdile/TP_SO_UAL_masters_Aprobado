@@ -22,7 +22,8 @@
 #include <commons/collections/list.h>
 #include <parsi/parser.h>
 #include <pthread.h>
-void *conexionESI(void* listener);
+#include <semaphore.h>
+
 extern t_list* instancias;
 
 enum algoritmos {EL, KE , LSU}; //PARA LOS ALGORITMOS DE DISTRIBUCION
@@ -30,15 +31,17 @@ enum algoritmos {EL, KE , LSU}; //PARA LOS ALGORITMOS DE DISTRIBUCION
 struct Instancia{
 	int estaDisponible; //ESTE VALOR DEFINE SI SE SIGUE MANTENIENDO UNA CONEXION CON EL SERVIDOR
 	char* nombreInstancia; //ME VA SERVIR COMO CLAVE PARA LA RECONEXION
-	int socketInstancia; //EL SOCKET VARIA CON LAS RECONEXIONES
 	char** clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int cantEntradasDisponibles; //PARA EL LSU
+	int nroSemaforo;
 }typedef instancia;
+void *conexionESI();
+void *conexionInstancia(void* cliente);
 void enviarDatosEsi(char*clave);
 void enviarDatosInstancia(int sockInstancia, char* tipo);
 instancia* algoritmoDeDistribucion(instancia* instanciaNueva);
 instancia* equitativeLoad(instancia* instancia);
-void inicializarInstancia(instancia* instanciaNueva,int sockInstancia,char* nombreInstancia);
+void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
 instancia* existeEnLaLista(char* id);
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia);
 #endif /* COORDINADORHILOS_H_ */
