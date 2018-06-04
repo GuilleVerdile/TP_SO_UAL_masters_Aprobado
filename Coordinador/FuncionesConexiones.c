@@ -4,11 +4,10 @@
  *  Created on: 17 abr. 2018
  *      Author: utnso
  */
-#include "FuncionesConexiones.h"
+#include "../Coordinador/FuncionesConexiones.h"
 
-const int SET=0;
-const int GET=1;
-const int STORE=2;
+const char* ESI = "1";
+const char* INSTANCIA = "0";
 
 //Path de los servidores
 const char *pathCoordinador="/home/utnso/git/tp-2018-1c-UAL-masters/Config/Coordinador.cfg";
@@ -79,51 +78,75 @@ int transformarNumero(char *a,int start){
 	}
 	return resultado;
 }
-Paquete deserializacion(char* texto){
-	Paquete pack;
-	char* clave;
-	pack.a = texto[0] -48;
-	if(!pack.a){
+void deserializacion(char* texto, t_esi_operacion* paquete){
+	int tipo = texto[0] -48;
+	switch(tipo){
+	case 0:
+		(*paquete).keyword = SET;
 		int tam = ((texto[1])-48)*10 + texto[2]-48;
-		clave =string_substring(texto,3,tam);
-		strcpy(pack.key,clave);
-		free(clave);
-		pack.value = string_substring_from(texto,tam+3);
+		(*paquete).argumentos.SET.clave = string_substring(texto,3,tam);
+		(*paquete).argumentos.SET.valor = string_substring_from(texto,tam+3);
+		break;
+	case 1:
+		(*paquete).keyword = GET;
+		(*paquete).argumentos.GET.clave = string_substring_from(texto,1);
+		break;
+	case 2:
+		(*paquete).keyword = STORE;
+		(*paquete).argumentos.STORE.clave = string_substring_from(texto,1);
+		break;
+	default:
+		log_error(logger,"No se pudo deserializar el paquete");
+		exit(-1);
 	}
-	else{
-		clave = string_substring_from(texto,1);
-		strcpy(pack.key, clave);
-		free(clave);
-	}
-	return pack;
+
 }
-Paquete recibir(int socket){
-	char *total= malloc(1);
+
+int obtenerTamDelSigBuffer(int socketConMsg){
+	int recvValor;
+	char *total= string_new();
 	char *buff=malloc(5);
+	char *aux = NULL;
 	while(1){
-		recv(socket, buff, 5, 0);
+		recvValor = recv(socketConMsg, buff, 5, 0);
+		if(recvValor < 1){ //Se verifica si fallo el recv o el cliente se desconecto
+			free(total);
+			free(buff);
+			return recvValor;
+			}
 			if(string_contains(buff, "z")){
-				char *aux=malloc(5);
+				aux =malloc(5);
 				strcpy(aux,buff);
 				aux[string_length(buff)-1]='\0';
-				printf("\n%d\n",strlen(total)+strlen(aux));
-				fflush(stdout);
 				string_append(&total,aux);
 				free(aux);
 				break;
-			}
-		string_append(&total, buff);
-	}
-	free(buff);
+				}
+			string_append(&total, buff);
+		}
 	int tot=transformarNumero(total,0);
 	free(total);
+	free(buff);
+	return tot;
+}
+
+int recibir(int socket, t_esi_operacion* paquete){
+	int tot = obtenerTamDelSigBuffer(socket);
+	if(tot < 1){
+		return tot;
+	}
 	char* buf=malloc(tot);
-	recv(socket,buf,tot,0);
-	Paquete pack=deserializacion(buf);
+	int recvValor = recv(socket,buf,tot,0);
+	if(recvValor <1){  //Se verifica si fallo el recv o el cliente se desconecto
+		free(buf);
+		return recvValor;
+	}
+	deserializacion(buf, paquete);
 	free(buf);
-	return pack;
+	return 1; //No hubo problema en recibir
 }
 //Funciones ESI
+
 char* transformarTamagnoKey(char key[]){
 	int tam=string_length(key);
 	if(tam<10){
@@ -137,24 +160,34 @@ char* transformarTamagnoKey(char key[]){
 	else
 		return string_itoa(tam);
 }
-void serealizarPaquete(Paquete pack,char** buff){
-	*buff=string_itoa(pack.a);
-	if(!pack.a){
-		char* tamkey = transformarTamagnoKey(pack.key);
-		string_append(buff,tamkey);
-		free(tamkey);
-	}
-	string_append(buff, pack.key);
-	if(!pack.a){
-	string_append(buff, pack.value);
+void serealizarPaquete(t_esi_operacion operacion,char** buff){
+
+	switch(operacion.keyword){
+		case SET:
+			*buff = string_itoa(0);// 0 es SET
+			char* tamkey = transformarTamagnoKey(operacion.argumentos.SET.clave);
+			string_append(buff,tamkey);
+			string_append(buff, operacion.argumentos.SET.clave);
+			string_append(buff, operacion.argumentos.SET.valor);
+			free(tamkey);
+			break;
+		case GET:
+			*buff = string_itoa(1);// 1 es GET
+			string_append(buff,operacion.argumentos.GET.clave);
+			break;
+		case STORE:
+			*buff = string_itoa(2);// 2 es STORE
+			string_append(buff,operacion.argumentos.STORE.clave);
+			break;
+		default:
+			log_error(logger, "No se entendio el comando");
+			exit(-1);
 	}
 }
 
-void enviar(int socket,Paquete pack){
+void enviarCantBytes(int socket,char* buff){
 	int i =0;
 	char *enviar;
-	char *buff;
-	serealizarPaquete(pack,&buff);
 	char *cantBytes=string_itoa(string_length(buff)+1);
 	string_append(&cantBytes, "z");
 	while(i<string_length(cantBytes)){
@@ -163,7 +196,20 @@ void enviar(int socket,Paquete pack){
 		i=i+4;
 		free(enviar);
 	}
-	send(socket,buff,string_length(buff)+1,0);
 	free(cantBytes);
+}
+
+void enviar(int socket,t_esi_operacion operacion){
+	char *buff;
+	serealizarPaquete(operacion,&buff);
+	enviarCantBytes(socket,buff);
+	send(socket,buff,string_length(buff)+1,0);
 	free(buff);
+}
+
+void enviarTipoDeCliente(int socket,char* tipo){
+	if(send(socket,tipo,2,0)<0){
+		log_error(logger,"Se produjo un error al enviar el tipo de cliente");
+		exit(-1);
+	}
 }

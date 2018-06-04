@@ -15,7 +15,6 @@ C_DEPS :=
 SUBDIRS := \
 Config \
 Coordinador \
-CoordinadorHilos \
 ESI \
 Instancia \
 Planificador \

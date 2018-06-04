@@ -8,7 +8,8 @@ C_SRCS += \
 ../Instancia/Instancia.c 
 
 O_SRCS += \
-../Instancia/FuncionesConexiones.o 
+../Instancia/FuncionesConexiones.o \
+../Instancia/Instancia.o 
 
 OBJS += \
 ./Instancia/FuncionesConexiones.o \
