@@ -7,10 +7,12 @@ sem_t esperaInicializacion;
 sem_t semaforoEsi;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
+pthread_mutex_t mutexInstancias;
+instancia* (*algoritmoDeDistribucion)();
+
 int main(){
 	cantidadDeInstancias =0;
 	semaforosInstancias = NULL;
-	instancias = list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
@@ -35,13 +37,14 @@ int main(){
 	    log_destroy(logger);
 	    return -1;
 	}
+	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
 	log_info(logger, "Se acepto la conexion");
-	printf("Nuevo cliente, se conecto el Planificador\n");
-	fflush(stdout);
-	pthread_t* hilosInstancias;
+	pthread_t* hilosInstancias = NULL;
 	pthread_t hiloEsi;
+	instancias = list_create();
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
+	pthread_mutex_init(&mutexInstancias,NULL);
 	//ACA COMIENZA LO DIVERTIDO =)
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
@@ -56,7 +59,7 @@ int main(){
 		case 1:
 			log_info(logger,"El cliente es ESI");
 			socketEsi = nuevoCliente; //EL ESI EJECUTANDOSE ES UN VARIABLE GLOBAL
-			if(pthread_create(&hiloEsi , NULL , conexionESI, NULL) < 0)
+			if(pthread_create(&hiloEsi , NULL , conexionESI, NULL) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
@@ -68,13 +71,13 @@ int main(){
 			semaforosInstancias = realloc(semaforosInstancias,sizeof(sem_t)*(cantidadDeInstancias+1));
 			sem_init(&semaforosInstancias[cantidadDeInstancias],0,1);
 			hilosInstancias = realloc(hilosInstancias,sizeof(pthread_t)*(cantidadDeInstancias+1));
-			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)nuevoCliente) < 0)
+			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)nuevoCliente) < 0) //VA HABER UN HILO POR CADA INSTANCIA
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
 	    	}
-			sem_wait(&esperaInicializacion);
-			cantidadDeInstancias++;
+			sem_wait(&esperaInicializacion); //ESPERA A QUE PRIMERO SE TERMINE LA INICIALIZACIONDE LA INSTANCIA QUE SE CONECTO.
+			cantidadDeInstancias++; //EL VALOR DE LA CANTIDAD DE INSTANCIAS ME SIRVE TAMBIEN PARA CONOCER EL NUMERO DE SEMAFORO QUE LE TOCO A CADA INSTANCIA
 			log_info(logger,"Se asigno una conexion con hilos a la instancia");
 			break;
 		}
@@ -93,6 +96,7 @@ void enviarDatosInstancia(int sockInstancia, char* tipo){
 instancia* buscarInstancia(char* clave){
 	int i =0;
 	instancia* instancia;
+	pthread_mutex_lock(&mutexInstancias);
 	while((instancia = list_get(instancias,i))!= NULL){ //ME FIJO HASTA LA ULTIMA LISTA
 		if((*instancia).clavesBloqueadas != NULL){ //PRIMERO ME FIJO QUE EXISTA AL MENOS UNA CLAVE
 			int j =0;
@@ -105,6 +109,7 @@ instancia* buscarInstancia(char* clave){
 		}
 		i++;
 	}
+	pthread_mutex_unlock(&mutexInstancias);
 	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
 }
 
@@ -237,12 +242,12 @@ instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 	return instanciaNueva;
 }
 
-instancia* algoritmoDeDistribucion(instancia* instanciaNueva){
+algoritmo obtenerAlgoritmoDistribucion(){
 	t_config *config=config_create(pathCoordinador);
 	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
 	config_destroy(config);
 	case EL: //EQUITATIVE LOAD
-		return equitativeLoad(instanciaNueva);
+		return &equitativeLoad;
 		break;
 	case LSU: //LSU
 		//return lsu(sockInstancia);
@@ -282,14 +287,19 @@ instancia* equitativeLoad(instancia* instancia){
 	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
 		int i = 0;
 		int disponibilidad = 0;
+		pthread_mutex_lock(&mutexInstancias);
 		while(!disponibilidad && instancia != NULL){
 			instancia = list_get(instancias,i);
 			disponibilidad = (*instancia).estaDisponible;
 			i++;
 		}
-		return list_remove(instancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
+		instancia = list_remove(instancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
+		pthread_mutex_unlock(&mutexInstancias);
+		return instancia;
 	}
+	pthread_mutex_lock(&mutexInstancias);
 	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
+	pthread_mutex_unlock(&mutexInstancias);
 	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
 }
 

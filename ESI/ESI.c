@@ -41,8 +41,7 @@ void* hacerUnaOperacion(){
 }
 
 int main(int argc, char**argv){
-	pthread_t hiloConexionCoordinador;
-
+	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
 	FILE* f;
 	ssize_t read;
 	f = fopen(argv[1],"r");
@@ -56,13 +55,13 @@ int main(int argc, char**argv){
 	resultado = malloc(2);
 		send(sockplanificador,"1",2,0);
 		while(recv(sockplanificador, resultado, 2, 0)){
-			if(pthread_kill(&hiloConexionCoordinador) < 0)
+			if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador) < 0)) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
 			{
-				if(getline(&linea,&length,f) < 0) break;
+				if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 			}
 			pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion(),NULL);
 		}
-    send(sockplanificador,"f",2,0);
+    send(sockplanificador,"f",2,0); //FINALIZO LA EJECUCION DEL ESI
 	free(resultado);
 	log_destroy(logger);
 	close(sockcoordinador);

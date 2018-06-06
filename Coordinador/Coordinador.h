@@ -38,9 +38,10 @@ void *conexionESI();
 void *conexionInstancia(void* cliente);
 void enviarDatosEsi(char*clave);
 void enviarDatosInstancia(int sockInstancia, char* tipo);
-instancia* algoritmoDeDistribucion(instancia* instanciaNueva);
+typedef instancia*(*algoritmo)(instancia* instancia);
 instancia* equitativeLoad(instancia* instancia);
 void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
 instancia* existeEnLaLista(char* id);
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia);
+algoritmo obtenerAlgoritmoDistribucion();
 #endif /* COORDINADOR_H_ */

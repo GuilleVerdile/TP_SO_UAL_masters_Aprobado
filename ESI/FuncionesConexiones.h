@@ -32,7 +32,7 @@ const char* INSTANCIA;
 //Path de los servidores
 extern const char *pathCoordinador;
 extern const char *pathPlanificador;
-
+extern const char *pathEsi;
 //Los pongo en escritorio para que no tengamos problemas al commitear
 extern const char *logCoordinador;
 extern const char *logPlanificador;
