@@ -92,5 +92,5 @@ void matarESI(int id);
 void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial);
 void planificador();
 void listar(char* clave);
-
+void bloquearClavesIniciales(t_config *config);
 #endif /* SOCKET_PLANIFICADOR_H_ */

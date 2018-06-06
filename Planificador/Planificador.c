@@ -205,13 +205,20 @@ void bloquearPorID(char *clave,int id){
 	Bloqueo *block=buscarClave();
 	//aca mutex
 	idBuscar=id;
+	Proceso *proceso;
 		//
-	Proceso *proceso =buscarProcesoPorId(id);
+	//REVISAR SOLUCION CON IF PARA BLOQUEAR CLAVES INICIALES POR CONFIG!!!!!!!!!!!!!!!!!!
+	if(id)
+	proceso=buscarProcesoPorId(id);
 	if(!block){
 		block=malloc(sizeof(Bloqueo));
 		(*block).clave=clave;
 		(*block).bloqueados=list_create();
+		if(id)
 		(*block).idProceso=(*proceso).idProceso;
+		else
+			(*block).idProceso=0;
+
 	}
 	else{
 		if((*block).idProceso==-1){
@@ -332,6 +339,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
+	 bloquearClavesIniciales(config);
 	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
@@ -528,4 +536,15 @@ void listar(char* clave){
 			j++;
 		}
 		}
+}
+void bloquearClavesIniciales(t_config *config){
+	char ** claves;
+	claves=config_get_array_value(config,"Claves inicialmente bloqueadas");
+	char *aux=*(claves);
+	int i=0;
+	while(aux){
+		bloquearPorID(aux,0);
+		i++;
+		aux=*(claves+i);
+	}
 }
