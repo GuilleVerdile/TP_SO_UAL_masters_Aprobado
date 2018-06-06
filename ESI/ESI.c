@@ -16,7 +16,7 @@ void conectarESI(int *sockcoordinador,int *sockplanificador){
 	t_config *config=config_create(pathEsi);
 	*sockplanificador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Planificador"),config_get_string_value(config, "IP de Conexion al Planificador"));
 	*sockcoordinador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador"));
-		   if(sockplanificador<0 || sockcoordinador<0){
+		   if(*sockplanificador<0 || *sockcoordinador<0){
 			   log_error(logger,"Error en la conexion con los clientes");
 			   config_destroy(config);
 		   }

@@ -72,9 +72,9 @@ int main(){
 		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
 			semaforosInstancias = realloc(semaforosInstancias,sizeof(sem_t)*(cantidadDeInstancias+1));
-			sem_init(&semaforosInstancias[cantidadDeInstancias],0,1);
+			sem_init(&semaforosInstancias[cantidadDeInstancias],0,0);
 			hilosInstancias = realloc(hilosInstancias,sizeof(pthread_t)*(cantidadDeInstancias+1));
-			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)nuevoCliente) < 0) //VA HABER UN HILO POR CADA INSTANCIA
+			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)&nuevoCliente) < 0) //VA HABER UN HILO POR CADA INSTANCIA
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
