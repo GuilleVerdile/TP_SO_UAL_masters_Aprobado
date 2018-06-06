@@ -45,29 +45,29 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
-	sem_wait(sem_replanificar);
+	sem_wait(&sem_replanificar);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
-	sem_wait(sem_finDeEjecucion);
+	sem_wait(&sem_finDeEjecucion);
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
-	sem_post(sem_procesoEnEjecucion);
+	sem_post(&sem_procesoEnEjecucion);
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 
 	}
 }
 void *ejecutarEsi(void *esi){
 	while(1){
-		sem_wait(sem_procesoEnEjecucion);
+		sem_wait(&sem_procesoEnEjecucion);
 		while((*procesoEnEjecucion).estado==ejecucion){
-			sem_wait(sem_ESIejecutoUnaSentencia);
+			sem_wait(&sem_ESIejecutoUnaSentencia);
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
-		sem_post(sem_finDeEjecucion);
+		sem_post(&sem_finDeEjecucion);
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
@@ -239,7 +239,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		else{
 			list_add((*block).bloqueados,procesoEnEjecucion);
 			(*procesoEnEjecucion).estado = bloqueado;
-			sem_post(sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
+			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
 }
@@ -279,7 +279,7 @@ void liberaClave(char *clave){
 		(*block).idProceso=-1;
 		(*proceso).estado=listo;
 		list_add(listos,proceso);
-		sem_post(sem_replanificar);
+		sem_post(&sem_replanificar);
 	}
 }
 
@@ -308,7 +308,7 @@ void matarESI(int id){
 		list_remove_by_condition(listos,&procesoEsIdABuscar);
 	}
 	if((*procesoEnEjecucion).idProceso==id){
-		sem_post(sem_replanificar);
+		sem_post(&sem_replanificar);
 	}
 	liberarRecursos(id);
 	idBuscar = id;
@@ -321,14 +321,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      terminados=list_create();
      bloqueados=list_create();
      procesoEnEjecucion = NULL;
-	 pthread_t planificadrCortoPlazo;
-	 pthread_t ejecutarEsi;
-	 sem_init(sem_replanificar,0,0);
-	 sem_init(sem_procesoEnEjecucion,0,0);
-	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
-	 sem_init(sem_finDeEjecucion,0,1);
-	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
-	 pthread_create(&ejecutarEsi,NULL,ejecutarEsi,NULL);
+	 pthread_t hilo_planificadrCortoPlazo;
+	 pthread_t hilo_ejecutarEsi;
+	 sem_init(&sem_replanificar,0,0);
+	 sem_init(&sem_procesoEnEjecucion,0,0);
+	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
+	 sem_init(&sem_finDeEjecucion,0,1);
+	 pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
+	 pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
@@ -395,7 +395,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
                                  if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
-                                	 sem_post(sem_replanificar);
+                                	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
                                  log_info(logger, "Ingreso un nuevo cliente");
@@ -465,14 +465,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
-                            	   sem_post(sem_replanificar);
+                            	   sem_post(&sem_replanificar);
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
                             	   if(flag_desalojo && flag_nuevoProcesoEnListo){
-                            		  sem_post(sem_replanificar); flag_nuevoProcesoEnListo = 0;}
-                            	   else sem_post(sem_ESIejecutoUnaSentencia);
+                            		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
+                            	   else sem_post(&sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
                             	   tam = obtenerTamDelSigBuffer(i);
@@ -490,13 +490,13 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 }
 
 }
-void planificador()
+void main()
     {
 	idGlobal=0;
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
-	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
-	char*algoritmo= config_get_string_value(config, "AlgoritmoDePlanificador");
+	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
+	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 
 	if(!strcmp(algoritmo,"fifo")){
 		miAlgoritmo=&fifo;
