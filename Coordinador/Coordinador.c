@@ -16,11 +16,14 @@ int main(){
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
-	if((listener=crearConexionServidor(pathCoordinador))==-1){
+	t_config *config = config_create(pathCoordinador);
+	if((listener=crearConexionServidor(config_get_int_value(config, "Puerto"),config_get_string_value(config, "Ip")))==-1){
 		log_error(logger, "No se pudo crear el socket servidor");
+		config_destroy(config);
 		log_destroy(logger);
 		return -1;
 	}
+	config_destroy(config);
 	log_info(logger, "Se creo el socket de Servidor");
 	int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
 	int addrlen;
