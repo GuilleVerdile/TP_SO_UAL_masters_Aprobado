@@ -22,19 +22,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: Esibuild
+all: Instancia
 
 # Tool invocations
-Esibuild: $(OBJS) $(USER_OBJS)
+Instancia: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc  -o "Esibuild" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc  -o "Instancia" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) Esibuild
+	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) Instancia
 	-@echo ' '
 
 .PHONY: all clean dependents
