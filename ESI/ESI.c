@@ -5,7 +5,7 @@
  *      Author: utnso
  */
 
-
+char *pathEsi="../Config/ESI.cfg";
 #include "ESI.h"
 	size_t length = 0;
 	char* linea = NULL;

@@ -4,15 +4,12 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../FuncionesConexiones.c \
 ../Instancia.c 
 
 OBJS += \
-./FuncionesConexiones.o \
 ./Instancia.o 
 
 C_DEPS += \
-./FuncionesConexiones.d \
 ./Instancia.d 
 
 

@@ -21,7 +21,7 @@
 #include <parsi/parser.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "FuncionesConexiones.h"
+#include <FuncionesConexiones.h>
 
 extern t_list* instancias;
 

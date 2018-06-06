@@ -4,20 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../Coordinador/Coordinador.c \
-../Coordinador/FuncionesConexiones.c 
-
-O_SRCS += \
-../Coordinador/Coordinador.o \
-../Coordinador/FuncionesConexiones.o 
+../Coordinador/Coordinador.c 
 
 OBJS += \
-./Coordinador/Coordinador.o \
-./Coordinador/FuncionesConexiones.o 
+./Coordinador/Coordinador.o 
 
 C_DEPS += \
-./Coordinador/Coordinador.d \
-./Coordinador/FuncionesConexiones.d 
+./Coordinador/Coordinador.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
