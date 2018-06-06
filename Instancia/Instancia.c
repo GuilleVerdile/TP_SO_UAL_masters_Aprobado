@@ -125,7 +125,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
-			if(send(sockcoordinador,"Operacion GET realizada con exito\n",1024,0)==-1)
+			if(send(sockcoordinador,"r",2,0)==-1)
 			{
 				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
 			}
@@ -149,7 +149,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			else{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
-			if(send(sockcoordinador,"Operacion SET realizada con exito\n",1024,0)==-1)
+			if(send(sockcoordinador,"r",2,0)==-1)
 			{
 				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
 			}
@@ -181,10 +181,13 @@ void meterClaveALaTabla(char clave[40]){
 	}
 	tablas[i].entradas = NULL;
 	tablas[i].tamValor = 0;
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+	t_config *config=config_create("../Config/Instancia.cfg");
 	char* path =config_get_string_value(config,"PuntoMontaje");
-	string_append(&path,clave);
-	int desc = open(path, O_RDWR | O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
+	char* pathCompleto = malloc(strlen(path)+1);
+	strcpy(pathCompleto,path);
+	string_append(&pathCompleto,clave);
+	int desc = open(pathCompleto, O_RDWR | O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
+	free(pathCompleto);
 	close(desc);
 	config_destroy(config);
 
