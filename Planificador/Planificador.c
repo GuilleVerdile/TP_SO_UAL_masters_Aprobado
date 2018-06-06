@@ -5,38 +5,6 @@
  *      Author: utnso
  */
 #include "Planificador.h"
-int idBuscar;// esto es por ahora
-int idGlobal=0;// esto es por ahora
-char *claveABuscar;
-t_list *procesos;
-t_list *listos;
-t_list *terminados;
-t_list *bloqueados;
-sem_t *sem_replanificar;
-sem_t *sem_procesoEnEjecucion;
-sem_t *sem_ESIejecutoUnaSentencia;
-sem_t * sem_finDeEjecucion;
-int flag_desalojo;
-int flag_nuevoProcesoEnListo;
-int tiempo_de_ejecucion;
-float alfaPlanificador;
-typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
-typedef struct{
-	int idProceso;
-	int socketProceso;
-	Estado estado;
-	int tiempo_que_entro;
-	float estimacionAnterior;
-	float rafagaRealActual;
-	float rafagaRealAnterior;
-}Proceso;
-typedef struct{
-	char *clave;
-	t_list *bloqueados;
-	int idProceso;
-} Bloqueo;
-pthread_mutex_t planiCorto;
-Proceso *procesoEnEjecucion;
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -521,10 +489,10 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      free(buf);
 }
 
-
-
+}
 void planificador()
     {
+	idGlobal=0;
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create(pathPlanificador);
 	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
@@ -545,8 +513,6 @@ void planificador()
 	config_destroy(config);
 	crearSelect(miAlgoritmo,estimacionInicial);
     }
-}
-
 void listar(char* clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
