@@ -218,7 +218,7 @@ void bloquearPorID(char *clave,int id){
 		(*block).idProceso=(*proceso).idProceso;
 		else
 			(*block).idProceso=0;
-
+		list_add(bloqueados,block);
 	}
 	else{
 		if((*block).idProceso==-1){
@@ -238,6 +238,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		(*block).clave=clave;
 		(*block).bloqueados=list_create();
 		(*block).idProceso=(*procesoEnEjecucion).idProceso;
+		list_add(bloqueados,block);
 	}
 	else{
 		if((*block).idProceso==-1){
@@ -340,6 +341,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
 	 bloquearClavesIniciales(config);
+	//HOLA
 	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
@@ -527,15 +529,21 @@ void planificador()
 void listar(char* clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!list_is_empty((*block).bloqueados)){
-		printf("Proceso con id %d posee a la clave",(*block).idProceso);
+	if(!list_is_empty((*block).bloqueados) || !(*block).idProceso){
+		if(!(*block).idProceso)
+					printf("Esta Clave fue bloqueada por config\n");
+		else
+					printf("Proceso con id %d posee a la clave\n",(*block).idProceso);
+
 		int j=0;
 		Proceso *proceso;
 		while((proceso=list_get((*block).bloqueados,j))!=NULL){
-			printf("Proceso con id %d esta en la lista de clave",(*proceso).idProceso);
+			printf("Proceso con id %d esta en la lista de clave\n",(*proceso).idProceso);
 			j++;
 		}
 		}
+	else
+		printf("No existe la clave\n");
 }
 void bloquearClavesIniciales(t_config *config){
 	char ** claves;
