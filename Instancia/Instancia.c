@@ -17,13 +17,15 @@ int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	int sockcoordinador;
 	int nroReemplazo = 0;
-    if((sockcoordinador =crearConexionCliente("../Config/Instancia.cfg")) == -1){
+	t_config* config = config_create("../Config/Instancia.cfg");
+    if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
+    	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
+    	return -1;
     }
     log_info(logger,"Se realizo correctamente la conexion con el coordinador");
     enviarTipoDeCliente(sockcoordinador,INSTANCIA);
     inicializarTablaEntradas(sockcoordinador);
-    t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
     char *buff = config_get_string_value(config, "nombreInstancia"); //obtengo el id
     enviarCantBytes(sockcoordinador,buff);
     send(sockcoordinador,buff,string_length(buff) + 1,0); //ENVIO EL NOMBRE DE LA INSTANCIA
