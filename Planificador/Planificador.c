@@ -332,7 +332,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
-	 logger=log_create(pathPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
+	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -351,11 +351,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      int casoDiscriminador;
      FD_ZERO(&master);    // borra los conjuntos maestro
      FD_ZERO(&read_fds);	// borra los conjuntos maestro
-
-    	if((casoDiscriminador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexión al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador")))==-1){
+    	if(((casoDiscriminador=crearConexionCliente(8001,"127.0.0.1")))==-1){
     		config_destroy(config);
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}
+    	/*if((casoDiscriminador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexión al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador")))==-1){
+    		config_destroy(config);
+    		tirarErrorYexit("No se pudo crear socket de cliente");
+    	}*/
     	else
     		log_info(logger, "Se creo el socket de cliente");
      config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
