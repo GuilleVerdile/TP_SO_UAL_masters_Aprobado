@@ -60,7 +60,7 @@ typedef struct{
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
 //
-
+void cerrarPlanificador();
 bool procesoEsIdABuscar(void * proceso);
 bool procesoEsIdABuscarSocket(void * proceso);
 void actualizarEstado(int id,Estado estado,int porSocket);

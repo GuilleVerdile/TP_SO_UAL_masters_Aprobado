@@ -213,7 +213,9 @@ void eliminarDeLista(int id){
 //libera clave a
 // REFACTORIZAR BLOQUEARPORID y BLOQUEAR!!!!!!!!!!!!!!!!!!***********
 void bloquearPorID(char *clave,int id){
-	claveABuscar=clave;
+	char *aux=malloc(strlen(clave)+1);
+	strcpy(aux,clave);
+	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	//aca mutex
 	idBuscar=id;
@@ -224,7 +226,7 @@ void bloquearPorID(char *clave,int id){
 	proceso=buscarProcesoPorId(id);
 	if(!block){
 		block=malloc(sizeof(Bloqueo));
-		(*block).clave=clave;
+		(*block).clave=aux;
 		(*block).bloqueados=list_create();
 		if(id)
 		(*block).idProceso=(*proceso).idProceso;
@@ -243,11 +245,13 @@ void bloquearPorID(char *clave,int id){
 	}
 }
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
-	claveABuscar=clave;
+	char *aux=malloc(strlen(clave)+1);
+	strcpy(aux,clave);
+	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	if(!block){
 		block=malloc(sizeof(Bloqueo));
-		(*block).clave=clave;
+		(*block).clave=aux;
 		(*block).bloqueados=list_create();
 		(*block).idProceso=(*procesoEnEjecucion).idProceso;
 		list_add(bloqueados,block);
@@ -320,6 +324,7 @@ void desbloquear(int id){
 void tirarErrorYexit(char* mensajeError) {
 	log_error(logger, mensajeError);
 	log_destroy(logger);
+	cerrarPlanificador();
 	exit(-1);
 }
 void matarESI(int id){
@@ -516,7 +521,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 }
 void planificador()
     {
-	idGlobal=0;
+	idGlobal=1;
 	void(*miAlgoritmo)(int,char*);
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
@@ -536,6 +541,7 @@ void planificador()
 		}
 	config_destroy(config);
 	crearSelect(miAlgoritmo,estimacionInicial);
+	cerrarPlanificador();
     }
 void listar(char* clave){
 	claveABuscar=clave;
@@ -566,4 +572,21 @@ void bloquearClavesIniciales(t_config *config){
 		i++;
 		aux=*(claves+i);
 	}
+}
+void destruirUnBloqueado(void *elemento){
+	Bloqueo *b=(Bloqueo *) elemento;
+	list_destroy((*b).bloqueados);
+	free((*b).clave);
+	free(b);
+
+}
+void destruirUnProceso(void *elemento){
+	Proceso *b=(Proceso *) elemento;
+	free(b);
+}
+void cerrarPlanificador(){
+	list_destroy_and_destroy_elements(bloqueados,&destruirUnBloqueado);
+	list_destroy(listos);
+	list_destroy(terminados);
+	list_destroy_and_destroy_elements(procesos,&destruirUnProceso);
 }
