@@ -80,32 +80,41 @@ void inicializarTablaEntradas(int sockcoordinador){
 }
 void* hacerDump(){
 	while(1){
-		t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+		t_config *config=config_create(pathInstancia);
 		sleep(config_get_int_value(config,"dump"));
-		almacenarInformacion(config);
 		config_destroy(config);
+		almacenarTodaInformacion();
 	}
 }
 
-void almacenarInformacion(t_config* config){
+void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
+	t_config *config=config_create(pathInstancia);
+	char* path = config_get_string_value(config,"PuntoMontaje");
+	char* aux = malloc(strlen(path)+strlen(tablas[posTabla].clave)+1);
+	strcpy(aux,path);
+	config_destroy(config);
+	string_append(&aux,tablas[posTabla].clave);
+	char* valor = string_new();
+	int j =0;
+	while(tablas[posTabla].entradas[j] != NULL){
+		string_append(&valor, tablas[posTabla].entradas[j]);
+		j++;
+	}
+	int desc = open(aux, O_RDWR | O_CREAT | O_TRUNC, 0777);
+	free(aux);
+	ftruncate(desc,strlen(valor));
+	char* map = mmap(NULL,strlen(valor),PROT_WRITE,MAP_SHARED,desc,0);
+	memcpy(map,valor,strlen(valor));
+	munmap(map,strlen(valor));
+	close(desc);
+	free(valor);
+}
+
+void almacenarTodaInformacion(){
 	int i = 0;
 	if(tablas != NULL){
 		while((&tablas)[i] != NULL && tablas[i].entradas !=NULL){
-			char* path = config_get_string_value(config,"PuntoMontaje");
-			string_append(&path,tablas[i].clave);
-			char* valor = string_new();
-			int j =0;
-			while(tablas[i].entradas[j] != NULL){
-				string_append(&valor, tablas[i].entradas[j]);
-				j++;
-			}
-			int desc = open(path, O_RDWR | O_CREAT | O_TRUNC, 0777);
-			ftruncate(desc,strlen(valor));
-			char* map = mmap(NULL,strlen(valor),PROT_WRITE,MAP_SHARED,desc,0);
-			memcpy(map,valor,strlen(valor));
-			munmap(map,strlen(valor));
-			close(desc);
-			free(valor);
+			almacenarInformacionDeTalPosicionDeLaTabla(i);
 			i++;
 		}
 	}
@@ -125,14 +134,6 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
-			if(send(sockcoordinador,"r",2,0)==-1)
-			{
-				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
-			}
-			else
-			{
-				log_info(logger, "Mensaje enviado correctamente");
-			}
 			break;
 		case SET:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
@@ -149,33 +150,19 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			else{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
-			if(send(sockcoordinador,"r",2,0)==-1)
-			{
-				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
-			}
-			else
-			{
-				log_info(logger, "Mensaje enviado correctamente");
-			}
 			break;
 		case STORE:
-			int i=0;
-			while(strcmp(tablas[i].clave,paquete.argumentos.STORE.clave)!=0)
-			{
-				i++; 
-			} 
-			
-			t_config* config = config_create(pathInstancia);
-			char* path = config_get_string_value(config,"PuntoMontaje");
-			string_append(&path,tablas[i].clave);
-			int desc = open(path, O_RDWR | O_CREAT | O_TRUNC, 0777);
-			ftruncate(desc,strlen(tablas[i].clave));
-			char* map = mmap(NULL,strlen(tablas[i].clave),PROT_WRITE,MAP_SHARED,desc,0);
-			memcpy(map,valor,strlen(tablas[i].clave));
-			munmap(map,strlen(tablas[i].clave));
-			close(desc);
-			config_destroy(config);
+			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
+			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);
 			break;
+	}
+	if(send(sockcoordinador,"r",2,0)==-1)
+	{
+		log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
+	}
+	else
+	{
+		log_info(logger, "Mensaje enviado correctamente");
 	}
 	log_destroy(logger);
 }
