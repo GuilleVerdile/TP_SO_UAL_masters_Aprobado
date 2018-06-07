@@ -191,6 +191,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		algoritmoDeDistribucion(instanciaAEnviar);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
+    			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.SET.clave);
     			break;
     		}

@@ -26,11 +26,13 @@ void conectarESI(int *sockcoordinador,int *sockplanificador){
 
 
 void* hacerUnaOperacion(){
+	log_info(logger,"Estamos dentro del hilo");
 	t_esi_operacion operacion = parse(linea);
 	if(operacion.valido){
 		enviar(sockcoordinador,operacion);
 		destruir_operacion(operacion);
 		recv(sockcoordinador,resultado,2,0);
+		log_info(logger,"Se realizo la operacion");
 		send(sockplanificador,resultado,2,0);
 	}
 	else{
@@ -61,6 +63,7 @@ int main(int argc, char**argv){
 		{
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
+		log_info(logger,"La operacion a ejecutar es %s",linea);
 		pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion,NULL);
 	}
 	if(linea){

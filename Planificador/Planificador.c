@@ -514,7 +514,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 }
 
 }
-void main()
+void planificador()
     {
 	idGlobal=0;
 	void(*miAlgoritmo)(int,char*);
