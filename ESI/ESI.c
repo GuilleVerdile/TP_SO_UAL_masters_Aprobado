@@ -11,7 +11,6 @@
 	int sockcoordinador;
 	int sockplanificador;
 	char* resultado;
-	int operacionRealizada;
 
 void conectarESI(int *sockcoordinador,int *sockplanificador){
 	t_config *config=config_create(pathEsi);
@@ -27,14 +26,12 @@ void conectarESI(int *sockcoordinador,int *sockplanificador){
 
 
 void* hacerUnaOperacion(){
-	operacionRealizada = 0;
 	t_esi_operacion operacion = parse(linea);
 	if(operacion.valido){
 		enviar(sockcoordinador,operacion);
 		destruir_operacion(operacion);
 		recv(sockcoordinador,resultado,2,0);
 		send(sockplanificador,resultado,2,0);
-		operacionRealizada =1;
 	}
 	else{
 		send(sockplanificador,"a",2,0);
@@ -48,7 +45,6 @@ int main(int argc, char**argv){
 	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
 	FILE* f;
 	ssize_t read;
-	operacionRealizada = 1;
 	f = fopen(argv[1],"r");
 	if(f == NULL){
 		log_error(logger, "No se pudo abrir el archivo");
