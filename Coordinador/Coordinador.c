@@ -159,8 +159,8 @@ void enviarDatosEsi(char*clave){
 	send(socketPlanificador,clave,strlen(clave)+1,0);
 }
 
-int verificacionEsi(char* clave){
-	send(socketPlanificador,"v",2,0); //LE ENVIO UNA SENIAL DE VERIFICAR
+int verificacionEsi(char* clave,char* loQueEnvio){
+	send(socketPlanificador,loQueEnvio,2,0); //LE ENVIO UNA SENIAL DE VERIFICAR
 	enviarDatosEsi(clave);
 	char* resultado = malloc(2);
 	recv(socketPlanificador,resultado,2,0); //OBTENGO EL RESULTADO
@@ -178,10 +178,13 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     int recvValor;
     instancia* instanciaAEnviar;
     while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
+    	t_config* config = config_create(pathCoordinador);
+    	sleep(config_get_int_value(config,"retardo"));
+    	config_destroy(config);
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
-    		if(buscarInstancia(paqueteAEnviar.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    		if(verificacionEsi(paqueteAEnviar.argumentos.GET.clave,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA
     			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
     			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
     			return 0;  //CON ESTO NOS ASEGURAMOS QUE LA CONEXION CON EL ESI MUERA.
@@ -222,7 +225,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 
 int validarYenviarPaquete(char* clave, int socketEsi,t_esi_operacion* paquete) {
 	instancia* instanciaAEnviar;
-	if (!verificacionEsi(clave)) {
+	if (!verificacionEsi(clave,"v")) {
 		//VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
 		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
 		close(socketEsi);
