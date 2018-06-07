@@ -5,73 +5,76 @@
  *      Author: utnso
  */
 
-
 #include "ESI.h"
+	size_t length = 0;
+	char* linea = NULL;
+	int sockcoordinador;
+	int sockplanificador;
+	char* resultado;
+
 void conectarESI(int *sockcoordinador,int *sockplanificador){
-	*sockplanificador=crearConexionCliente(pathPlanificador);
-	*sockcoordinador=crearConexionCliente(pathCoordinador);
-	if(sockplanificador<0)
-	{
-       		 log_error(logger,"Error en la conexion con el Planificador");
-		 exit(-1);
-	}
-	else if(sockcoordinador<0)
-	{
-	 	 log_error(logger,"Error en la conexion con el Coordinador");
-		 exit(-1);
-	}
-	else
-	{
-        	log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
-	}
+	t_config *config=config_create(pathEsi);
+	*sockplanificador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Planificador"),config_get_string_value(config, "IP de Conexion al Planificador"));
+	*sockcoordinador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador"));
+		   if(*sockplanificador<0 || *sockcoordinador<0){
+			   log_error(logger,"Error en la conexion con los clientes");
+			   config_destroy(config);
+		   }
+		   log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
+		   config_destroy(config);
 }
 
-int esi(char* path,int sockcoordinador,int sockplanificador){
-		FILE* f;
-		size_t length = 0;
-		ssize_t read;
-		char* linea = NULL;
-		f = fopen(path,"r");
-		if(f == NULL){
-			log_error(logger, "No se pudo abrir el archivo");
-			exit(-1);
-		}
-	   enviarTipoDeCliente(sockcoordinador,ESI);
-		while((read = getline(&linea,&length,f)) != -1 ){
-			t_esi_operacion operacion = parse(linea);
-			if(operacion.valido){
-				enviar(sockcoordinador,operacion);
-			}
-			else{
-				log_error(logger, "La linea <%s> no es valida",linea);
-				exit(-1);
-			}
-			free(linea);
-		}
-		fclose(f);
-	   return 0;
+
+void* hacerUnaOperacion(){
+	log_info(logger,"Estamos dentro del hilo");
+	t_esi_operacion operacion = parse(linea);
+	if(operacion.valido){
+		enviar(sockcoordinador,operacion);
+		destruir_operacion(operacion);
+		recv(sockcoordinador,resultado,2,0);
+		log_info(logger,"Se realizo la operacion");
+		send(sockplanificador,resultado,2,0);
+	}
+	else{
+		send(sockplanificador,"a",2,0);
+		log_error(logger, "La linea <%s> no es valida",linea);
+		exit(-1);
+	}
+
 }
 
 int main(int argc, char**argv){
-	int sockcoordinador;
-	int sockplanificador;
+	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
+	FILE* f;
+	ssize_t read;
+	f = fopen(argv[1],"r");
+	if(f == NULL){
+		log_error(logger, "No se pudo abrir el archivo");
+		exit(-1);
+	}
 	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	conectarESI(&sockcoordinador,&sockplanificador);
-	char *buff = malloc(2);;
-	int puedoEnviar=1;
-	while(puedoEnviar){
-		send(sockplanificador,"1",2,0);
-		recv(sockplanificador, buff, 2, 0);
-		if(((buff[0]-48))){
-			esi(argv[1],sockcoordinador,sockplanificador);
-			send(sockplanificador,"1",2,0);
-			puedoEnviar=0;
+	enviarTipoDeCliente(sockcoordinador,"1");
+	resultado = malloc(2);
+	send(sockplanificador,"1",2,0);
+	while(recv(sockplanificador, resultado, 2, 0) > 0){
+		log_info(logger,"El planificador me dejo ejecutar");
+		if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador))>0) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
+		{
+			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
+		log_info(logger,"La operacion a ejecutar es %s",linea);
+		pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion,NULL);
 	}
-	free(buff);
+	if(linea){
+		free(linea);
+	}
+    send(sockplanificador,"f",2,0); //FINALIZO LA EJECUCION DEL ESI
+	free(resultado);
 	log_destroy(logger);
 	close(sockcoordinador);
 	close(sockplanificador);
+	fclose(f);
 	return 0;
 }
 

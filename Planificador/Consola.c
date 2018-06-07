@@ -1,11 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <commons/string.h>
-#include <commons/log.h>
+#include "Consola.h"
 
 int cantidadDeCentinelas(char** centinelas){
 	int i = 0;
@@ -16,7 +9,9 @@ int cantidadDeCentinelas(char** centinelas){
 }
 
 int main() {
-	t_log *logger=log_create("/home/utnso/git/tp-2018-1c-UAL-masters/Logs/Planificador.log","Consola",0, LOG_LEVEL_INFO);
+	pthread_t planificadorHilos;
+	pthread_create(&planificadorHilos,NULL,(void*) planificador,NULL);
+	logger =log_create(logPlanificador,"consola",0, LOG_LEVEL_INFO);
   char* linea;
   while(1) {
     linea = readline(">");
@@ -52,11 +47,13 @@ int main() {
 	    		printf("Usted ingreso desbloquear\n");
 	    		printf("con la clave: %s\n", centinelas[1]);
 	    		log_info(logger, "Se ingreso comando desbloquear");
+	    		liberaClave(centinelas[1]);
 	    	}
 	   		else if(!strcmp(centinelas[0],"listar")){
 	        	printf("Usted ingreso listar\n");
 	        	printf("con el recurso: %s\n",centinelas[1]);
 	        	log_info(logger, "Se ingreso comando listar");
+	        	listar(centinelas[1]);
 	        }
 	   		else if(!strcmp(centinelas[0],"kill")){
 	        	printf("Usted ingreso kill\n");
@@ -79,6 +76,7 @@ int main() {
 		    	printf("con la clave: %s\n", centinelas[1]);
 		    	printf("con el id: %s\n",centinelas[2]);
 		    	log_info(logger, "Se ingreso comando bloquear");
+		    	bloquearPorID(centinelas[1],transformarNumero(centinelas[2],0));
 			}
 			else{
     	    	printf("No se reconocio el comando %s\n", centinelas[0]);

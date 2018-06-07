@@ -14,9 +14,7 @@ C_DEPS :=
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 Config \
-Consola \
 Coordinador \
-CoordinadorHilos \
 ESI \
 Instancia \
 Planificador \

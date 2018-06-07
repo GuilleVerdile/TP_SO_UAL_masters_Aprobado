@@ -7,21 +7,25 @@ struct TE{
 }typedef tablaEntradas;
 
 tablaEntradas *tablas =NULL;
+int entradasTotales;
 int cantEntradasDisponibles;
 int tamEntradas;
 char** entradas;
-char** punteroReemplazo = entradas[0];
+int nroReemplazo;
 
 int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	int sockcoordinador;
-    if((sockcoordinador =crearConexionCliente("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg")) == -1){
+	int nroReemplazo = 0;
+	t_config* config = config_create(pathInstancia);
+    if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
+    	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
+    	return -1;
     }
     log_info(logger,"Se realizo correctamente la conexion con el coordinador");
     enviarTipoDeCliente(sockcoordinador,INSTANCIA);
     inicializarTablaEntradas(sockcoordinador);
-    t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
     char *buff = config_get_string_value(config, "nombreInstancia"); //obtengo el id
     enviarCantBytes(sockcoordinador,buff);
     send(sockcoordinador,buff,string_length(buff) + 1,0); //ENVIO EL NOMBRE DE LA INSTANCIA
@@ -58,6 +62,7 @@ void inicializarTablaEntradas(int sockcoordinador){
     char* buff = malloc(tam);
     recv(sockcoordinador,buff, tam , 0);
     cantEntradasDisponibles = transformarNumero(buff,0);
+    entradasTotales = cantEntradasDisponibles;
     log_info(logger,"La cantidad de entradas es %d", cantEntradasDisponibles);
     entradas = malloc(sizeof(char*)*cantEntradasDisponibles); //INICIALIZO LA TABLA
     free(buff);
@@ -106,12 +111,21 @@ void almacenarInformacion(t_config* config){
 	}
 }
 
+int encontrarTablaConTalClave(char clave[40]){
+	int i=0;
+	while(strcmp(tablas[i].clave,clave)!=0){
+		i++;
+	}
+	return i;
+}
+
 void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
+	int posTabla;
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
-			if(send(sockcoordinador,"Operacion GET realizada con exito\n",1024,0)==-1)
+			if(send(sockcoordinador,"r",2,0)==-1)
 			{
 				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
 			}
@@ -121,20 +135,21 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			}
 			break;
 		case SET:
-			if(cantEntradasDisponibles < 0)
+			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
+			if(tablas[posTabla].entradas!=NULL){ //ME FIJO SI YA TENIA UN VALOR ASIGNADO
+				free(tablas[posTabla].entradas); //LIBERO LA ENTRADAS
+				tablas[posTabla].entradas = NULL;
+				tablas[posTabla].tamValor = 0;
+			}
+			tablas[posTabla].tamValor = string_length(paquete.argumentos.SET.valor) + 1;
+			if(cantEntradasDisponibles == 0)
 			{
 				//ALGORITMO DE REEMPLAZO
-				while(&tablas[i] !=NULL)
-				{
-					i++;
-				}
-				tablas = realloc(tablas,sizeof(tablaEntradas)*(i+1));
-				algoritmoCircular(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,i,0,punteroReemplazo,string_length(paquete.argumentos.SET.valor) + 1) ;	//No estoy seguro del tercer parametro todavia	
 			}
 			else{
-				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
+				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
-			if(send(sockcoordinador,"Operacion SET realizada con exito\n",1024,0)==-1)
+			if(send(sockcoordinador,"r",2,0)==-1)
 			{
 				log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
 			}
@@ -165,73 +180,63 @@ void meterClaveALaTabla(char clave[40]){
 		(&tablas)[i+1] = NULL;
 	}
 	tablas[i].entradas = NULL;
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+	tablas[i].tamValor = 0;
+	t_config *config=config_create("../Config/Instancia.cfg");
 	char* path =config_get_string_value(config,"PuntoMontaje");
-	string_append(&path,clave);
-	int desc = open(path, O_RDWR | O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
+	char* pathCompleto = malloc(strlen(path)+1);
+	strcpy(pathCompleto,path);
+	string_append(&pathCompleto,clave);
+	int desc = open(pathCompleto, O_RDWR | O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
+	free(pathCompleto);
 	close(desc);
 	config_destroy(config);
 
 }
 
-void meterValorParTalClave(char clave[40], char*valor){
-	int i=0;
-	while(strcmp(tablas[i].clave,clave)!=0){
-		i++;
-	}
-	int valorAux = string_length(valor) + 1;
-	tablas[i].tamValor = valorAux; //+1 POR EL \0
-	int k =0;
-	while(strcmp(entradas[k],"") != 0){
-		k++; //BUSCO HASTA ENCONTRAR UN NULL
-	}
-	int j =0;
-	while(valorAux>0 && cantEntradasDisponibles > 0){ //SI YA METI TODO EL VALOR O NO ME QUEDA ENTRADAS ME SALGO DE LA ITERACION
-		entradas[k] = malloc(tamEntradas); //LE ASIGNO MEMORIA A LA ENTRADA NULL
-		strcpy(entradas[k],string_substring(valor,tamEntradas*j,tamEntradas*(j+1))); //LE ASIGNO EL VALOR
-		if(tablas[i].entradas ==NULL){
-			tablas[i].entradas = malloc(sizeof(char*));
-			tablas[i].entradas[0]=NULL;
-		}
-		if(tablas[i].entradas[j] == NULL){
-			tablas[i].entradas[j] = entradas[k]; //LE ASIGNO LA DIRECCION DE MEMORIA DE LA ENTRADA
-			tablas[i].entradas[j+1] = NULL;
-		}
+void meterValorParTalClave(char clave[40], char*valor,int posTabla){
+	int j =0; //ME INDICA LA CANTIDAD DE ENTRADAS QUE ASIGNO AL VALOR
+	while(tablas[posTabla].tamValor - (tamEntradas * j)>0 && cantEntradasDisponibles > 0){ //SI YA METI TODO EL VALOR O NO ME QUEDA ENTRADAS ME SALGO DE LA ITERACION
+		entradas[entradasTotales-cantEntradasDisponibles] = malloc(tamEntradas); //LE ASIGNO MEMORIA A LA ENTRADA NULL
+		char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
+		strcpy(entradas[entradasTotales-cantEntradasDisponibles],valorEntrada); //LE ASIGNO EL VALOR
+		free(valorEntrada);
+		tablas[posTabla].entradas = realloc(tablas[posTabla].entradas,sizeof(char*)*(j+1));
+		tablas[posTabla].entradas[j] = entradas[entradasTotales-cantEntradasDisponibles]; //LE ASIGNO LA DIRECCION DE MEMORIA DE LA ENTRADA
+		tablas[posTabla].entradas[j+1] = NULL;
 		cantEntradasDisponibles --; //LA CANTIDAD DE ENTRADAS SE RESTAN POR CADA ENTRADA USADA
-		valorAux-= tamEntradas; //LE RESTO AL VALOR POR LA CANTIDAD DE ENTRADAS QUE CONSUMIO
-		k++;
 		j++;
 	}
 
-	if(cantEntradasDisponibles == 0 && valorAux>0){
-		//ALGORITMO DE REEMPLAZO
-		algoritmoCircular(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,i,j,k,valorAux) ;	
+	if(cantEntradasDisponibles == 0 && tablas[posTabla].tamValor - (tamEntradas * j)>0 ){ //EL VALOR TOTAL - LA CANTIDAD DE ENTRADAS QUE LE QUITE * TAM ENTRADAS
+		char* valorRestante = string_substring_from(valor,tamEntradas*j);
+		circular(clave,valorRestante,posTabla); //LE ENVIO LA CLAVE Y LO QUE SOBRO DEL VALOR
+		free(valorRestante);
 	}
 }
 
-void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicionEntradaDeTabla,int posicionEnEntradas, int cuantoFaltaGuardar) 
-{
-	while(cuantoFaltaGuardar>0)
-	{
-		entradas[posicionEnEntradas] = malloc(tamEntradas); //LE ASIGNO MEMORIA A LA ENTRADA NULL
-		strcpy(entradas[posicionEnEntradas],string_substring(valor,tamEntradas*posicionEntradaDeTabla,tamEntradas*(posicionEntradaDeTabla+1))); //LE ASIGNO EL VALOR
-		if(tablas[posicionTablaE].entradas ==NULL){
-			tablas[posicionTablaE].entradas = malloc(sizeof(char*));
-			tablas[posicionTablaE].entradas[0]=NULL;
-		}
-		if(tablas[posicionTablaE].entradas[posicionEntradaDeTabla] == NULL){
-			tablas[posicionTablaE].entradas[posicionEntradaDeTabla] = entradas[posicionEnEntradas]; //LE ASIGNO LA DIRECCION DE MEMORIA DE LA ENTRADA
-			tablas[posicionTablaE].entradas[posicionEntradaDeTabla+1] = NULL;
-		}
-		cantEntradasDisponibles--; //LA CANTIDAD DE ENTRADAS SE RESTAN POR CADA ENTRADA USADA
-		cuantoFaltaGuardar-= tamEntradas; //LE RESTO AL VALOR POR LA CANTIDAD DE ENTRADAS QUE CONSUMIO
-		posicionEnEntradas++;
-		posicionEntradaDeTabla++;
-		punteroReemplazo = entradas[posicionEnEntradas] ;	//El punteroReemplazo se va corriendo
-		if((&punteroReemplazo) == NULL)
-		{
-			punteroReemplazo = entradas[0];		//apunto al principio de las entradas
-		}
-	}	
-}
 
+
+void circular(char clave[40],char* valor, int posTabla){
+	int valorAux = string_length(valor) + 1;
+	int j = 0;
+	int posEntrada = 0; //ESTA VARIABLE ME SIRVE PARA SABER SI PARTE DEL VALOR YA SE ASIGNO
+	if(tablas[posTabla].entradas !=NULL){
+		while(tablas[posTabla].entradas[posEntrada] !=NULL){
+			posEntrada++;
+		}
+	}
+	while(valorAux>0){
+		if(nroReemplazo == cantEntradasDisponibles){ //SI EL ALGORITMO CIRCULAR LLEGO A LA ULTIMA POSICION DE LAS ENTRADAS
+			nroReemplazo = 0; //SE REINICIA
+		}
+		char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
+		strcpy(entradas[nroReemplazo],valorEntrada);
+		free(valorEntrada);
+		tablas[posTabla].entradas = realloc(tablas[posTabla].entradas,sizeof(char*)*(posEntrada+1));
+		tablas[posTabla].entradas[posEntrada] = entradas[nroReemplazo];
+		posEntrada++;
+		valorAux -= tamEntradas;
+		nroReemplazo++; //ME POSICIONO A LA SIGUIENTE ENTRADA PARA REEMPLAZO
+		j++;
+	}
+}

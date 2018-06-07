@@ -11,9 +11,7 @@ RM := rm -rf
 -include Planificador/subdir.mk
 -include Instancia/subdir.mk
 -include ESI/subdir.mk
--include CoordinadorHilos/subdir.mk
 -include Coordinador/subdir.mk
--include Consola/subdir.mk
 -include Config/subdir.mk
 -include subdir.mk
 -include objects.mk

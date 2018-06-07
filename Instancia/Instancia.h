@@ -15,16 +15,18 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "FuncionesConexiones.h"
+#include <FuncionesConexiones.h>
 #include <parsi/parser.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
+const char* INSTANCIA = "0";
 void inicializarTablaEntradas(int sockcoordinador);
 void manejarPaquete(t_esi_operacion paquete,int sockcoordinador);
 void meterClaveALaTabla(char* clave);
-void meterValorParTalClave(char clave[40], char*valor);
+void meterValorParTalClave(char clave[40], char*valor,int posTabla);
+int encontrarTablaConTalClave(char clave[40]);
 void* hacerDump();
 void almacenarInformacion(t_config* config);
 void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicionEntradaDeTabla,int posicionEnEntradas, int cuantoFaltaGuardar) ;

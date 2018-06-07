@@ -4,19 +4,15 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../Planificador/FuncionesConexiones.c \
+../Planificador/Consola.c \
 ../Planificador/Planificador.c 
 
-O_SRCS += \
-../Planificador/FuncionesConexiones.o \
-../Planificador/Planificador.o 
-
 OBJS += \
-./Planificador/FuncionesConexiones.o \
+./Planificador/Consola.o \
 ./Planificador/Planificador.o 
 
 C_DEPS += \
-./Planificador/FuncionesConexiones.d \
+./Planificador/Consola.d \
 ./Planificador/Planificador.d 
 
 

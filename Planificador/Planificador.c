@@ -5,38 +5,6 @@
  *      Author: utnso
  */
 #include "Planificador.h"
-int idBuscar;// esto es por ahora
-int idGlobal=0;// esto es por ahora
-char *claveABuscar;
-t_list *procesos;
-t_list *listos;
-t_list *terminados;
-t_list *bloqueados;
-sem_t *sem_replanificar;
-sem_t *sem_procesoEnEjecucion;
-sem_t *sem_ESIejecutoUnaSentencia;
-sem_t * sem_finDeEjecucion;
-int flag_desalojo;
-int flag_nuevoProcesoEnListo;
-int tiempo_de_ejecucion;
-float alfaPlanificador;
-typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;
-typedef struct{
-	int idProceso;
-	int socketProceso;
-	Estado estado;
-	int tiempo_que_entro;
-	float estimacionAnterior;
-	float rafagaRealActual;
-	float rafagaRealAnterior;
-}Proceso;
-typedef struct{
-	char *clave;
-	t_list *bloqueados;
-	int idProceso;
-} Bloqueo;
-pthread_mutex_t planiCorto;
-Proceso *procesoEnEjecucion;
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -77,29 +45,41 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
-	sem_wait(sem_replanificar);
+	log_info(logger, "esperando segnal de sem planificador");
+	sem_wait(&sem_replanificar);
+	log_info(logger, "se obtuvo segnal de sem planificador");
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
-	sem_wait(sem_finDeEjecucion);
+	log_info(logger, "Se selecciono un proceso por el algoritmo");
+	log_info(logger, "esperando el semaforo sem fin de ejecucion");
+	sem_wait(&sem_finDeEjecucion);
+	log_info(logger, "se paso el semaforo sem fin de ejecucion");
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
-	sem_post(sem_procesoEnEjecucion);
+	log_info(logger, "se paso el semaforo sem fin de ejecucion");
+	sem_post(&sem_procesoEnEjecucion);
+	log_info(logger, "se dio segnal de ejecutar el esi en ejecucion");
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 
 	}
 }
 void *ejecutarEsi(void *esi){
 	while(1){
-		sem_wait(sem_procesoEnEjecucion);
+		sem_wait(&sem_procesoEnEjecucion);
+		log_info(logger, "se entro a ejecutar el esi en ejecucion");
 		while((*procesoEnEjecucion).estado==ejecucion){
-			sem_wait(sem_ESIejecutoUnaSentencia);
+			log_info(logger, "esperando semaforo de que el esi ejecuto una sentencia");
+			sem_wait(&sem_ESIejecutoUnaSentencia);
+			log_info(logger, "pasando semaforo de esi ejecuto una sentencia");
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
+			log_info(logger, "se envio al es en ejecucion de ejecutar");
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
-		sem_post(sem_finDeEjecucion);
+		sem_post(&sem_finDeEjecucion);
+		log_info(logger, "se da segnal de fin de ejecucion");
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
@@ -231,15 +211,50 @@ void eliminarDeLista(int id){
 //crea la cola de bloqueados con clave a id
 //bloquea clave a , id tanto
 //libera clave a
-
+// REFACTORIZAR BLOQUEARPORID y BLOQUEAR!!!!!!!!!!!!!!!!!!***********
+void bloquearPorID(char *clave,int id){
+	char *aux=malloc(strlen(clave)+1);
+	strcpy(aux,clave);
+	claveABuscar=aux;
+	Bloqueo *block=buscarClave();
+	//aca mutex
+	idBuscar=id;
+	Proceso *proceso;
+		//
+	//REVISAR SOLUCION CON IF PARA BLOQUEAR CLAVES INICIALES POR CONFIG!!!!!!!!!!!!!!!!!!
+	if(id)
+	proceso=buscarProcesoPorId(id);
+	if(!block){
+		block=malloc(sizeof(Bloqueo));
+		(*block).clave=aux;
+		(*block).bloqueados=list_create();
+		if(id)
+		(*block).idProceso=(*proceso).idProceso;
+		else
+			(*block).idProceso=0;
+		list_add(bloqueados,block);
+	}
+	else{
+		if((*block).idProceso==-1){
+			(*block).idProceso=(*proceso).idProceso;
+		}
+		else{
+			list_add((*block).bloqueados,proceso);
+			(*proceso).estado = bloqueado;
+		}
+	}
+}
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
-	claveABuscar=clave;
+	char *aux=malloc(strlen(clave)+1);
+	strcpy(aux,clave);
+	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	if(!block){
 		block=malloc(sizeof(Bloqueo));
-		(*block).clave=clave;
+		(*block).clave=aux;
 		(*block).bloqueados=list_create();
 		(*block).idProceso=(*procesoEnEjecucion).idProceso;
+		list_add(bloqueados,block);
 	}
 	else{
 		if((*block).idProceso==-1){
@@ -248,7 +263,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		else{
 			list_add((*block).bloqueados,procesoEnEjecucion);
 			(*procesoEnEjecucion).estado = bloqueado;
-			sem_post(sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
+			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
 }
@@ -273,6 +288,7 @@ void liberarRecursos(int id){
 		i++;
 	}
 }
+
 void liberaClave(char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
@@ -284,10 +300,10 @@ void liberaClave(char *clave){
 			free(list_remove(bloqueados,&esIgualAClaveABuscar));
 		}
 		else
-			(*block).idProceso=-1;
+		(*block).idProceso=-1;
 		(*proceso).estado=listo;
 		list_add(listos,proceso);
-		sem_post(sem_replanificar);
+		sem_post(&sem_replanificar);
 	}
 }
 
@@ -308,6 +324,7 @@ void desbloquear(int id){
 void tirarErrorYexit(char* mensajeError) {
 	log_error(logger, mensajeError);
 	log_destroy(logger);
+	cerrarPlanificador();
 	exit(-1);
 }
 void matarESI(int id){
@@ -316,7 +333,7 @@ void matarESI(int id){
 		list_remove_by_condition(listos,&procesoEsIdABuscar);
 	}
 	if((*procesoEnEjecucion).idProceso==id){
-		sem_post(sem_replanificar);
+		sem_post(&sem_replanificar);
 	}
 	liberarRecursos(id);
 	idBuscar = id;
@@ -329,18 +346,20 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      terminados=list_create();
      bloqueados=list_create();
      procesoEnEjecucion = NULL;
-	 pthread_t planificadrCortoPlazo;
-	 pthread_t ejecutarEsi;
-	 sem_init(sem_replanificar,0,0);
-	 sem_init(sem_procesoEnEjecucion,0,0);
-	 sem_init(sem_ESIejecutoUnaSentencia,0,1);
-	 sem_init(sem_finDeEjecucion,0,1);
-	 pthread_create(&planificadorCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
-	 pthread_create(&ejecutarEsi,NULL,ejecutarEsi,NULL);
+	 pthread_t hilo_planificadrCortoPlazo;
+	 pthread_t hilo_ejecutarEsi;
+	 sem_init(&sem_replanificar,0,0);
+	 sem_init(&sem_procesoEnEjecucion,0,0);
+	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
+	 sem_init(&sem_finDeEjecucion,0,1);
+	 pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
+	 pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	 int listener;
 	 char* buf;
-	 t_config *config=config_create(pathPlanificador);
-	 logger=log_create(pathPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
+	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
+	 bloquearClavesIniciales(config);
+	//HOLA
+	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -359,11 +378,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
      int casoDiscriminador;
      FD_ZERO(&master);    // borra los conjuntos maestro
      FD_ZERO(&read_fds);	// borra los conjuntos maestro
-
-    	if((casoDiscriminador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexión al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador")))==-1){
+    	if(((casoDiscriminador=crearConexionCliente(8001,"127.0.0.1")))==-1){
     		config_destroy(config);
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}
+    	/*if((casoDiscriminador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexión al Coordinador"),config_get_string_value(config, "IP de Conexion al Coordinador")))==-1){
+    		config_destroy(config);
+    		tirarErrorYexit("No se pudo crear socket de cliente");
+    	}*/
     	else
     		log_info(logger, "Se creo el socket de cliente");
      config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
@@ -403,7 +425,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
                                  if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
-                                	 sem_post(sem_replanificar);
+                                	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
                                  log_info(logger, "Ingreso un nuevo cliente");
@@ -434,7 +456,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         	int tam=obtenerTamDelSigBuffer(i);
                         		                         	buf=malloc(tam);
                         		                         	recv(i, buf, tam, 0);
-
+                        		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
                         		                         	case 'v':
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
@@ -446,6 +468,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}
+                        		                         	log_info(logger,"Se realizo correctamente la comunicacion con el coordinador");
                         		                         	free(buf);
                         		                         	free(aux);
                         	 }
@@ -473,14 +496,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
-                            	   sem_post(sem_replanificar);
+                            	   sem_post(&sem_replanificar);
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
                             	   (*procesoEnEjecucion).rafagaRealActual++;
                             	   if(flag_desalojo && flag_nuevoProcesoEnListo){
-                            		  sem_post(sem_replanificar); flag_nuevoProcesoEnListo = 0;}
-                            	   else sem_post(sem_ESIejecutoUnaSentencia);
+                            		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
+                            	   else sem_post(&sem_ESIejecutoUnaSentencia);
                                    break;
                                case 'a':
                             	   tam = obtenerTamDelSigBuffer(i);
@@ -494,17 +517,16 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                          }
                      }
              }
-     free(buf);
 }
 
-
-
-int main()
+}
+void planificador()
     {
+	idGlobal=1;
 	void(*miAlgoritmo)(int,char*);
-	t_config *config=config_create(pathPlanificador);
-	int estimacionInicial=config_get_int_value(config,"EstimacionInicial");
-	char*algoritmo= config_get_string_value(config, "AlgoritmoDePlanificador");
+	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
+	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
+	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 
 	if(!strcmp(algoritmo,"fifo")){
 		miAlgoritmo=&fifo;
@@ -520,6 +542,52 @@ int main()
 		}
 	config_destroy(config);
 	crearSelect(miAlgoritmo,estimacionInicial);
-        return 0;
+	cerrarPlanificador();
     }
+void listar(char* clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(!list_is_empty((*block).bloqueados) || !(*block).idProceso){
+		if(!(*block).idProceso)
+					printf("Esta Clave fue bloqueada por config\n");
+		else
+					printf("Proceso con id %d posee a la clave\n",(*block).idProceso);
+
+		int j=0;
+		Proceso *proceso;
+		while((proceso=list_get((*block).bloqueados,j))!=NULL){
+			printf("Proceso con id %d esta en la lista de clave\n",(*proceso).idProceso);
+			j++;
+		}
+		}
+	else
+		printf("No existe la clave\n");
+}
+void bloquearClavesIniciales(t_config *config){
+	char ** claves;
+	claves=config_get_array_value(config,"Claves inicialmente bloqueadas");
+	char *aux=*(claves);
+	int i=0;
+	while(aux){
+		bloquearPorID(aux,0);
+		i++;
+		aux=*(claves+i);
+	}
+}
+void destruirUnBloqueado(void *elemento){
+	Bloqueo *b=(Bloqueo *) elemento;
+	list_destroy((*b).bloqueados);
+	free((*b).clave);
+	free(b);
+
+}
+void destruirUnProceso(void *elemento){
+	Proceso *b=(Proceso *) elemento;
+	free(b);
+}
+void cerrarPlanificador(){
+	list_destroy_and_destroy_elements(bloqueados,&destruirUnBloqueado);
+	list_destroy(listos);
+	list_destroy(terminados);
+	list_destroy_and_destroy_elements(procesos,&destruirUnProceso);
 }
