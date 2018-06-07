@@ -10,10 +10,18 @@
 void conectarESI(int *sockcoordinador,int *sockplanificador){
 	*sockplanificador=crearConexionCliente(pathPlanificador);
 	*sockcoordinador=crearConexionCliente(pathCoordinador);
-		   if(sockplanificador<0 || sockcoordinador<0){
-			   log_error(logger,"Error en la conexion con los clientes");
-		   }
-		   log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
+	if(sockplanificador<0)
+	{
+       		 log_error(logger,"Error en la conexion con el Planificador");
+	}
+	else if(sockcoordinador<0)
+	{
+	 	 log_error(logger,"Error en la conexion con el Coordinador");
+	}
+	else
+	{
+        	log_info(logger,"Se realizo correctamente la conexion con el planificador y coordinador");
+	}
 }
 
 int esi(char* path,int sockcoordinador,int sockplanificador){
