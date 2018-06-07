@@ -23,7 +23,7 @@ int main(){
 		log_destroy(logger);
 		return -1;
 	}
-	config_destroy(config);
+		config_destroy(config);
 	log_info(logger, "Se creo el socket de Servidor");
 	int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
 	int addrlen;

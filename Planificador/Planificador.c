@@ -541,7 +541,7 @@ void planificador()
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 
 	if(!strcmp(algoritmo,"fifo")){
-		miAlgoritmo=&fifo;
+			miAlgoritmo=&fifo;
 		flag_desalojo=0;
 	}
 	if(!strcmp(algoritmo,"SJF-CD")){
