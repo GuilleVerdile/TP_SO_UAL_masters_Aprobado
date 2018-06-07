@@ -1,6 +1,6 @@
 #include "Coordinador.h"
 t_list* instancias;
-int socketPlanificador,socketEsi;
+int socketPlanificador;
 sem_t* semaforosInstancias;
 int cantidadDeInstancias;
 sem_t esperaInicializacion;
@@ -61,8 +61,7 @@ int main(){
 		switch(tipoCliente){
 		case 1:
 			log_info(logger,"El cliente es ESI");
-			socketEsi = nuevoCliente; //EL ESI EJECUTANDOSE ES UN VARIABLE GLOBAL
-			if(pthread_create(&hiloEsi , NULL , conexionESI, NULL) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
+			if((pthread_create(&hiloEsi , NULL , conexionESI, (void*)&nuevoCliente)) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
@@ -134,11 +133,12 @@ void liberarClave(instancia* instancia,char* clave){
 	enviarDatosEsi(clave);
 }
 
-void agregarClave(instancia* instancia,char* clave){
+void agregarClave(instancia* instancia,char clave[40]){
 	if((*instancia).clavesBloqueadas == NULL){
 		(*instancia).clavesBloqueadas = malloc(sizeof(char*)); //LE ASIGNO UNA DIRECCION DE MEMORIA
 		(*instancia).clavesBloqueadas[0] = malloc(strlen(clave)+1);
 		strcpy((*instancia).clavesBloqueadas[0],clave);
+		log_info(logger,"Se agrego correctamente la clave %s",(*instancia).clavesBloqueadas[0]);
 		(*instancia).clavesBloqueadas[1] = NULL; //EL SIGUIENTE ES NULL PARA HACER ALGUNAS VERIFICACIONES EN OTRAS FUNCIONES
 	}
 	else{
@@ -146,9 +146,10 @@ void agregarClave(instancia* instancia,char* clave){
 		while((*instancia).clavesBloqueadas[j] !=NULL){
 			j++; //BUSCO HASTA ENCONTRAR UN NULL
 		}
-		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*j); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
+		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*(j+1)); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
 		(*instancia).clavesBloqueadas[j] = malloc(strlen(clave)+1); //LE ASIGNO MEMORIA PARA LA CLAVE
 		strcpy((*instancia).clavesBloqueadas[j],clave);
+		log_info(logger,"Se agrego correctamente la clave %s",(*instancia).clavesBloqueadas[j]);
 		(*instancia).clavesBloqueadas[j+1] = NULL; //PONGO NULL AL SIGUIENTE PARA VERIFICACIONES
 	}
 }
@@ -171,8 +172,9 @@ int verificacionEsi(char* clave){
 	return 0;
 }
 
-void *conexionESI() //REFACTORIZAR EL FOKEN SWITCH
+void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 {
+	int socketEsi = *(int*)nuevoCliente;
     int recvValor;
     instancia* instanciaAEnviar;
     while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
@@ -203,7 +205,7 @@ void *conexionESI() //REFACTORIZAR EL FOKEN SWITCH
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;
     	}
-
+    	send(socketEsi,"e",2,0);
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
             log_info(logger,"Se desconecto un ESI");

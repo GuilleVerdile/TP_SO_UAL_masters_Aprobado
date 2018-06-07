@@ -34,7 +34,7 @@ struct Instancia{
 	int cantEntradasDisponibles; //PARA EL LSU
 	int nroSemaforo;
 }typedef instancia;
-void *conexionESI();
+void *conexionESI(void* nuevoCliente);
 void *conexionInstancia(void* cliente);
 void enviarDatosEsi(char*clave);
 void enviarDatosInstancia(int sockInstancia, char* tipo);

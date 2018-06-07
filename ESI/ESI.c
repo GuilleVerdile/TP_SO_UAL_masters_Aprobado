@@ -11,6 +11,8 @@
 	int sockcoordinador;
 	int sockplanificador;
 	char* resultado;
+	int operacionRealizada;
+
 void conectarESI(int *sockcoordinador,int *sockplanificador){
 	t_config *config=config_create(pathEsi);
 	*sockplanificador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Planificador"),config_get_string_value(config, "IP de Conexion al Planificador"));
@@ -25,24 +27,28 @@ void conectarESI(int *sockcoordinador,int *sockplanificador){
 
 
 void* hacerUnaOperacion(){
-			t_esi_operacion operacion = parse(linea);
-			if(operacion.valido){
-				enviar(sockcoordinador,operacion);
-				recv(sockcoordinador,resultado,2,0);
-				send(sockplanificador,resultado,2,0);
-			}
-			else{
-				send(sockplanificador,"a",2,0);
-				log_error(logger, "La linea <%s> no es valida",linea);
-				exit(-1);
-			}
-			free(linea);
+	operacionRealizada = 0;
+	t_esi_operacion operacion = parse(linea);
+	if(operacion.valido){
+		enviar(sockcoordinador,operacion);
+		destruir_operacion(operacion);
+		recv(sockcoordinador,resultado,2,0);
+		send(sockplanificador,resultado,2,0);
+		operacionRealizada =1;
+	}
+	else{
+		send(sockplanificador,"a",2,0);
+		log_error(logger, "La linea <%s> no es valida",linea);
+		exit(-1);
+	}
+
 }
 
 int main(int argc, char**argv){
 	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
 	FILE* f;
 	ssize_t read;
+	operacionRealizada = 1;
 	f = fopen(argv[1],"r");
 	if(f == NULL){
 		log_error(logger, "No se pudo abrir el archivo");
@@ -50,16 +56,20 @@ int main(int argc, char**argv){
 	}
 	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	conectarESI(&sockcoordinador,&sockplanificador);
-	enviarTipoDeCliente(sockcoordinador,ESI);
+	enviarTipoDeCliente(sockcoordinador,"1");
 	resultado = malloc(2);
-		send(sockplanificador,"1",2,0);
-		while(recv(sockplanificador, resultado, 2, 0)){
-			if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador) < 0)) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
-			{
-				if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
-			}
-			pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion(),NULL);
+	send(sockplanificador,"1",2,0);
+	while(recv(sockplanificador, resultado, 2, 0) > 0){
+		log_info(logger,"El planificador me dejo ejecutar");
+		if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador))>0) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
+		{
+			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
+		pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion,NULL);
+	}
+	if(linea){
+		free(linea);
+	}
     send(sockplanificador,"f",2,0); //FINALIZO LA EJECUCION DEL ESI
 	free(resultado);
 	log_destroy(logger);

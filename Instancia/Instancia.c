@@ -17,7 +17,7 @@ int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	int sockcoordinador;
 	int nroReemplazo = 0;
-	t_config* config = config_create("../Config/Instancia.cfg");
+	t_config* config = config_create(pathInstancia);
     if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
     	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
