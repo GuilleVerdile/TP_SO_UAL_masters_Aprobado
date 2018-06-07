@@ -159,6 +159,22 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			}
 			break;
 		case STORE:
+			int i=0;
+			while(strcmp(tablas[i].clave,paquete.argumentos.STORE.clave)!=0)
+			{
+				i++; 
+			} 
+			
+			t_config* config = config_create(pathInstancia);
+			char* path = config_get_string_value(config,"PuntoMontaje");
+			string_append(&path,tablas[i].clave);
+			int desc = open(path, O_RDWR | O_CREAT | O_TRUNC, 0777);
+			ftruncate(desc,strlen(tablas[i].clave));
+			char* map = mmap(NULL,strlen(tablas[i].clave),PROT_WRITE,MAP_SHARED,desc,0);
+			memcpy(map,valor,strlen(tablas[i].clave));
+			munmap(map,strlen(tablas[i].clave));
+			close(desc);
+			config_destroy(config);
 			break;
 	}
 	log_destroy(logger);
