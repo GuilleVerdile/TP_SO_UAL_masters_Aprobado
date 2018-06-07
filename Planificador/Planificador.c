@@ -45,15 +45,22 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
+	log_info(logger, "esperando segnal de sem planificador");
 	sem_wait(&sem_replanificar);
+	log_info(logger, "se obtuvo segnal de sem planificador");
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
+	log_info(logger, "Se selecciono un proceso por el algoritmo");
+	log_info(logger, "esperando el semaforo sem fin de ejecucion");
 	sem_wait(&sem_finDeEjecucion);
+	log_info(logger, "se paso el semaforo sem fin de ejecucion");
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
+	log_info(logger, "se paso el semaforo sem fin de ejecucion");
 	sem_post(&sem_procesoEnEjecucion);
+	log_info(logger, "se dio segnal de ejecutar el esi en ejecucion");
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 
 	}
@@ -61,13 +68,18 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 void *ejecutarEsi(void *esi){
 	while(1){
 		sem_wait(&sem_procesoEnEjecucion);
+		log_info(logger, "se entro a ejecutar el esi en ejecucion");
 		while((*procesoEnEjecucion).estado==ejecucion){
+			log_info(logger, "esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
+			log_info(logger, "pasando semaforo de esi ejecuto una sentencia");
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
+			log_info(logger, "se envio al es en ejecucion de ejecutar");
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
 		sem_post(&sem_finDeEjecucion);
+		log_info(logger, "se da segnal de fin de ejecucion");
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
@@ -339,7 +351,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 	 pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	 int listener;
 	 char* buf;
-	 t_config *config=config_create(pathPlanificador);
+	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	 bloquearClavesIniciales(config);
 	//HOLA
 	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
@@ -499,15 +511,14 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                          }
                      }
              }
-     free(buf);
 }
 
 }
-void planificador()
+void main()
     {
 	idGlobal=0;
 	void(*miAlgoritmo)(int,char*);
-	t_config *config=config_create(pathPlanificador);
+	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 
