@@ -13,10 +13,12 @@ void conectarESI(int *sockcoordinador,int *sockplanificador){
 	if(sockplanificador<0)
 	{
        		 log_error(logger,"Error en la conexion con el Planificador");
+		 exit(-1);
 	}
 	else if(sockcoordinador<0)
 	{
 	 	 log_error(logger,"Error en la conexion con el Coordinador");
+		 exit(-1);
 	}
 	else
 	{
