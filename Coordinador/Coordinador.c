@@ -180,6 +180,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
     	switch (paqueteAEnviar.keyword){
     	case GET:
+    		log_info(logger,"Estamos haciendo un GET");
     		if(buscarInstancia(paqueteAEnviar.argumentos.GET.clave) != NULL){ //VERIFICO SI LA CLAVE ESTA TOMADA
     			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
     			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
@@ -192,6 +193,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
     			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
+    			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.SET.clave);
     			break;
     		}
@@ -199,9 +201,11 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		}
     		break;
     	case SET:
+    		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi, paqueteAEnviar)) return 0;
     		break;
     	case STORE:
+    		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi, paqueteAEnviar)) return 0;
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;

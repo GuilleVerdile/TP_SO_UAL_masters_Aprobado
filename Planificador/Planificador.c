@@ -456,7 +456,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         	int tam=obtenerTamDelSigBuffer(i);
                         		                         	buf=malloc(tam);
                         		                         	recv(i, buf, tam, 0);
-
+                        		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
                         		                         	case 'v':
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
@@ -468,6 +468,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}
+                        		                         	log_info(logger,"Se realizo correctamente la comunicacion con el coordinador");
                         		                         	free(buf);
                         		                         	free(aux);
                         	 }
