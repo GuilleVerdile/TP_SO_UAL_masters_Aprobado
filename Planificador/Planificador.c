@@ -448,6 +448,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         	                                     // conexión cerrada
                         	                             	 log_info(logger, "El coordinator se fue");
                         	                                     printf("selectserver: socket %d hung up\n", i);
+                        	                                     cerrarPlanificador;
                         	                                 } else {
                         	                                	 log_info(logger, "Problema de conexion con el coordinador");
                         	                                     perror("recv");

@@ -93,4 +93,7 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial);
 void planificador();
 void listar(char* clave);
 void bloquearClavesIniciales(t_config *config);
+char *sePuedeBloquear(char*clave);
+void destruirUnProceso(void *elemento);
+void destruirUnBloqueado(void *elemento);
 #endif /* SOCKET_PLANIFICADOR_H_ */
