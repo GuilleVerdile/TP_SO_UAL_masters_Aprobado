@@ -307,10 +307,18 @@ void liberaClave(char *clave){
 	}
 }
 
+char *sePuedeBloquear(char*clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(!block || (*block).idProceso==-1)
+		return "1";
+	else
+		return "0";
+}
 char *verificarClave(Proceso *proceso,char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if((*block).idProceso==(*proceso).idProceso)
+	if(block && (*block).idProceso==(*proceso).idProceso)
 		return "1";
 	else
 		return "0";
@@ -458,6 +466,9 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
                         		                         	recv(i, buf, tam, 0);
                         		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
+                        		                         	case 'n':
+                        		                         		send(i,sePuedeBloquear(buf),2,0);
+                        		                         		break;
                         		                         	case 'v':
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
                         		                         		break;
