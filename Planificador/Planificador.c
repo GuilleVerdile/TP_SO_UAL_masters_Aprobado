@@ -135,7 +135,7 @@ bool compararSJF(void *a,void *b){
 	Proceso *segundo=(Proceso *) b;
 	return (*(estimarSJF(a)))<=(*(estimarSJF(b)));
 }
-float* compararHRRN(Proceso *proc){
+float* estimarHRRN(Proceso *proc){
 	float *s;
 	float *w=malloc(sizeof(float));
 	s=estimarSJF(proc);
@@ -146,7 +146,11 @@ float* compararHRRN(Proceso *proc){
 	free(w);
 	return aux;
 }
-
+bool compararHRRN(void *a,void *b){
+	Proceso *primero=(Proceso *) a;
+	Proceso *segundo=(Proceso *) b;
+	return (*(estimarHRRN(a)))<=(*(estimarHRRN(b)));
+}
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;

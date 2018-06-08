@@ -74,7 +74,6 @@ void planificadorLargoPlazo(int id,int estimacionInicial);
 Proceso* fifo();
 float *estimarSJF(Proceso *proc);
 bool compararSJF(void *a,void *b);
-float* compararHRRN(Proceso *proc);
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*));
 Proceso *sjf();
 Proceso *hrrn();
@@ -98,4 +97,6 @@ char *sePuedeBloquear(char*clave);
 void destruirUnProceso(void *elemento);
 void destruirUnBloqueado(void *elemento);
 void bloquearPorConsola(char *clave,int id);
+float* estimarHRRN(Proceso *proc);
+bool compararHRRN(void *a,void *b);
 #endif /* SOCKET_PLANIFICADOR_H_ */
