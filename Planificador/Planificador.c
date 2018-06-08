@@ -21,6 +21,7 @@ bool procesoEsIdABuscarSocket(void * proceso){
 	else
 		return false;
 }
+//REvisar este
 void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda normal, otra cosa si es por socket
 	//si voy a usar esta variable global falta mutex
 		idBuscar= id;
@@ -134,7 +135,7 @@ bool compararSJF(void *a,void *b){
 	Proceso *segundo=(Proceso *) b;
 	return (*(estimarSJF(a)))<=(*(estimarSJF(b)));
 }
-float* compararHRRN(Proceso *proc){
+float* estimarHRRN(Proceso *proc){
 	float *s;
 	float *w=malloc(sizeof(float));
 	s=estimarSJF(proc);
@@ -145,7 +146,11 @@ float* compararHRRN(Proceso *proc){
 	free(w);
 	return aux;
 }
-
+bool compararHRRN(void *a,void *b){
+	Proceso *primero=(Proceso *) a;
+	Proceso *segundo=(Proceso *) b;
+	return (*(estimarHRRN(a)))<=(*(estimarHRRN(b)));
+}
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;
@@ -192,30 +197,6 @@ Bloqueo *buscarBloqueoPorProceso(int id){
 Proceso *buscarProcesoPorId(int id){
 	idBuscar=id;
 	return list_find(procesos,&procesoEsIdABuscar);
-}
-
-void eliminarDeLista(int id){
-	//aca mutex
-	idBuscar=id;
-	//
-	Proceso *proceso =buscarProcesoPorId(id);
-	t_list *t;
-	Bloqueo *a;
-
-	switch((*proceso).estado){
-	case listo:
-			t=listos;
-			list_remove_by_condition(t,&procesoEsIdABuscar);
-			break;
-	case bloqueado:
-			a=buscarBloqueoPorProceso(id);
-			t=(*a).bloqueados;
-			list_remove_by_condition(t,&procesoEsIdABuscar);
-			break;
-	case ejecucion:
-			procesoEnEjecucion=NULL;
-			break;
-	}
 }
 // este lo uso cuando el coordinador me dice que esi bloquear
 ///
@@ -264,23 +245,34 @@ void bloquearPorConsola(char *clave,int id){
 	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	idBuscar=id;
-	Proceso *proceso;
+	Proceso *proceso=buscarProcesoPorId(id);
+	if((*proceso).estado==ejecucion||(*proceso).estado==listo){
+	log_info(logger,"proceso listo o en ejecucion",clave);
 	if(!block){
+		log_info(logger,"El bloque con clave %s NO EXISTE",clave);
 			block=malloc(sizeof(Bloqueo));
 			(*block).clave=aux;
 			(*block).bloqueados=list_create();
 			(*block).idProceso=-1;
 			list_add(bloqueados,block);
+		log_info(logger,"El bloque con clave %s se CREO",clave);
 		}
 	//Esto no se si va, me fijo si el proceso ya esta bloqueado por esta clave asi
 	//no lo vuelvo a agregar a la cola de bloqueados
 	else{ //<---- Este else me dice que el block no es null que existe entonces voe si el proceso ya esta bloqueado
+		log_info(logger,"El bloque con clave %s EXISTE",clave);
 		//Si encuentra un proceso que coincide con el id a buscar quiere decir que el proceso esta en la lista de bloqueados
 		if(list_find((*block).bloqueados,&procesoEsIdABuscar)){
+			log_warning(logger,"Se intento bloquear el proceso con una clave que YA ESTABA bloqueando");
 			return; // osea no lo agrego
 		}
 	}
+	(*proceso).estado=bloqueado;
 	list_add((*block).bloqueados,proceso);
+	log_info(logger,"El Proceso esta en la cola de bloqueados de la clave %s",clave);
+	}
+	else
+		log_warning(logger,"El proceso no se encontraba en listo o ejecucion");
 }
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	char *aux=malloc(strlen(clave)+1);
@@ -328,25 +320,37 @@ void liberarRecursos(int id){
 }
 
 void liberaClave(char *clave){
+	log_info(logger,"Se entro a liberar clave");
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!list_is_empty((*block).bloqueados)){
-		Proceso *proceso=list_remove((*block).bloqueados,0);
-		if(list_is_empty((*block).bloqueados)){
-			list_destroy((*block).bloqueados);
-			claveABuscar=clave;
-			free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-		}
-		else
-		(*block).idProceso=-1;
-		(*proceso).estado=listo;
-		list_add(listos,proceso);
-		sem_post(&sem_replanificar);
+	if(!block){
+		log_info(logger,"Se encontro la clave %s",clave);
+		if(!list_is_empty((*block).bloqueados)){
+			log_info(logger,"La clave %s tiene procesos bloqueados",clave);
+				Proceso *proceso=list_remove((*block).bloqueados,0);
+				log_info(logger,"Se removio el primer elemento de la lista de bloqueados");
+				if(list_is_empty((*block).bloqueados)){
+					log_info(logger,"la clave %s NO POSEE elementos bloqueados",clave);
+					list_destroy((*block).bloqueados);
+					claveABuscar=clave;
+					free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+				}
+				else
+				(*block).idProceso=-1;
+				(*proceso).estado=listo;
+				list_add(listos,proceso);
+				sem_post(&sem_replanificar);
+			}
+			else{
+				log_info(logger,"La clave %s NO tiene procesos bloqueados",clave);
+				claveABuscar=clave;
+				free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+			}
 	}
-	else{
-		claveABuscar=clave;
-		free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-	}
+	else
+		log_warning(logger,"NO se encontro la clave %s",clave);
+
+
 }
 
 char *sePuedeBloquear(char*clave){
@@ -366,10 +370,6 @@ char *verificarClave(Proceso *proceso,char *clave){
 		return "0";
 }
 
-//este lo tengo que usar cuando el esi me dice que hace un store;
-void desbloquear(int id){
-	Proceso *proceso =buscarProcesoPorId(id);
-}
 
 void tirarErrorYexit(char* mensajeError) {
 	log_error(logger, mensajeError);
@@ -487,7 +487,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         	                                     // conexión cerrada
                         	                             	 log_info(logger, "El coordinator se fue");
                         	                                     printf("selectserver: socket %d hung up\n", i);
-                        	                                     cerrarPlanificador;
+                        	                                     cerrarPlanificador();
                         	                                 } else {
                         	                                	 log_info(logger, "Problema de conexion con el coordinador");
                         	                                     perror("recv");
@@ -575,7 +575,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 void main()
     {
 	idGlobal=1;
-	void(*miAlgoritmo)();
+	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
@@ -595,7 +595,7 @@ void main()
 			flag_desalojo=0;
 		}
 	config_destroy(config);
-	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,miAlgoritmo);
+	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
 	pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	pthread_create(&hilo_consola,NULL,(void *)consola,NULL);
 	crearSelect(estimacionInicial);

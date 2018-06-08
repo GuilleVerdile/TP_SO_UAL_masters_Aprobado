@@ -75,7 +75,7 @@ void consola() {
 		    	printf("con la clave: %s\n", centinelas[1]);
 		    	printf("con el id: %s\n",centinelas[2]);
 		    	log_info(log_consola, "Se ingreso comando bloquear");
-		    	bloquearPorID(centinelas[1],transformarNumero(centinelas[2],0));
+		    	bloquearPorConsola(centinelas[1],transformarNumero(centinelas[2],0));
 			}
 			else{
     	    	printf("No se reconocio el comando %s\n", centinelas[0]);
