@@ -37,6 +37,9 @@ void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda no
 void terminarProceso(){
 	liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
+	//aca va semaforo mae
+	sem_wait(&sem_finDeEsiCompleto);
+	sem_post(&sem_mike);
 	list_add(terminados,procesoEnEjecucion);
 	procesoEnEjecucion = NULL;
 }
@@ -81,9 +84,12 @@ void *ejecutarEsi(void *esi){
 			log_info(log_ejecturarEsi, "pasando semaforo de esi ejecuto una sentencia");
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
 			log_info(log_ejecturarEsi, "se envio al es en ejecucion de ejecutar");
+			sem_wait(&sem_mike);
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
+		//Semaforo mae
+		sem_post(&sem_finDeEsiCompleto);
 		sem_post(&sem_finDeEjecucion);
 		log_info(log_ejecturarEsi, "se da segnal de fin de ejecucion");
 	}
@@ -365,6 +371,9 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 	 sem_init(&sem_procesoEnEjecucion,0,0);
 	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
 	 sem_init(&sem_finDeEjecucion,0,1);
+	 sem_init(&sem_mike,0,0);
+	 //semaforo mae
+	 sem_init(&sem_finDeEsiCompleto,0,0);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
@@ -512,6 +521,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                case 'f':
                             	   terminarProceso();
                             	   sem_post(&sem_replanificar);
+                            	   sem_post(&sem_ESIejecutoUnaSentencia);
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
@@ -519,6 +529,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   if(flag_desalojo && flag_nuevoProcesoEnListo){
                             		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
                             	   else sem_post(&sem_ESIejecutoUnaSentencia);
+                            	   sem_post(&sem_mike);
                                    break;
                                case 'a':
                             	   tam = obtenerTamDelSigBuffer(i);
@@ -527,6 +538,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   matarESI(transformarNumero(buf,0));
                             	   break;
                                }
+
                              }
                              free(buf);
                          }

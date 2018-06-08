@@ -38,6 +38,9 @@ sem_t sem_replanificar;
 sem_t sem_procesoEnEjecucion;
 sem_t sem_ESIejecutoUnaSentencia;
 sem_t sem_finDeEjecucion;
+//
+sem_t sem_finDeEsiCompleto;
+sem_t sem_mike;
 int flag_desalojo;
 int flag_nuevoProcesoEnListo;
 int tiempo_de_ejecucion;
