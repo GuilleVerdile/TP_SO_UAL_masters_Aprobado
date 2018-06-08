@@ -1,18 +1,24 @@
 #include "Coordinador.h"
 t_list* instancias;
-int socketPlanificador;
-sem_t* semaforosInstancias;
+t_list* semaforosInstancias;
 int cantidadDeInstancias;
 sem_t esperaInicializacion;
 sem_t semaforoEsi;
+sem_t semaforoPlanificador;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
 pthread_mutex_t mutexInstancias;
 instancia* (*algoritmoDeDistribucion)();
+char* claveAComunicar;
+char* operacionPlanificador;
 
 int main(){
+	sem_init(&esperaInicializacion,0,0);
+	sem_init(&semaforoEsi,0,0);
+	sem_init(&semaforoPlanificador,0,0);
+	pthread_mutex_init(&mutexInstancias,NULL);
 	cantidadDeInstancias =0;
-	semaforosInstancias = NULL;
+	semaforosInstancias = list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
@@ -35,20 +41,21 @@ int main(){
 	}
 	log_info(logger, "Se esta escuchando");
 	addrlen = sizeof(their_addr);
-	if((socketPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
+	pthread_t hiloPlanificador;
+	if((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
 	    log_error(logger, "No se aceptar la conexion");
 	    log_destroy(logger);
 	    return -1;
 	}
+	pthread_create(&hiloPlanificador,NULL,conexionPlanificador,(void*)&nuevoCliente);
 	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
 	log_info(logger, "Se acepto la conexion");
 	pthread_t* hilosInstancias = NULL;
 	pthread_t hiloEsi;
 	instancias = list_create();
-	sem_init(&esperaInicializacion,0,0);
-	sem_init(&semaforoEsi,0,0);
-	pthread_mutex_init(&mutexInstancias,NULL);
 	//ACA COMIENZA LO DIVERTIDO =)
+	sem_wait(&esperaInicializacion);
+	sem_t* semInstancia;
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
 		log_info(logger,"Se acepto una nueva conexion");
@@ -66,12 +73,16 @@ int main(){
 				log_error(logger,"No se pudo crear un hilo");
 				return -1;
 	    	}
+			sem_wait(&esperaInicializacion);
 			log_info(logger,"Se asigno una conexion con hilos al ESI");
 			break;
 		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
-			semaforosInstancias = realloc(semaforosInstancias,sizeof(sem_t)*(cantidadDeInstancias+1));
-			sem_init(&semaforosInstancias[cantidadDeInstancias],0,0);
+			semInstancia = malloc(sizeof(sem_t));
+			if(sem_init(semInstancia,0,0)<0){
+				log_error(logger,"No se pudo inicializar el semaforo nro: %d",cantidadDeInstancias);
+			}
+			list_add(semaforosInstancias,semInstancia);
 			hilosInstancias = realloc(hilosInstancias,sizeof(pthread_t)*(cantidadDeInstancias+1));
 			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)&nuevoCliente) < 0) //VA HABER UN HILO POR CADA INSTANCIA
 	    	{
@@ -85,6 +96,23 @@ int main(){
 		}
 	}
 	return 0;
+}
+
+void* conexionPlanificador(void* cliente){
+	int sockPlanificador = *(int*)cliente;
+	sem_post(&esperaInicializacion);
+	while(1){
+		sem_wait(&semaforoPlanificador);
+		send(sockPlanificador,operacionPlanificador,2,0);
+		enviarCantBytes(sockPlanificador,claveAComunicar);
+		send(sockPlanificador,claveAComunicar,strlen(claveAComunicar)+1,0);
+		if(operacionPlanificador[0] == 'n' || operacionPlanificador[0] == 'v'){
+			char* resultado = malloc(2);
+			recv(sockPlanificador,resultado,2,0);
+			operacionValida = resultado[0]-48;
+			sem_post(&semaforoEsi);
+		}
+	}
 }
 
 void enviarDatosInstancia(int sockInstancia, char* tipo){
@@ -113,13 +141,14 @@ instancia* buscarInstancia(char* clave){
 		i++;
 	}
 	//pthread_mutex_unlock(&mutexInstancias);
+	log_warning(logger,"No se encontro la instancia :c");
 	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
 }
 
 
 void liberarClave(instancia* instancia,char* clave){
-	send(socketPlanificador,"l",2,0);
-	enviarDatosEsi(clave);
+	operacionPlanificador="l";
+	sem_post(&semaforoPlanificador);
 	int j = 0;
 	while(strcmp(clave,(*instancia).clavesBloqueadas[j]) != 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
 		j++;
@@ -143,8 +172,6 @@ void liberarClave(instancia* instancia,char* clave){
 		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas,sizeof(char*)*(*instancia).cantClavesBloqueadas);
 		log_info(logger,"Se va realizar un reallocamiento de memoria en las claves bloqueadas");
 	}
-	send(socketPlanificador, "d", 2,0); //SENIAL DE DESBLOQUEO
-	enviarDatosEsi(clave);
 }
 
 void agregarClave(instancia* instancia,char clave[40]){
@@ -155,29 +182,20 @@ void agregarClave(instancia* instancia,char clave[40]){
 		(*instancia).cantClavesBloqueadas++;
 }
 
-void enviarDatosEsi(char*clave){
-	enviarCantBytes(socketPlanificador,clave);
-	send(socketPlanificador,clave,strlen(clave)+1,0);
-}
 
-int verificacionEsi(char* clave,char* loQueEnvio){
-	send(socketPlanificador,loQueEnvio,2,0); //LE ENVIO UNA SENIAL DE VERIFICAR
-	enviarDatosEsi(clave);
+int verificacionEsi(char* loQueEnvio){
+	operacionPlanificador = loQueEnvio;
+	sem_post(&semaforoPlanificador);
 	log_info(logger,"Enviado los datos del esi");
-	char* resultado = malloc(2);
-	recv(socketPlanificador,resultado,2,0); //OBTENGO EL RESULTADO
-	log_info(logger,"Se confirmo el resultado: %s",resultado);
-	if(resultado[0]-48){ //ES HORRIBLE PERO ESTO ES POR EL MEMORY LEAK
-		free(resultado);
-		return 1;
-	}
-	free(resultado);
-	return 0;
+	sem_wait(&semaforoEsi);
+	log_info(logger,"Se confirmo el resultado: %d",operacionValida);
+
 }
 
 void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 {
 	int socketEsi = *(int*)nuevoCliente;
+	sem_post(&esperaInicializacion);
     int recvValor;
     instancia* instanciaAEnviar;
     while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
@@ -187,20 +205,23 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
-    		if(!verificacionEsi(paqueteAEnviar.argumentos.GET.clave,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA
-    			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
-    			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
-    			return 0;  //CON ESTO NOS ASEGURAMOS QUE LA CONEXION CON EL ESI MUERA.
+    		claveAComunicar = paqueteAEnviar.argumentos.GET.clave;
+    		verificacionEsi("n");
+    		if(!operacionValida){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    			operacionPlanificador = "b";
+    			sem_post(&semaforoPlanificador);
+    			break;  //CON ESTO NOS ASEGURAMOS A QUE EL ESI NOS ENVIA DEVUELTA EL MENSAJE
     		}
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
     		instanciaAEnviar = algoritmoDeDistribucion(NULL); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
-    		sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]);  //LE DIGO A LA INSTANCIA QUE TRABAJE
+    		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*instanciaAEnviar).nroSemaforo);
+    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));  //LE DIGO A LA INSTANCIA QUE TRABAJE
     		algoritmoDeDistribucion(instanciaAEnviar);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
-    			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
-    			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
+    			operacionPlanificador = "b";
+    			sem_post(&semaforoPlanificador);
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.SET.clave);
     			break;
     		}
@@ -209,11 +230,11 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		break;
     	case SET:
     		log_info(logger,"Estamos haciendo un SET");
-    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi, paqueteAEnviar)) return 0;
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)) return 0;
     		break;
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
-    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi, paqueteAEnviar)) return 0;
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)) return 0;
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;
@@ -230,17 +251,20 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     return 0;
 }
 
-int validarYenviarPaquete(char* clave, int socketEsi,t_esi_operacion* paquete) {
+int validarYenviarPaquete(char* clave, int socketEsi) {
+	claveAComunicar = clave;
 	instancia* instanciaAEnviar;
-	if (!verificacionEsi(clave,"v")) {
+	verificacionEsi("v");
+	if (!operacionValida) {
 		//VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
 		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
 		close(socketEsi);
 		return 0;
 	}
 	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
+	log_info(logger,"Se encontro la instancia con tal clave");
 	log_info(logger,"La instancia a enviar es: %s",(*instanciaAEnviar).nombreInstancia);
-	sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
+	sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo)); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
 		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR DESCONEXION DE LA INSTANCIA
@@ -345,7 +369,8 @@ void *conexionInstancia(void* cliente){
 	buff = malloc(2);
 	int  recvValor;
 	while(true){
-		sem_wait(&semaforosInstancias[nroSemaforo]);
+		sem_wait(list_get(semaforosInstancias,nroSemaforo));
+		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",nroSemaforo);
 		send(socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
 		enviar(socketInstancia,paqueteAEnviar);
 		if(recv(socketInstancia,buff,2,0)<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA

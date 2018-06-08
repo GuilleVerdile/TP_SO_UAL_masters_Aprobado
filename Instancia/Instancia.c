@@ -13,12 +13,12 @@ int tamEntradas;
 char** entradas;
 int nroReemplazo;
 pthread_mutex_t mutexAlmacenamiento;
-
+char* path;
 int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
 	int sockcoordinador;
 	int nroReemplazo = 0;
-	t_config* config = config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+	t_config* config = config_create(pathInstancia);
     if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
     	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
@@ -31,6 +31,8 @@ int main(){
     enviarCantBytes(sockcoordinador,buff);
     send(sockcoordinador,buff,string_length(buff) + 1,0); //ENVIO EL NOMBRE DE LA INSTANCIA
     config_destroy(config); //NO HACE FALTA HACER FREE AL BUFF YA QUE EL CONFIG DESTROY LO HACE SOLO
+    config = config_create(pathInstancia);
+    path = config_get_string_value(config,"PuntoMontaje");
     int recvValor;
     buff = malloc(2);
     t_esi_operacion paquete;
@@ -54,6 +56,7 @@ int main(){
     			break;
     	}
    }
+    config_destroy(config);
     free(buff);
     log_destroy(logger);
     close(sockcoordinador);
@@ -83,7 +86,7 @@ void inicializarTablaEntradas(int sockcoordinador){
 }
 void* hacerDump(){
 	while(1){
-		t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
+		t_config *config=config_create(pathInstancia);
 		sleep(config_get_int_value(config,"dump"));
 		config_destroy(config);
 		almacenarTodaInformacion();
@@ -92,11 +95,8 @@ void* hacerDump(){
 
 void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	pthread_mutex_lock(&mutexAlmacenamiento);
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-	char* path = config_get_string_value(config,"PuntoMontaje");
 	char* aux = string_new();
 	string_append(&aux,path);
-	config_destroy(config);
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 	char* valor = string_new();
 	int cantidadEntradasALeer = (*tabla).tamValor/tamEntradas;
@@ -190,15 +190,12 @@ void meterClaveALaTabla(char clave[40]){
 	(*tabla).entradas = NULL;
 	(*tabla).tamValor = 0;
 	list_add(tablas,tabla);
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-	char* path =config_get_string_value(config,"PuntoMontaje");
 	char* pathCompleto = malloc(strlen(path)+1);
 	strcpy(pathCompleto,path);
 	string_append(&pathCompleto,clave);
 	int desc = open(pathCompleto, O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
 	free(pathCompleto);
 	close(desc);
-	config_destroy(config);
 
 }
 
