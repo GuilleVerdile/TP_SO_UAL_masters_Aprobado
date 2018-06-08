@@ -37,9 +37,9 @@ void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda no
 void terminarProceso(){
 	liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
+	sem_post(&sem_mike);
 	//aca va semaforo mae
 	sem_wait(&sem_finDeEsiCompleto);
-	sem_post(&sem_mike);
 	list_add(terminados,procesoEnEjecucion);
 	procesoEnEjecucion = NULL;
 }
@@ -310,14 +310,21 @@ void liberaClave(char *clave){
 		if(list_is_empty((*block).bloqueados)){
 			list_destroy((*block).bloqueados);
 			claveABuscar=clave;
-			free(list_remove(bloqueados,&esIgualAClaveABuscar));
+			free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+			log_info(logger,"se destruio la cola de bloqueados de la clave %s",clave);
 		}
-		else
-		(*block).idProceso=-1;
+		else{
+			(*block).idProceso=-1;
+		}
 		(*proceso).estado=listo;
 		list_add(listos,proceso);
-		sem_post(&sem_replanificar);
 	}
+	else{
+		claveABuscar=clave;
+		free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+		log_info(logger,"se destruio la cola de bloqueados de la clave %s",clave);
+	}
+
 }
 
 char *sePuedeBloquear(char*clave){
@@ -489,6 +496,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
+                        		                         		log_info(logger,"Me dijieron que libera clave bryan mayers");
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}
@@ -520,7 +528,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
-                            	   sem_post(&sem_replanificar);
                             	   sem_post(&sem_ESIejecutoUnaSentencia);
                             	   break;
                                case 'e':

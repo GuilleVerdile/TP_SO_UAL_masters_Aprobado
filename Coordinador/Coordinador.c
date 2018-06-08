@@ -118,6 +118,8 @@ instancia* buscarInstancia(char* clave){
 
 
 void liberarClave(instancia* instancia,char* clave){
+	send(socketPlanificador,"l",2,0);
+	enviarDatosEsi(clave);
 	int j = 0;
 	while(strcmp(clave,(*instancia).clavesBloqueadas[j]) != 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
 		j++;
@@ -164,7 +166,7 @@ int verificacionEsi(char* clave,char* loQueEnvio){
 	char* resultado = malloc(2);
 	recv(socketPlanificador,resultado,2,0); //OBTENGO EL RESULTADO
 	log_info(logger,"Se confirmo el resultado: %s",resultado);
-	if(resultado[0]){ //ES HORRIBLE PERO ESTO ES POR EL MEMORY LEAK
+	if(resultado[0]-48){ //ES HORRIBLE PERO ESTO ES POR EL MEMORY LEAK
 		free(resultado);
 		return 1;
 	}
