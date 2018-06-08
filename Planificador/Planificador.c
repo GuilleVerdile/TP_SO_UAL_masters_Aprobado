@@ -132,7 +132,7 @@ float *estimarSJF(Proceso *proc){
 bool compararSJF(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	return (*(estimarSJF(a)))>(*(estimarSJF(b)));
+	return (*(estimarSJF(a)))<=(*(estimarSJF(b)));
 }
 float* compararHRRN(Proceso *proc){
 	float *s;
@@ -149,8 +149,8 @@ float* compararHRRN(Proceso *proc){
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
 	Proceso *proceso;
-	list_sort(aux,&comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
-	proceso=list_remove(aux,0);
+	list_sort(aux,comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
+	proceso=list_get(aux,0);
 	list_destroy(aux);
 	idBuscar = (*proceso).idProceso;
 	list_remove_by_condition(listos,&procesoEsIdABuscar); //ELIMINO EL PROCESO QUE COINCIDA CON TAL ID EN LA COLA DE LISTOS
