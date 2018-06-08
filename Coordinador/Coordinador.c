@@ -98,12 +98,13 @@ void enviarDatosInstancia(int sockInstancia, char* tipo){
 instancia* buscarInstancia(char* clave){
 	int i =0;
 	instancia* instancia;
-	pthread_mutex_lock(&mutexInstancias);
+	//pthread_mutex_lock(&mutexInstancias);
 	while((instancia = list_get(instancias,i))!= NULL){ //ME FIJO HASTA LA ULTIMA LISTA
 		if((*instancia).clavesBloqueadas != NULL){ //PRIMERO ME FIJO QUE EXISTA AL MENOS UNA CLAVE
 			int j =0;
-			while((*instancia).clavesBloqueadas[j] != NULL){ //BUSCO HASTA ENCONTRAR LA ULTIMA CLAVE
+			while((*instancia).clavesBloqueadas[j]){ //BUSCO HASTA ENCONTRAR LA ULTIMA CLAVE
 				if(strcmp(clave,(*instancia).clavesBloqueadas[j]) == 0){ //SI ENCUENTRO UNA CLAVE QUE COINCIDA ENTONCES RETORNO LA INSTANCIA
+					log_info(logger,"Se encontro la instancia");
 					return instancia; //RETORNO LA INSTANCIA ASOCIADA A ESA CLAVE
 				}
 				j++;
@@ -111,47 +112,44 @@ instancia* buscarInstancia(char* clave){
 		}
 		i++;
 	}
-	pthread_mutex_unlock(&mutexInstancias);
+	//pthread_mutex_unlock(&mutexInstancias);
 	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
 }
 
 
 void liberarClave(instancia* instancia,char* clave){
 	int j = 0;
-	while(strcmp((*instancia).clavesBloqueadas[j],clave) == 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
+	while(strcmp(clave,(*instancia).clavesBloqueadas[j]) != 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
 		j++;
 	}
 	char *aux = (*instancia).clavesBloqueadas[j]; //ASIGNO EL PUNTERO A UN AUXILIAR PARA HACER EL FREE
 	char* aux2; //AUXILIAR PARA REORDENAR LAS CLAVES
-	while((*instancia).clavesBloqueadas[j] !=NULL){ //REORDENO LAS CLAVES
+	for(j;j < (*instancia).cantClavesBloqueadas-1;j++){
 		aux2 = (*instancia).clavesBloqueadas[j+1];
 		(*instancia).clavesBloqueadas[j] = aux2; //EL ANTERIOR SE LA ASIGNA EL SIGUIENTE
 		j++;
 	}
+	log_info(logger,"Se va liberar la clave: %s",aux);
 	free(aux);//LIBERO LA CLAVE BLOQUEADA
+	(*instancia).cantClavesBloqueadas --;
+	log_info(logger,"La cantidad de claves bloqueadas son %d",(*instancia).cantClavesBloqueadas);
+	if((*instancia).cantClavesBloqueadas == 0){
+		free((*instancia).clavesBloqueadas);
+	}
+	else{
+		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas,sizeof(char*)*(*instancia).cantClavesBloqueadas);
+		log_info(logger,"Se va realizar un reallocamiento de memoria en las claves bloqueadas");
+	}
 	send(socketPlanificador, "d", 2,0); //SENIAL DE DESBLOQUEO
 	enviarDatosEsi(clave);
 }
 
 void agregarClave(instancia* instancia,char clave[40]){
-	if((*instancia).clavesBloqueadas == NULL){
-		(*instancia).clavesBloqueadas = malloc(sizeof(char*)); //LE ASIGNO UNA DIRECCION DE MEMORIA
-		(*instancia).clavesBloqueadas[0] = malloc(strlen(clave)+1);
-		strcpy((*instancia).clavesBloqueadas[0],clave);
-		log_info(logger,"Se agrego correctamente la clave %s",(*instancia).clavesBloqueadas[0]);
-		(*instancia).clavesBloqueadas[1] = NULL; //EL SIGUIENTE ES NULL PARA HACER ALGUNAS VERIFICACIONES EN OTRAS FUNCIONES
-	}
-	else{
-		int j =0;
-		while((*instancia).clavesBloqueadas[j] !=NULL){
-			j++; //BUSCO HASTA ENCONTRAR UN NULL
-		}
-		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*(j+1)); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
-		(*instancia).clavesBloqueadas[j] = malloc(strlen(clave)+1); //LE ASIGNO MEMORIA PARA LA CLAVE
-		strcpy((*instancia).clavesBloqueadas[j],clave);
-		log_info(logger,"Se agrego correctamente la clave %s",(*instancia).clavesBloqueadas[j]);
-		(*instancia).clavesBloqueadas[j+1] = NULL; //PONGO NULL AL SIGUIENTE PARA VERIFICACIONES
-	}
+		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*((*instancia).cantClavesBloqueadas+1)); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
+		(*instancia).clavesBloqueadas[(*instancia).cantClavesBloqueadas] = malloc(strlen(clave)+1); //LE ASIGNO MEMORIA PARA LA CLAVE
+		strcpy((*instancia).clavesBloqueadas[(*instancia).cantClavesBloqueadas],clave);
+		log_info(logger,"Se agrego correctamente la clave %s",(*instancia).clavesBloqueadas[(*instancia).cantClavesBloqueadas]);
+		(*instancia).cantClavesBloqueadas++;
 }
 
 void enviarDatosEsi(char*clave){
@@ -213,6 +211,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi, paqueteAEnviar)) return 0;
+    		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;
     	default:
@@ -237,6 +236,7 @@ int validarYenviarPaquete(char* clave, int socketEsi,t_esi_operacion* paquete) {
 		return 0;
 	}
 	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
+	log_info(logger,"La instancia a enviar es: %s",(*instanciaAEnviar).nombreInstancia);
 	sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
@@ -288,6 +288,7 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	(*instanciaNueva).nombreInstancia = malloc(string_length(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
 	(*instanciaNueva).nroSemaforo = cantidadDeInstancias;
+	(*instanciaNueva).cantClavesBloqueadas = 0;
 }
 
 instancia* existeEnLaLista(char* id){

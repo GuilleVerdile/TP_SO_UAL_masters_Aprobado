@@ -33,6 +33,7 @@ struct Instancia{
 	char** clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int cantEntradasDisponibles; //PARA EL LSU
 	int nroSemaforo;
+	int cantClavesBloqueadas;
 }typedef instancia;
 void *conexionESI(void* nuevoCliente);
 void *conexionInstancia(void* cliente);

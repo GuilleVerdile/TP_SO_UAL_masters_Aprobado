@@ -74,7 +74,7 @@ void inicializarTablaEntradas(int sockcoordinador){
     log_info(logger,"El tamagno de entradas es %d", tamEntradas);
     int i = 0;
     while(i != (cantEntradasDisponibles-1)){
-    	entradas[i] = malloc(tamEntradas*cantEntradasDisponibles); //INICIALIZO CADA ENTRADA CON ""
+    	entradas[i] = malloc(tamEntradas);
     	i++;
     }
     free(buff);
@@ -96,12 +96,12 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	config_destroy(config);
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 	char* valor = string_new();
-	int j =0;
-	while((*tabla).entradas[j] != NULL){
+	int cantidadEntradasALeer = (*tabla).tamValor/tamEntradas;
+	for(int j = 0;j==cantidadEntradasALeer;j++){
 		string_append(&valor, (*tabla).entradas[j]);
 		j++;
 	}
-	string_append(&aux,valor);
+	string_append(&aux,(*tabla).clave);
 	int desc = open(aux, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	free(aux);
 	ftruncate(desc,strlen(valor));
@@ -197,7 +197,6 @@ void meterValorParTalClave(char clave[40], char*valor,int posTabla){
 		free(valorEntrada);
 		(*tabla).entradas = realloc((*tabla).entradas,sizeof(char*)*(j+1));
 		(*tabla).entradas[j] = entradas[entradasTotales-cantEntradasDisponibles]; //LE ASIGNO LA DIRECCION DE MEMORIA DE LA ENTRADA
-		(*tabla).entradas[j+1] = NULL;
 		cantEntradasDisponibles --; //LA CANTIDAD DE ENTRADAS SE RESTAN POR CADA ENTRADA USADA
 		j++;
 	}
