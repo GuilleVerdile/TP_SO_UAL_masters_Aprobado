@@ -9,7 +9,7 @@
 #define CONSOLA_CONSOLA_H_
 #include "Planificador.h"
 
-int main();
+void consola();
 int cantidadDeCentinelas(char** centinelas);
 
 #endif /* CONSOLA_CONSOLA_H_ */

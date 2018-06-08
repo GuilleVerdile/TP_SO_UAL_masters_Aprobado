@@ -89,7 +89,7 @@ char *verificarClave(Proceso *proceso,char *clave);
 void desbloquear(int id);
 void tirarErrorYexit(char* mensajeError);
 void matarESI(int id);
-void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial);
+void crearSelect(int estimacionInicial);
 void planificador();
 void listar(char* clave);
 void bloquearClavesIniciales(t_config *config);

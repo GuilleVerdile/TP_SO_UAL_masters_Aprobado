@@ -8,9 +8,7 @@ int cantidadDeCentinelas(char** centinelas){
 	return i;
 }
 
-int main() {
-	pthread_t planificadorHilos;
-	pthread_create(&planificadorHilos,NULL,(void*) planificador,NULL);
+void consola() {
 	logger =log_create(logPlanificador,"consola",0, LOG_LEVEL_INFO);
   char* linea;
   while(1) {
@@ -91,5 +89,4 @@ int main() {
     free(centinelas);
     free(linea);
   }
-  return 0;
 }

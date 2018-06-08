@@ -5,6 +5,7 @@
  *      Author: utnso
  */
 #include "Planificador.h"
+#include "Consola.h"
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -41,46 +42,52 @@ void terminarProceso(){
 }
 
 void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
+	t_log *log_planiCorto;
+	log_planiCorto=log_create(logPlanificador,"Planificador Corto Plazo",1, LOG_LEVEL_INFO);
 	Proceso*(*algoritmo)();
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
-	log_info(logger, "esperando segnal de sem planificador");
+	log_info(log_planiCorto, "esperando segnal de sem planificador");
 	sem_wait(&sem_replanificar);
-	log_info(logger, "se obtuvo segnal de sem planificador");
+	log_info(log_planiCorto, "se obtuvo segnal de sem planificador");
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
-	log_info(logger, "Se selecciono un proceso por el algoritmo");
-	log_info(logger, "esperando el semaforo sem fin de ejecucion");
+	log_info(log_planiCorto, "Se selecciono un proceso por el algoritmo");
+	log_info(log_planiCorto, "esperando el semaforo sem fin de ejecucion");
 	sem_wait(&sem_finDeEjecucion);
-	log_info(logger, "se paso el semaforo sem fin de ejecucion");
+	log_info(log_planiCorto, "se paso el semaforo sem fin de ejecucion");
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
-	log_info(logger, "se paso el semaforo sem fin de ejecucion");
+	log_info(log_planiCorto, "se paso el semaforo sem fin de ejecucion");
 	sem_post(&sem_procesoEnEjecucion);
-	log_info(logger, "se dio segnal de ejecutar el esi en ejecucion");
+	log_info(log_planiCorto, "se dio segnal de ejecutar el esi en ejecucion");
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 
 	}
+	log_destroy(log_planiCorto);
 }
 void *ejecutarEsi(void *esi){
+	t_log *log_ejecturarEsi;
+	log_ejecturarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
 	while(1){
 		sem_wait(&sem_procesoEnEjecucion);
-		log_info(logger, "se entro a ejecutar el esi en ejecucion");
+		log_info(log_ejecturarEsi, "se entro a ejecutar el esi en ejecucion");
 		while((*procesoEnEjecucion).estado==ejecucion){
-			log_info(logger, "esperando semaforo de que el esi ejecuto una sentencia");
+			log_info(log_ejecturarEsi, "esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
-			log_info(logger, "pasando semaforo de esi ejecuto una sentencia");
+			log_info(log_ejecturarEsi, "pasando semaforo de esi ejecuto una sentencia");
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
-			log_info(logger, "se envio al es en ejecucion de ejecutar");
+			log_info(log_ejecturarEsi, "se envio al es en ejecucion de ejecutar");
 		}
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
 		sem_post(&sem_finDeEjecucion);
-		log_info(logger, "se da segnal de fin de ejecucion");
+		log_info(log_ejecturarEsi, "se da segnal de fin de ejecucion");
 	}
+	log_destroy(log_ejecturarEsi);
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
 	Proceso *proceso=malloc(sizeof(Proceso));
@@ -348,20 +355,16 @@ void matarESI(int id){
 	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
 	free(procesoAEliminar);
 }
-void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
+void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesos=list_create();
 	 listos=list_create();
      terminados=list_create();
      bloqueados=list_create();
      procesoEnEjecucion = NULL;
-	 pthread_t hilo_planificadrCortoPlazo;
-	 pthread_t hilo_ejecutarEsi;
 	 sem_init(&sem_replanificar,0,0);
 	 sem_init(&sem_procesoEnEjecucion,0,0);
 	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
 	 sem_init(&sem_finDeEjecucion,0,1);
-	 pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *) algoritmo);
-	 pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
@@ -532,14 +535,16 @@ void crearSelect(Proceso*(*algoritmo)(),int estimacionInicial){// en el caso del
 }
 
 }
-void planificador()
+void main()
     {
 	idGlobal=1;
-	void(*miAlgoritmo)(int,char*);
+	void(*miAlgoritmo)();
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
-
+	pthread_t hilo_planificadrCortoPlazo;
+	pthread_t hilo_ejecutarEsi;
+	pthread_t hilo_consola;
 	if(!strcmp(algoritmo,"fifo")){
 			miAlgoritmo=&fifo;
 		flag_desalojo=0;
@@ -553,7 +558,10 @@ void planificador()
 			flag_desalojo=0;
 		}
 	config_destroy(config);
-	crearSelect(miAlgoritmo,estimacionInicial);
+	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,miAlgoritmo);
+	pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
+	pthread_create(&hilo_consola,NULL,(void *)consola,NULL);
+	crearSelect(estimacionInicial);
 	cerrarPlanificador();
     }
 void listar(char* clave){
