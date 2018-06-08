@@ -21,6 +21,7 @@ bool procesoEsIdABuscarSocket(void * proceso){
 	else
 		return false;
 }
+//REvisar este
 void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda normal, otra cosa si es por socket
 	//si voy a usar esta variable global falta mutex
 		idBuscar= id;
@@ -193,30 +194,6 @@ Proceso *buscarProcesoPorId(int id){
 	idBuscar=id;
 	return list_find(procesos,&procesoEsIdABuscar);
 }
-
-void eliminarDeLista(int id){
-	//aca mutex
-	idBuscar=id;
-	//
-	Proceso *proceso =buscarProcesoPorId(id);
-	t_list *t;
-	Bloqueo *a;
-
-	switch((*proceso).estado){
-	case listo:
-			t=listos;
-			list_remove_by_condition(t,&procesoEsIdABuscar);
-			break;
-	case bloqueado:
-			a=buscarBloqueoPorProceso(id);
-			t=(*a).bloqueados;
-			list_remove_by_condition(t,&procesoEsIdABuscar);
-			break;
-	case ejecucion:
-			procesoEnEjecucion=NULL;
-			break;
-	}
-}
 // este lo uso cuando el coordinador me dice que esi bloquear
 ///
 ///
@@ -366,10 +343,6 @@ char *verificarClave(Proceso *proceso,char *clave){
 		return "0";
 }
 
-//este lo tengo que usar cuando el esi me dice que hace un store;
-void desbloquear(int id){
-	Proceso *proceso =buscarProcesoPorId(id);
-}
 
 void tirarErrorYexit(char* mensajeError) {
 	log_error(logger, mensajeError);
@@ -575,7 +548,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 void main()
     {
 	idGlobal=1;
-	void(*miAlgoritmo)();
+	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
@@ -595,7 +568,7 @@ void main()
 			flag_desalojo=0;
 		}
 	config_destroy(config);
-	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,miAlgoritmo);
+	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
 	pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
 	pthread_create(&hilo_consola,NULL,(void *)consola,NULL);
 	crearSelect(estimacionInicial);
