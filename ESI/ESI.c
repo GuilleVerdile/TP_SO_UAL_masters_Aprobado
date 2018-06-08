@@ -66,6 +66,7 @@ int main(int argc, char**argv){
 		log_info(logger,"La operacion a ejecutar es %s",linea);
 		pthread_create(&hiloConexionCoordinador,NULL,hacerUnaOperacion,NULL);
 	}
+	pthread_join(hiloConexionCoordinador,NULL);
 	if(linea){
 		free(linea);
 	}
