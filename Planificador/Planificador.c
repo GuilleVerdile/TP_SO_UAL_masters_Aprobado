@@ -257,6 +257,31 @@ void bloquearPorID(char *clave,int id){
 		}
 	}
 }
+//Necesito mutex al usar esta funcion
+void bloquearPorConsola(char *clave,int id){
+	char *aux=malloc(strlen(clave)+1);
+	strcpy(aux,clave);
+	claveABuscar=aux;
+	Bloqueo *block=buscarClave();
+	idBuscar=id;
+	Proceso *proceso;
+	if(!block){
+			block=malloc(sizeof(Bloqueo));
+			(*block).clave=aux;
+			(*block).bloqueados=list_create();
+			(*block).idProceso=-1;
+			list_add(bloqueados,block);
+		}
+	//Esto no se si va, me fijo si el proceso ya esta bloqueado por esta clave asi
+	//no lo vuelvo a agregar a la cola de bloqueados
+	else{ //<---- Este else me dice que el block no es null que existe entonces voe si el proceso ya esta bloqueado
+		//Si encuentra un proceso que coincide con el id a buscar quiere decir que el proceso esta en la lista de bloqueados
+		if(list_find((*block).bloqueados,&procesoEsIdABuscar)){
+			return; // osea no lo agrego
+		}
+	}
+	list_add((*block).bloqueados,proceso);
+}
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	char *aux=malloc(strlen(clave)+1);
 	strcpy(aux,clave);

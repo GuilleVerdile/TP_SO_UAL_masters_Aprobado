@@ -99,4 +99,5 @@ void bloquearClavesIniciales(t_config *config);
 char *sePuedeBloquear(char*clave);
 void destruirUnProceso(void *elemento);
 void destruirUnBloqueado(void *elemento);
+void bloquearPorConsola(char *clave,int id);
 #endif /* SOCKET_PLANIFICADOR_H_ */
