@@ -245,23 +245,34 @@ void bloquearPorConsola(char *clave,int id){
 	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	idBuscar=id;
-	Proceso *proceso;
+	Proceso *proceso=buscarProcesoPorId(id);
+	if((*proceso).estado==ejecucion||(*proceso).estado==listo){
+	log_info(logger,"proceso listo o en ejecucion",clave);
 	if(!block){
+		log_info(logger,"El bloque con clave %s NO EXISTE",clave);
 			block=malloc(sizeof(Bloqueo));
 			(*block).clave=aux;
 			(*block).bloqueados=list_create();
 			(*block).idProceso=-1;
 			list_add(bloqueados,block);
+		log_info(logger,"El bloque con clave %s se CREO",clave);
 		}
 	//Esto no se si va, me fijo si el proceso ya esta bloqueado por esta clave asi
 	//no lo vuelvo a agregar a la cola de bloqueados
 	else{ //<---- Este else me dice que el block no es null que existe entonces voe si el proceso ya esta bloqueado
+		log_info(logger,"El bloque con clave %s EXISTE",clave);
 		//Si encuentra un proceso que coincide con el id a buscar quiere decir que el proceso esta en la lista de bloqueados
 		if(list_find((*block).bloqueados,&procesoEsIdABuscar)){
+			log_warning(logger,"Se intento bloquear el proceso con una clave que YA ESTABA bloqueando");
 			return; // osea no lo agrego
 		}
 	}
+	(*proceso).estado=bloqueado;
 	list_add((*block).bloqueados,proceso);
+	log_info(logger,"El Proceso esta en la cola de bloqueados de la clave %s",clave);
+	}
+	else
+		log_warning(logger,"El proceso no se encontraba en listo o ejecucion");
 }
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	char *aux=malloc(strlen(clave)+1);
@@ -464,7 +475,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         	                                     // conexión cerrada
                         	                             	 log_info(logger, "El coordinator se fue");
                         	                                     printf("selectserver: socket %d hung up\n", i);
-                        	                                     cerrarPlanificador;
+                        	                                     cerrarPlanificador();
                         	                                 } else {
                         	                                	 log_info(logger, "Problema de conexion con el coordinador");
                         	                                     perror("recv");
