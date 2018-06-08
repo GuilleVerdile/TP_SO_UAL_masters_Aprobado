@@ -507,15 +507,19 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
                         		                         	case 'n':
+                        		                         		log_info(logger,"Se decidio verificar un GET de la clave %s",buf);
                         		                         		send(i,sePuedeBloquear(buf),2,0);
                         		                         		break;
                         		                         	case 'v':
+                        		                         		log_info(logger,"Se decidio verificar un SET o STORE de la clave %s",buf);
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
                         		                         		break;
                         		                         	case 'b':
+                        		                         		log_info(logger,"Se decidio bloquear la clave %s",buf);
                         		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
+                        		                         		log_info(logger,"Se decidio liberar la clave %s",buf);
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}

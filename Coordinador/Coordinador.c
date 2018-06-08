@@ -55,7 +55,6 @@ int main(){
 	instancias = list_create();
 	//ACA COMIENZA LO DIVERTIDO =)
 	sem_wait(&esperaInicializacion);
-	sem_t* semInstancia;
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
 		log_info(logger,"Se acepto una nueva conexion");
@@ -78,11 +77,6 @@ int main(){
 			break;
 		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
-			semInstancia = malloc(sizeof(sem_t));
-			if(sem_init(semInstancia,0,0)<0){
-				log_error(logger,"No se pudo inicializar el semaforo nro: %d",cantidadDeInstancias);
-			}
-			list_add(semaforosInstancias,semInstancia);
 			hilosInstancias = realloc(hilosInstancias,sizeof(pthread_t)*(cantidadDeInstancias+1));
 			if(pthread_create(&(hilosInstancias[cantidadDeInstancias]) , NULL , conexionInstancia, (void*)&nuevoCliente) < 0) //VA HABER UN HILO POR CADA INSTANCIA
 	    	{
@@ -105,11 +99,13 @@ void* conexionPlanificador(void* cliente){
 		sem_wait(&semaforoPlanificador);
 		send(sockPlanificador,operacionPlanificador,2,0);
 		enviarCantBytes(sockPlanificador,claveAComunicar);
+		log_info(logger,"Se envio la operacion %s con la clave %s", operacionPlanificador,claveAComunicar);
 		send(sockPlanificador,claveAComunicar,strlen(claveAComunicar)+1,0);
 		if(operacionPlanificador[0] == 'n' || operacionPlanificador[0] == 'v'){
 			char* resultado = malloc(2);
 			recv(sockPlanificador,resultado,2,0);
 			operacionValida = resultado[0]-48;
+			free(resultado);
 			sem_post(&semaforoEsi);
 		}
 	}
@@ -290,17 +286,20 @@ instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
 algoritmo obtenerAlgoritmoDistribucion(){
 	t_config *config=config_create(pathCoordinador);
 	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
-	config_destroy(config);
 	case EL: //EQUITATIVE LOAD
+		config_destroy(config);
 		return &equitativeLoad;
 		break;
 	case LSU: //LSU
+		config_destroy(config);
 		//return lsu(sockInstancia);
 		break;
 	case KE: //KEYEXPLICIT
+		config_destroy(config);
 		//return keyExplicit(sockInstancia);
 		break;
 	default:
+		config_destroy(config);
 		log_error(logger,"No se reconocio el algoritmo de distribucion");
 		exit(-1);
 	}
@@ -314,6 +313,11 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	(*instanciaNueva).estaDisponible = 1;
 	(*instanciaNueva).nombreInstancia = malloc(string_length(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
+	sem_t* semInstancia = malloc(sizeof(sem_t));
+	if(sem_init(semInstancia,0,0)<0){
+		log_error(logger,"No se pudo inicializar el semaforo nro: %d",cantidadDeInstancias);
+	}
+	list_add(semaforosInstancias,semInstancia);
 	(*instanciaNueva).nroSemaforo = cantidadDeInstancias;
 	(*instanciaNueva).cantClavesBloqueadas = 0;
 }
@@ -374,6 +378,7 @@ void *conexionInstancia(void* cliente){
 		send(socketInstancia,"p",2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
 		enviar(socketInstancia,paqueteAEnviar);
 		if(recv(socketInstancia,buff,2,0)<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
+			log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",nroSemaforo);
 			operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
 			sem_post(&semaforoEsi);
 			break;
