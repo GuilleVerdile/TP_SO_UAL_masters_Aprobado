@@ -57,7 +57,7 @@ int main(int argc, char**argv){
 	enviarTipoDeCliente(sockcoordinador,"1");
 	resultado = malloc(2);
 	send(sockplanificador,"1",2,0);
-	while(recv(sockplanificador, resultado, 2, 0) > 0){
+	while(!feof(f) && recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
 		log_info(logger,"El planificador me dejo ejecutar");
 		if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador))>0) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
 		{
