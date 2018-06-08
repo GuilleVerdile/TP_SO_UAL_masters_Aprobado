@@ -12,6 +12,7 @@ int cantEntradasDisponibles;
 int tamEntradas;
 char** entradas;
 int nroReemplazo;
+pthread_mutex_t mutexAlmacenamiento;
 
 int main(){
 	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
@@ -36,6 +37,7 @@ int main(){
 	pthread_t id;
 	tablas = list_create();
 	pthread_create(&id,NULL,hacerDump,NULL);
+	pthread_mutex_init(&mutexAlmacenamiento,NULL);
     while((recvValor =recv(sockcoordinador,buff,2,0))>0){
     	switch(buff[0]){
     		case 'r': //RECONEXION LE PIDO AL COORDINADOR CUALES FUERON LAS CLAVES BLOQUEADAS EN ESTA INSTANCIA
@@ -89,6 +91,7 @@ void* hacerDump(){
 }
 
 void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
+	pthread_mutex_lock(&mutexAlmacenamiento);
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
 	char* path = config_get_string_value(config,"PuntoMontaje");
 	char* aux = string_new();
@@ -110,6 +113,7 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	munmap(map,strlen(valor));
 	close(desc);
 	free(valor);
+	pthread_mutex_unlock(&mutexAlmacenamiento);
 }
 
 void almacenarTodaInformacion(){
@@ -148,6 +152,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 		case SET:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
 			tablaEntradas* tabla = list_get(tablas,posTabla);
+			pthread_mutex_lock(&mutexAlmacenamiento);
 			if((*tabla).entradas!=NULL){ //ME FIJO SI YA TENIA UN VALOR ASIGNADO
 				free((*tabla).entradas); //LIBERO LA ENTRADAS
 				(*tabla).entradas = NULL;
@@ -161,6 +166,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			else{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
+			pthread_mutex_unlock(&mutexAlmacenamiento);
 			break;
 		case STORE:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
