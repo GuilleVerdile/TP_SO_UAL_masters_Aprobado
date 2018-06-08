@@ -40,7 +40,7 @@ sem_t sem_ESIejecutoUnaSentencia;
 sem_t sem_finDeEjecucion;
 //
 sem_t sem_finDeEsiCompleto;
-sem_t sem_mike;
+sem_t semCambioEstado;
 int flag_desalojo;
 int flag_nuevoProcesoEnListo;
 int tiempo_de_ejecucion;

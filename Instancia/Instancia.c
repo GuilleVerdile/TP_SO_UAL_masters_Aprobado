@@ -132,6 +132,13 @@ int encontrarTablaConTalClave(char clave[40]){
 	return i;
 }
 
+void liberarClave(int posTabla){
+	tablaEntradas* tabla = list_remove(tablas,posTabla);
+	free((*tabla).entradas);
+	free(tabla);
+
+}
+
 void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	int posTabla;
 	switch(paquete.keyword){
@@ -158,6 +165,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 		case STORE:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
 			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);
+			liberarClave(posTabla);
 			break;
 	}
 	if(send(sockcoordinador,"r",2,0)==-1)

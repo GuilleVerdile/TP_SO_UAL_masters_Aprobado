@@ -11,7 +11,7 @@
 	int sockcoordinador;
 	int sockplanificador;
 	char* resultado;
-
+	FILE* f;
 void conectarESI(int *sockcoordinador,int *sockplanificador){
 	t_config *config=config_create(pathEsi);
 	*sockplanificador=crearConexionCliente(config_get_int_value(config, "Puerto de Conexion al Planificador"),config_get_string_value(config, "IP de Conexion al Planificador"));
@@ -33,6 +33,7 @@ void* hacerUnaOperacion(){
 		destruir_operacion(operacion);
 		recv(sockcoordinador,resultado,2,0);
 		log_info(logger,"Se realizo la operacion");
+		if(resultado[0] == 'a' || !feof(f))
 		send(sockplanificador,resultado,2,0);
 	}
 	else{
@@ -45,7 +46,7 @@ void* hacerUnaOperacion(){
 
 int main(int argc, char**argv){
 	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
-	FILE* f;
+
 	ssize_t read;
 	f = fopen(argv[1],"r");
 	if(f == NULL){

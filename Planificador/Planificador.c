@@ -35,13 +35,12 @@ void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda no
 }
 
 void terminarProceso(){
+	sem_post(&sem_ESIejecutoUnaSentencia);
 	liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
-	sem_post(&sem_mike);
-	//aca va semaforo mae
-	sem_wait(&sem_finDeEsiCompleto);
 	list_add(terminados,procesoEnEjecucion);
 	procesoEnEjecucion = NULL;
+	sem_post(&semCambioEstado);
 }
 
 void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
@@ -58,6 +57,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
+	if(proceso){
 	log_info(log_planiCorto, "Se selecciono un proceso por el algoritmo");
 	log_info(log_planiCorto, "esperando el semaforo sem fin de ejecucion");
 	sem_wait(&sem_finDeEjecucion);
@@ -68,7 +68,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	sem_post(&sem_procesoEnEjecucion);
 	log_info(log_planiCorto, "se dio segnal de ejecutar el esi en ejecucion");
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
-
+	}
 	}
 	log_destroy(log_planiCorto);
 }
@@ -78,18 +78,18 @@ void *ejecutarEsi(void *esi){
 	while(1){
 		sem_wait(&sem_procesoEnEjecucion);
 		log_info(log_ejecturarEsi, "se entro a ejecutar el esi en ejecucion");
-		while((*procesoEnEjecucion).estado==ejecucion){
+		while(procesoEnEjecucion && (*procesoEnEjecucion).estado==ejecucion){
 			log_info(log_ejecturarEsi, "esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
 			log_info(log_ejecturarEsi, "pasando semaforo de esi ejecuto una sentencia");
 			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
 			log_info(log_ejecturarEsi, "se envio al es en ejecucion de ejecutar");
-			sem_wait(&sem_mike);
+			sem_wait(&semCambioEstado);
 		}
+		if(procesoEnEjecucion){
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
-		//Semaforo mae
-		sem_post(&sem_finDeEsiCompleto);
+		}
 		sem_post(&sem_finDeEjecucion);
 		log_info(log_ejecturarEsi, "se da segnal de fin de ejecucion");
 	}
@@ -311,20 +311,17 @@ void liberaClave(char *clave){
 			list_destroy((*block).bloqueados);
 			claveABuscar=clave;
 			free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-			log_info(logger,"se destruio la cola de bloqueados de la clave %s",clave);
 		}
-		else{
-			(*block).idProceso=-1;
-		}
+		else
+		(*block).idProceso=-1;
 		(*proceso).estado=listo;
 		list_add(listos,proceso);
+		sem_post(&sem_replanificar);
 	}
 	else{
 		claveABuscar=clave;
 		free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-		log_info(logger,"se destruio la cola de bloqueados de la clave %s",clave);
 	}
-
 }
 
 char *sePuedeBloquear(char*clave){
@@ -378,9 +375,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 	 sem_init(&sem_procesoEnEjecucion,0,0);
 	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
 	 sem_init(&sem_finDeEjecucion,0,1);
-	 sem_init(&sem_mike,0,0);
-	 //semaforo mae
-	 sem_init(&sem_finDeEsiCompleto,0,0);
+	 sem_init(&semCambioEstado,0,0);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
@@ -496,7 +491,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
-                        		                         		log_info(logger,"Me dijieron que libera clave bryan mayers");
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}
@@ -528,7 +522,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
-                            	   sem_post(&sem_ESIejecutoUnaSentencia);
+                            	   sem_post(&sem_replanificar);
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
@@ -536,7 +530,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   if(flag_desalojo && flag_nuevoProcesoEnListo){
                             		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
                             	   else sem_post(&sem_ESIejecutoUnaSentencia);
-                            	   sem_post(&sem_mike);
+                            	   sem_post(&semCambioEstado);
                                    break;
                                case 'a':
                             	   tam = obtenerTamDelSigBuffer(i);
@@ -545,7 +539,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   matarESI(transformarNumero(buf,0));
                             	   break;
                                }
-
                              }
                              free(buf);
                          }

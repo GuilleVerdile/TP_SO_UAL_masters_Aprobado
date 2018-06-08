@@ -137,6 +137,7 @@ void liberarClave(instancia* instancia,char* clave){
 	log_info(logger,"La cantidad de claves bloqueadas son %d",(*instancia).cantClavesBloqueadas);
 	if((*instancia).cantClavesBloqueadas == 0){
 		free((*instancia).clavesBloqueadas);
+		(*instancia).clavesBloqueadas = NULL;
 	}
 	else{
 		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas,sizeof(char*)*(*instancia).cantClavesBloqueadas);
