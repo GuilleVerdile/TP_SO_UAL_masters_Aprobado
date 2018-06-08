@@ -320,25 +320,37 @@ void liberarRecursos(int id){
 }
 
 void liberaClave(char *clave){
+	log_info(logger,"Se entro a liberar clave");
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!list_is_empty((*block).bloqueados)){
-		Proceso *proceso=list_remove((*block).bloqueados,0);
-		if(list_is_empty((*block).bloqueados)){
-			list_destroy((*block).bloqueados);
-			claveABuscar=clave;
-			free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-		}
-		else
-		(*block).idProceso=-1;
-		(*proceso).estado=listo;
-		list_add(listos,proceso);
-		sem_post(&sem_replanificar);
+	if(!block){
+		log_info(logger,"Se encontro la clave %s",clave);
+		if(!list_is_empty((*block).bloqueados)){
+			log_info(logger,"La clave %s tiene procesos bloqueados",clave);
+				Proceso *proceso=list_remove((*block).bloqueados,0);
+				log_info(logger,"Se removio el primer elemento de la lista de bloqueados");
+				if(list_is_empty((*block).bloqueados)){
+					log_info(logger,"la clave %s NO POSEE elementos bloqueados",clave);
+					list_destroy((*block).bloqueados);
+					claveABuscar=clave;
+					free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+				}
+				else
+				(*block).idProceso=-1;
+				(*proceso).estado=listo;
+				list_add(listos,proceso);
+				sem_post(&sem_replanificar);
+			}
+			else{
+				log_info(logger,"La clave %s NO tiene procesos bloqueados",clave);
+				claveABuscar=clave;
+				free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+			}
 	}
-	else{
-		claveABuscar=clave;
-		free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
-	}
+	else
+		log_warning(logger,"NO se encontro la clave %s",clave);
+
+
 }
 
 char *sePuedeBloquear(char*clave){
