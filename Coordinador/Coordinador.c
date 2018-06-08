@@ -162,8 +162,10 @@ void enviarDatosEsi(char*clave){
 int verificacionEsi(char* clave,char* loQueEnvio){
 	send(socketPlanificador,loQueEnvio,2,0); //LE ENVIO UNA SENIAL DE VERIFICAR
 	enviarDatosEsi(clave);
+	log_info(logger,"Enviado los datos del esi");
 	char* resultado = malloc(2);
 	recv(socketPlanificador,resultado,2,0); //OBTENGO EL RESULTADO
+	log_info(logger,"Se confirmo el resultado: %s",resultado);
 	if(resultado[0]){ //ES HORRIBLE PERO ESTO ES POR EL MEMORY LEAK
 		free(resultado);
 		return 1;
@@ -179,16 +181,17 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     instancia* instanciaAEnviar;
     while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
     	t_config* config = config_create(pathCoordinador);
-    	sleep(config_get_int_value(config,"retardo"));
+    	sleep(config_get_int_value(config,"Retardo"));
     	config_destroy(config);
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
-    		if(verificacionEsi(paqueteAEnviar.argumentos.GET.clave,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA
+    		if(!verificacionEsi(paqueteAEnviar.argumentos.GET.clave,"n")){ //VERIFICO SI LA CLAVE ESTA TOMADA
     			send(socketPlanificador,"b",2,0); //LE MANDO UNA SENIAL DE BLOQUEO
     			enviarDatosEsi(paqueteAEnviar.argumentos.GET.clave); //LE ENVIO LOS DATOS PARA BLOQUEARLO
     			return 0;  //CON ESTO NOS ASEGURAMOS QUE LA CONEXION CON EL ESI MUERA.
     		}
+    		log_info(logger,"Se puede realizar el GET");
     		while(true){
     		instanciaAEnviar = algoritmoDeDistribucion(NULL); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
     		sem_post(&semaforosInstancias[(*instanciaAEnviar).nroSemaforo]);  //LE DIGO A LA INSTANCIA QUE TRABAJE
@@ -212,6 +215,8 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi, paqueteAEnviar)) return 0;
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		break;
+    	default:
+    		log_error(logger,"Operacion invalida");
     	}
     	send(socketEsi,"e",2,0);
     }//GET SET STORE IMPLEMENTACION

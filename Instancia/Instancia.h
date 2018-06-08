@@ -1,9 +1,3 @@
-/*
- * Instancia.h
- *
- *  Created on: 16 abr. 2018
- *      Author: utnso
- */
 
 #ifndef SOCKET_INSTANCIA_H_
 #define SOCKET_INSTANCIA_H_
@@ -21,6 +15,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <commons/collections/list.h>
 const char* INSTANCIA = "0";
 void inicializarTablaEntradas(int sockcoordinador);
 void manejarPaquete(t_esi_operacion paquete,int sockcoordinador);
