@@ -63,27 +63,29 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 }
 
 void *ejecutarEsi(void *esi){
-	t_log *log_ejecturarEsi;
-	log_ejecturarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
+	t_log *log_ejecutarEsi;
+	log_ejecutarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
 	while(1){
 		sem_wait(&sem_procesoEnEjecucion);
-		log_info(log_ejecturarEsi, "se entro a ejecutar el esi en ejecucion");
+		log_info(log_ejecutarEsi, "se entro a ejecutar el esi en ejecucion");
 		while(procesoEnEjecucion && (*procesoEnEjecucion).estado==ejecucion){
-			log_info(log_ejecturarEsi, "esperando semaforo de que el esi ejecuto una sentencia");
+			pthread_mutex_lock(&mutex_pausa);
+			log_info(log_ejecutarEsi, "esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
-			log_info(log_ejecturarEsi, "pasando semaforo de esi ejecuto una sentencia");
-			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a perimitir al ESI ejecturar uan sententencia
-			log_info(log_ejecturarEsi, "se envio al es en ejecucion de ejecutar");
+			log_info(log_ejecutarEsi, "pasando semaforo de esi ejecuto una sentencia");
+			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a permitir al ESI ejecutar una sentencia
+			log_info(log_ejecutarEsi, "se envio al es en ejecucion de ejecutar");
 			sem_wait(&semCambioEstado);
+			pthread_mutex_unlock(&mutex_pausa);
 		}
 		if(procesoEnEjecucion){
 		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
 		(*procesoEnEjecucion).rafagaRealActual=0;
 		}
 		sem_post(&sem_finDeEjecucion);
-		log_info(log_ejecturarEsi, "se da segnal de fin de ejecucion");
+		log_info(log_ejecutarEsi, "se da segnal de fin de ejecucion");
 	}
-	log_destroy(log_ejecturarEsi);
+	log_destroy(log_ejecutarEsi);
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
 	Proceso *proceso=malloc(sizeof(Proceso));
@@ -574,6 +576,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 void main()
     {
+	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");

@@ -27,10 +27,12 @@ void consola() {
     		if(!strcmp(centinelas[0],"continuar")){
     			printf("Usted ingreso continuar\n");
     			log_info(log_consola, "Se ingreso comando continuar");
+    			pthread_mutex_unlock(&mutex_pausa);
     		}
     		else if(!strcmp(centinelas[0],"pausar")){
         		printf("Usted ingreso pausar\n");
         		log_info(log_consola, "Se ingreso comando pausar");
+        		pthread_mutex_lock(&mutex_pausa);
     		}
     	    else if(!strcmp(centinelas[0],"deadlock")){
     	    		printf("Usted ingreso deadlock\n");
