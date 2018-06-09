@@ -55,4 +55,4 @@ dkms.conf
 
 # Ignora Logs generados por los programas y stores
 *.log
-/store_instancia_
+/store_instancias/
