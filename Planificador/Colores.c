@@ -38,3 +38,9 @@ char *magenta(char *palabra){
 char *cian(char *palabra){
 	return colorear(Cian,palabra);
 }
+//Funcion ejemplo de utilizacion con puntero a funciones de colores
+imprimir(char*(*color)(char*),char *texto){
+	char *aux=color(texto);
+	printf("%s\n",aux);
+	free(aux);
+}

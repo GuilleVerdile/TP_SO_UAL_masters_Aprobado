@@ -28,4 +28,6 @@ char *magenta(char *palabra);
 
 char *cian(char *palabra);
 
+imprimir(char*(*color)(char*),char *texto);
+
 #endif /* COLORES_H_ */
