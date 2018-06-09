@@ -41,7 +41,8 @@ int main(){
     pthread_create(&id,NULL,hacerDump,NULL);
     pthread_mutex_init(&mutexAlmacenamiento,NULL);
     while((recvValor =recv(sockcoordinador,buff,2,0))>0){
-    	switch(buff[0]){
+    	switch(buff[0])
+	{
     		case 'r': //RECONEXION LE PIDO AL COORDINADOR CUALES FUERON LAS CLAVES BLOQUEADAS EN ESTA INSTANCIA
     			break;
     		case 'p': //RECIBI UN PAQUETE GET SET O STORE
@@ -100,7 +101,7 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 	char* valor = string_new();
 	int cantidadEntradasALeer = (*tabla).tamValor/tamEntradas;
-	for(int j = 0;j==cantidadEntradasALeer;j++){
+	for(int j = 0; j==cantidadEntradasALeer; j++){
 		string_append(&valor, (*tabla).entradas[j]);
 		j++;
 	}
@@ -125,7 +126,6 @@ void almacenarTodaInformacion(){
 		i++;
 		tabla = list_get(tablas,i);
 	}
-
 }
 
 int encontrarTablaConTalClave(char clave[40]){
@@ -165,7 +165,8 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			{
 				//ALGORITMO DE REEMPLAZO
 			}
-			else{
+			else
+			{
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
 			pthread_mutex_unlock(&mutexAlmacenamiento);
@@ -233,6 +234,7 @@ void circular(char clave[40],char* valor, int posTabla){
 	if((*tabla).entradas !=NULL)
 	{
 		while((*tabla).entradas[posEntrada]!=NULL){
+
 			posEntrada++;
 		}
 	}
