@@ -89,8 +89,8 @@ void consola() {
     		printf("Usted ingreso una cantidad de argumentos invalida\n");
     		log_error(log_consola, "Cantidad de argumentos invalida");
     }
-    log_destroy(log_consola);
     free(centinelas);
     free(linea);
   }
+    log_destroy(log_consola);
 }
