@@ -5,10 +5,11 @@
  *      Author: utnso
  */
 #include "Colores.h"
+
 //->Esta funcion colorea una palabra de acuerdo a un color
 
-char *colorear(color col,char *palabra){
-	return string_from_format("\x1b[1;3%dm%s%s",col,palabra,"\x1b[0m");
+char *colorear(Color color,char *palabra){
+	return string_from_format("\x1b[1;3%dm%s%s",color,palabra,"\x1b[0m");
 }
 
 char *verde(char *palabra){
@@ -39,8 +40,16 @@ char *cian(char *palabra){
 	return colorear(Cian,palabra);
 }
 //Funcion ejemplo de utilizacion con puntero a funciones de colores
-imprimir(char*(*color)(char*),char *texto){
+
+void imprimir(char*(*color)(char*),char *texto){
 	char *aux=color(texto);
 	printf("%s\n",aux);
 	free(aux);
 }
+
+void loggear(t_log *log,Color color,char *texto){
+	printf("\x1b[1;3%dm",color);
+	log_info(log,texto);
+	printf("\x1b[0m");
+}
+
