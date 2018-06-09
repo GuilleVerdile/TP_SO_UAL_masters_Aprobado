@@ -83,6 +83,7 @@ void consola() {
 			}
     		break;
     	default:
+
     		printf("Usted ingreso una cantidad de argumentos invalida\n");
     		log_error(log_consola, "Cantidad de argumentos invalida");
     }

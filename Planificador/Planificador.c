@@ -6,6 +6,7 @@
  */
 #include "Planificador.h"
 #include "Consola.h"
+
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -20,19 +21,6 @@ bool procesoEsIdABuscarSocket(void * proceso){
 		return true;
 	else
 		return false;
-}
-//REvisar este
-void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda normal, otra cosa si es por socket
-	//si voy a usar esta variable global falta mutex
-		idBuscar= id;
-		bool(*criterio)(void*);
-
-	if(porSocket)
-		criterio=&procesoEsIdABuscarSocket;
-	else
-		criterio=&procesoEsIdABuscar;
-	Proceso *proceso =(Proceso *) list_find(procesos, criterio);
-	(*proceso).estado=estado;
 }
 
 void terminarProceso(){
@@ -73,6 +61,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	}
 	log_destroy(log_planiCorto);
 }
+
 void *ejecutarEsi(void *esi){
 	t_log *log_ejecturarEsi;
 	log_ejecturarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
@@ -280,19 +269,25 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 	claveABuscar=aux;
 	Bloqueo *block=buscarClave();
 	if(!block){
+		log_warning(logger,"La clave no existe se va a crear la cola de bloqueados de la clave %s",clave);
 		block=malloc(sizeof(Bloqueo));
 		(*block).clave=aux;
+		log_warning(logger,"la clave que se bloqueo es %s",(*block).clave);
 		(*block).bloqueados=list_create();
 		(*block).idProceso=(*procesoEnEjecucion).idProceso;
+		log_warning(logger,"el id que bloqueo la clave %s es %d",(*block).clave,(*block).idProceso);
 		list_add(bloqueados,block);
 	}
 	else{
+		log_warning(logger,"La clave %s existe",clave);
 		if((*block).idProceso==-1){
+			log_warning(logger,"Pero se puede usar");
 			(*block).idProceso=(*procesoEnEjecucion).idProceso;
 		}
 		else{
-			list_add((*block).bloqueados,procesoEnEjecucion);
+			log_warning(logger,"No se puede usar se agrega a la cola de bloqueados");
 			(*procesoEnEjecucion).estado = bloqueado;
+			list_add((*block).bloqueados,procesoEnEjecucion);
 			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
@@ -323,7 +318,7 @@ void liberaClave(char *clave){
 	log_info(logger,"Se entro a liberar clave");
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!block){
+	if(block){
 		log_info(logger,"Se encontro la clave %s",clave);
 		if(!list_is_empty((*block).bloqueados)){
 			log_info(logger,"La clave %s tiene procesos bloqueados",clave);
@@ -364,6 +359,7 @@ char *sePuedeBloquear(char*clave){
 char *verificarClave(Proceso *proceso,char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
+	log_warning("la clave es %s con id %d",(*block).clave,(*block).idProceso);
 	if(block && (*block).idProceso==(*proceso).idProceso)
 		return "1";
 	else
