@@ -106,8 +106,8 @@ void* conexionPlanificador(void* cliente){
 			recv(sockPlanificador,resultado,2,0);
 			operacionValida = resultado[0]-48;
 			free(resultado);
-			sem_post(&semaforoEsi);
 		}
+		sem_post(&semaforoEsi);
 	}
 }
 
@@ -168,9 +168,10 @@ void liberarClave(instancia* instancia,char* clave){
 		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas,sizeof(char*)*(*instancia).cantClavesBloqueadas);
 		log_info(logger,"Se va realizar un reallocamiento de memoria en las claves bloqueadas");
 	}
+	sem_wait(&semaforoEsi);
 }
 
-void agregarClave(instancia* instancia,char clave[40]){
+void agregarClave(instancia* instancia,char* clave){
 		(*instancia).clavesBloqueadas = realloc((*instancia).clavesBloqueadas, sizeof(char*)*((*instancia).cantClavesBloqueadas+1)); //LE ASIGNO MAS MEMORIA A LAS CLAVES BLOQUEADAS
 		(*instancia).clavesBloqueadas[(*instancia).cantClavesBloqueadas] = malloc(strlen(clave)+1); //LE ASIGNO MEMORIA PARA LA CLAVE
 		strcpy((*instancia).clavesBloqueadas[(*instancia).cantClavesBloqueadas],clave);
@@ -206,6 +207,8 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		if(!operacionValida){ //VERIFICO SI LA CLAVE ESTA TOMADA
     			operacionPlanificador = "b";
     			sem_post(&semaforoPlanificador);
+    			sem_wait(&semaforoEsi);
+    			free(paqueteAEnviar.argumentos.GET.clave);
     			break;  //CON ESTO NOS ASEGURAMOS A QUE EL ESI NOS ENVIA DEVUELTA EL MENSAJE
     		}
     		log_info(logger,"Se puede realizar el GET");
@@ -218,7 +221,9 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		if(operacionValida){
     			operacionPlanificador = "b";
     			sem_post(&semaforoPlanificador);
-    			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.SET.clave);
+    			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.GET.clave);
+    			sem_wait(&semaforoEsi);
+    			free(paqueteAEnviar.argumentos.GET.clave);
     			break;
     		}
     		(*instanciaAEnviar).estaDisponible = 0; //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
@@ -226,16 +231,24 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		break;
     	case SET:
     		log_info(logger,"Estamos haciendo un SET");
-    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)) return 0;
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
+    			free(paqueteAEnviar.argumentos.SET.clave);
+    			free(paqueteAEnviar.argumentos.SET.valor);
+    			return 0;
+    		}
+    		free(paqueteAEnviar.argumentos.SET.clave);
+    	    free(paqueteAEnviar.argumentos.SET.valor);
     		break;
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)) return 0;
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
+    		free(paqueteAEnviar.argumentos.STORE.clave);
     		break;
     	default:
     		log_error(logger,"Operacion invalida");
+    		break;
     	}
     	send(socketEsi,"e",2,0);
     }//GET SET STORE IMPLEMENTACION

@@ -148,6 +148,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
+			free(paquete.argumentos.GET.clave);
 			break;
 		case SET:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
@@ -167,11 +168,14 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
 			pthread_mutex_unlock(&mutexAlmacenamiento);
+			free(paquete.argumentos.SET.clave);
+			free(paquete.argumentos.SET.valor);
 			break;
 		case STORE:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
 			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);
 			liberarClave(posTabla);
+			free(paquete.argumentos.STORE.clave);
 			break;
 	}
 	if(send(sockcoordinador,"r",2,0)==-1)
@@ -184,7 +188,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	}
 }
 
-void meterClaveALaTabla(char clave[40]){
+void meterClaveALaTabla(char* clave){
 	tablaEntradas* tabla = malloc(sizeof(tablaEntradas));
 	strcpy((*tabla).clave,clave);
 	(*tabla).entradas = NULL;
