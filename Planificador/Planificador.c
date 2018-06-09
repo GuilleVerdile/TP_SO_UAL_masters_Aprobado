@@ -406,7 +406,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 	 sem_init(&semCambioEstado,0,0);
 	 int listener;
 	 char* buf;
-	 t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
+	 t_config *config=config_create(pathPlanificador);
 	 bloquearClavesIniciales(config);
 	//HOLA
 	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
@@ -584,7 +584,7 @@ void main()
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Planificador.cfg");
+	t_config *config=config_create(pathPlanificador);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;

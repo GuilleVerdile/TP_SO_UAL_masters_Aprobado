@@ -33,6 +33,7 @@ int main(){
     config_destroy(config); //NO HACE FALTA HACER FREE AL BUFF YA QUE EL CONFIG DESTROY LO HACE SOLO
     config = config_create(pathInstancia);
     path = config_get_string_value(config,"PuntoMontaje");
+    mkdir(path, 0777); // creo carpeta montaje SI NO ESTA HECHA
     int recvValor;
     buff = malloc(2);
     t_esi_operacion paquete;

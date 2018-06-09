@@ -49,12 +49,12 @@ int main(int argc, char**argv){
 	pthread_t hiloConexionCoordinador=-1; //LO INICIALIZAMOS EN -1
 
 	ssize_t read;
+	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	f = fopen(argv[1],"r");
 	if(f == NULL){
 		log_error(logger, "No se pudo abrir el archivo");
 		exit(-1);
 	}
-	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	conectarESI(&sockcoordinador,&sockplanificador);
 	enviarTipoDeCliente(sockcoordinador,"1");
 	resultado = malloc(2);

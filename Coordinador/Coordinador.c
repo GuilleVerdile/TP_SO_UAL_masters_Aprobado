@@ -13,6 +13,7 @@ char* claveAComunicar;
 char* operacionPlanificador;
 
 int main(){
+	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
 	sem_init(&semaforoPlanificador,0,0);
