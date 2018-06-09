@@ -13,14 +13,13 @@ int tamEntradas;
 char** entradas;
 int nroReemplazo;
 pthread_mutex_t mutexAlmacenamiento;
-
+char* path;
 int main(){
     logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
     int sockcoordinador;
-    int nroReemplazo = 0; 
-    t_config* config = config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-    if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1)
-    {
+    int nroReemplazo = 0;
+    t_config* config = config_create(pathInstancia);
+    if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
     	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
     	return -1;
@@ -32,6 +31,8 @@ int main(){
     enviarCantBytes(sockcoordinador,buff);
     send(sockcoordinador,buff,string_length(buff) + 1,0); //ENVIO EL NOMBRE DE LA INSTANCIA
     config_destroy(config); //NO HACE FALTA HACER FREE AL BUFF YA QUE EL CONFIG DESTROY LO HACE SOLO
+    config = config_create(pathInstancia);
+    path = config_get_string_value(config,"PuntoMontaje");
     int recvValor;
     buff = malloc(2);
     t_esi_operacion paquete;
@@ -56,6 +57,7 @@ int main(){
     			break;
     	}
    }
+    config_destroy(config);
     free(buff);
     log_destroy(logger);
     close(sockcoordinador);
@@ -77,30 +79,25 @@ void inicializarTablaEntradas(int sockcoordinador){
     tamEntradas = transformarNumero(buff,0);
     log_info(logger,"El tamagno de entradas es %d", tamEntradas);
     int i = 0;
-    while(i != (cantEntradasDisponibles-1))
-    {
-    	entradas[i] = malloc(tamEntradas);
+    while(i != (cantEntradasDisponibles-1)){
+    	entradas[i] = malloc(tamEntradas);	 //Asigno un espacio de memoria para cada fila de la tabla de entradas
     	i++;
     }
     free(buff);
 }
 void* hacerDump(){
-	while(1)
-	{
-		t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-		sleep(config_get_int_value(config,"dump"));
+	while(1){
+		t_config *config=config_create(pathInstancia);
+		sleep(config_get_int_value(config,"dump"));	//Permite la ejecucion de manera periodica del dump
 		config_destroy(config);
 		almacenarTodaInformacion();
 	}
 }
 
 void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
-	pthread_mutex_lock(&mutexAlmacenamiento);
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-	char* path = config_get_string_value(config,"PuntoMontaje");
+	pthread_mutex_lock(&mutexAlmacenamiento);	//Garantizo mutua exclusion al ejecutar la seccion critica
 	char* aux = string_new();
 	string_append(&aux,path);
-	config_destroy(config);
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 	char* valor = string_new();
 	int cantidadEntradasALeer = (*tabla).tamValor/tamEntradas;
@@ -117,13 +114,14 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	munmap(map,strlen(valor));
 	close(desc);
 	free(valor);
-	pthread_mutex_unlock(&mutexAlmacenamiento);
+	pthread_mutex_unlock(&mutexAlmacenamiento); //Garantizo mutua exclusion al ejecutar la seccion critica
 }
 
 void almacenarTodaInformacion(){
 	int i = 0;
 	tablaEntradas* tabla = list_get(tablas,i);
-	while(tabla && (*tabla).entradas !=NULL){
+	while(tabla && (*tabla).entradas !=NULL)
+	{
 		almacenarInformacionDeTalPosicionDeLaTabla(i);
 		i++;
 		tabla = list_get(tablas,i);
@@ -133,7 +131,8 @@ void almacenarTodaInformacion(){
 int encontrarTablaConTalClave(char clave[40]){
 	int i=0;
 	tablaEntradas* tabla = list_get(tablas,i);
-	while(strcmp((*tabla).clave,clave)!=0){
+	while(strcmp((*tabla).clave,clave)!=0)
+	{
 		i++;
 	}
 	return i;
@@ -150,6 +149,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	switch(paquete.keyword){
 		case GET:
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
+			free(paquete.argumentos.GET.clave);
 			break;
 		case SET:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
@@ -170,11 +170,14 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
 			pthread_mutex_unlock(&mutexAlmacenamiento);
+			free(paquete.argumentos.SET.clave);
+			free(paquete.argumentos.SET.valor);
 			break;
 		case STORE:
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
 			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);
 			liberarClave(posTabla);
+			free(paquete.argumentos.STORE.clave);
 			break;
 	}
 	if(send(sockcoordinador,"r",2,0)==-1)
@@ -187,21 +190,18 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	}
 }
 
-void meterClaveALaTabla(char clave[40]){
+void meterClaveALaTabla(char* clave){
 	tablaEntradas* tabla = malloc(sizeof(tablaEntradas));
 	strcpy((*tabla).clave,clave);
 	(*tabla).entradas = NULL;
 	(*tabla).tamValor = 0;
 	list_add(tablas,tabla);
-	t_config *config=config_create("/home/utnso/git/tp-2018-1c-UAL-masters/Config/Instancia.cfg");
-	char* path =config_get_string_value(config,"PuntoMontaje");
 	char* pathCompleto = malloc(strlen(path)+1);
 	strcpy(pathCompleto,path);
 	string_append(&pathCompleto,clave);
 	int desc = open(pathCompleto, O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
 	free(pathCompleto);
 	close(desc);
-	config_destroy(config);
 }
 
 void meterValorParTalClave(char clave[40], char*valor,int posTabla){
@@ -218,7 +218,8 @@ void meterValorParTalClave(char clave[40], char*valor,int posTabla){
 		j++;
 	}
 
-	if(cantEntradasDisponibles == 0 && (*tabla).tamValor - (tamEntradas * j)>0 ){ //EL VALOR TOTAL - LA CANTIDAD DE ENTRADAS QUE LE QUITE * TAM ENTRADAS
+	if(cantEntradasDisponibles == 0 && (*tabla).tamValor - (tamEntradas * j)>0 ) //EL VALOR TOTAL - LA CANTIDAD DE ENTRADAS QUE LE QUITE * TAM ENTRADAS
+	{ 
 		char* valorRestante = string_substring_from(valor,tamEntradas*j);
 		circular(clave,valorRestante,posTabla); //LE ENVIO LA CLAVE Y LO QUE SOBRO DEL VALOR
 		free(valorRestante);
@@ -232,8 +233,8 @@ void circular(char clave[40],char* valor, int posTabla){
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 	if((*tabla).entradas !=NULL)
 	{
-		while((*tabla).entradas[posEntrada]!=NULL)
-		{
+		while((*tabla).entradas[posEntrada]!=NULL){
+
 			posEntrada++;
 		}
 	}

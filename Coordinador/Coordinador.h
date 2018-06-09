@@ -37,7 +37,7 @@ struct Instancia{
 }typedef instancia;
 void *conexionESI(void* nuevoCliente);
 void *conexionInstancia(void* cliente);
-void enviarDatosEsi(char*clave);
+void* conexionPlanificador(void* cliente);
 void enviarDatosInstancia(int sockInstancia, char* tipo);
 typedef instancia*(*algoritmo)(instancia* instancia);
 instancia* equitativeLoad(instancia* instancia);

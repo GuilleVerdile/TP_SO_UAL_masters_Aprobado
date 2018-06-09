@@ -27,10 +27,12 @@ void consola() {
     		if(!strcmp(centinelas[0],"continuar")){
     			printf("Usted ingreso continuar\n");
     			log_info(log_consola, "Se ingreso comando continuar");
+    			pthread_mutex_unlock(&mutex_pausa);
     		}
     		else if(!strcmp(centinelas[0],"pausar")){
         		printf("Usted ingreso pausar\n");
         		log_info(log_consola, "Se ingreso comando pausar");
+        		pthread_mutex_lock(&mutex_pausa);
     		}
     	    else if(!strcmp(centinelas[0],"deadlock")){
     	    		printf("Usted ingreso deadlock\n");
@@ -75,7 +77,7 @@ void consola() {
 		    	printf("con la clave: %s\n", centinelas[1]);
 		    	printf("con el id: %s\n",centinelas[2]);
 		    	log_info(log_consola, "Se ingreso comando bloquear");
-		    	bloquearPorID(centinelas[1],transformarNumero(centinelas[2],0));
+		    	bloquearPorConsola(centinelas[1],transformarNumero(centinelas[2],0));
 			}
 			else{
     	    	printf("No se reconocio el comando %s\n", centinelas[0]);
@@ -83,6 +85,7 @@ void consola() {
 			}
     		break;
     	default:
+
     		printf("Usted ingreso una cantidad de argumentos invalida\n");
     		log_error(log_consola, "Cantidad de argumentos invalida");
     }

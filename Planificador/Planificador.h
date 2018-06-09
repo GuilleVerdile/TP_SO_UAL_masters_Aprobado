@@ -38,6 +38,7 @@ sem_t sem_replanificar;
 sem_t sem_procesoEnEjecucion;
 sem_t sem_ESIejecutoUnaSentencia;
 sem_t sem_finDeEjecucion;
+pthread_mutex_t mutex_pausa;
 //
 sem_t sem_finDeEsiCompleto;
 sem_t semCambioEstado;
@@ -63,6 +64,7 @@ typedef struct{
 pthread_mutex_t planiCorto;
 Proceso *procesoEnEjecucion;
 //
+
 void cerrarPlanificador();
 bool procesoEsIdABuscar(void * proceso);
 bool procesoEsIdABuscarSocket(void * proceso);
@@ -74,7 +76,6 @@ void planificadorLargoPlazo(int id,int estimacionInicial);
 Proceso* fifo();
 float *estimarSJF(Proceso *proc);
 bool compararSJF(void *a,void *b);
-float* compararHRRN(Proceso *proc);
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*));
 Proceso *sjf();
 Proceso *hrrn();
@@ -83,13 +84,11 @@ bool esIgualAClaveABuscar(void *a);
 Bloqueo *buscarClave();
 Bloqueo *buscarBloqueoPorProceso(int id);
 Proceso *buscarProcesoPorId(int id);
-void eliminarDeLista(int id);
 void bloquearPorID(char *clave,int id);
 void bloquear(char *clave);
 void liberarRecursos(int id);
 void liberaClave(char *clave);
 char *verificarClave(Proceso *proceso,char *clave);
-void desbloquear(int id);
 void tirarErrorYexit(char* mensajeError);
 void matarESI(int id);
 void crearSelect(int estimacionInicial);
@@ -100,4 +99,6 @@ char *sePuedeBloquear(char*clave);
 void destruirUnProceso(void *elemento);
 void destruirUnBloqueado(void *elemento);
 void bloquearPorConsola(char *clave,int id);
+float* estimarHRRN(Proceso *proc);
+bool compararHRRN(void *a,void *b);
 #endif /* SOCKET_PLANIFICADOR_H_ */
