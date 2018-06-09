@@ -46,11 +46,14 @@ int main(){
     		case 'r': //RECONEXION LE PIDO AL COORDINADOR CUALES FUERON LAS CLAVES BLOQUEADAS EN ESTA INSTANCIA
     			break;
     		case 'p': //RECIBI UN PAQUETE GET SET O STORE
+    			log_info(logger,"Recibi un paquete");
     			if((recvValor = recibir(sockcoordinador,&paquete))<=0){
     				free(buff);
     				exit(-1);
     			}
+    			log_info(logger,"Recibi la operacion");
     			manejarPaquete(paquete,sockcoordinador);
+
     			break;
     		case 'v':
     			send(sockcoordinador,"v",2,1); //LE DIGO AL COORDINADOR QUE SIGO VIVO
@@ -134,6 +137,7 @@ int encontrarTablaConTalClave(char clave[40]){
 	while(strcmp((*tabla).clave,clave)!=0)
 	{
 		i++;
+		tabla=list_get(tablas,i);
 	}
 	return i;
 }
@@ -152,6 +156,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			free(paquete.argumentos.GET.clave);
 			break;
 		case SET:
+			log_info(logger,"Se selecciono el caso SET");
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
 			tablaEntradas* tabla = list_get(tablas,posTabla);
 			pthread_mutex_lock(&mutexAlmacenamiento);
@@ -163,10 +168,12 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 			(*tabla).tamValor = string_length(paquete.argumentos.SET.valor) + 1;
 			if(cantEntradasDisponibles == 0)
 			{
+				log_info(logger,"Vamo' a hace' el algoritmo de remplazo");
 				//ALGORITMO DE REEMPLAZO
 			}
 			else
 			{
+				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
 				meterValorParTalClave(paquete.argumentos.SET.clave,paquete.argumentos.SET.valor,posTabla);
 			}
 			pthread_mutex_unlock(&mutexAlmacenamiento);
