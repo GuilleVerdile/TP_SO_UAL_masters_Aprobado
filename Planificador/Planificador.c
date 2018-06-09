@@ -72,9 +72,11 @@ void *ejecutarEsi(void *esi){
 			pthread_mutex_lock(&mutex_pausa);
 			log_info(log_ejecutarEsi, "esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
-			log_info(log_ejecutarEsi, "pasando semaforo de esi ejecuto una sentencia");
-			send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a permitir al ESI ejecutar una sentencia
-			log_info(log_ejecutarEsi, "se envio al es en ejecucion de ejecutar");
+			if(procesoEnEjecucion){
+				log_info(log_ejecutarEsi, "pasando semaforo de esi ejecuto una sentencia");
+				send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a permitir al ESI ejecutar una sentencia
+				log_info(log_ejecutarEsi, "se envio al es en ejecucion de ejecutar");
+			}
 			sem_wait(&semCambioEstado);
 			pthread_mutex_unlock(&mutex_pausa);
 		}
@@ -290,6 +292,9 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			log_warning(logger,"No se puede usar se agrega a la cola de bloqueados");
 			(*procesoEnEjecucion).estado = bloqueado;
 			list_add((*block).bloqueados,procesoEnEjecucion);
+			procesoEnEjecucion = NULL;
+			sem_post(&sem_ESIejecutoUnaSentencia);
+			sem_post(&semCambioEstado);
 			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
@@ -322,7 +327,7 @@ void liberaClave(char *clave){
 	Bloqueo *block=buscarClave();
 	if(block){
 		log_info(logger,"Se encontro la clave %s",clave);
-		if(!list_is_empty((*block).bloqueados)){
+		if(list_get((*block).bloqueados,0)){
 			log_info(logger,"La clave %s tiene procesos bloqueados",clave);
 				Proceso *proceso=list_remove((*block).bloqueados,0);
 				log_info(logger,"Se removio el primer elemento de la lista de bloqueados");

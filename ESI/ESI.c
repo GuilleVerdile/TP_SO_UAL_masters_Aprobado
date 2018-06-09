@@ -33,6 +33,7 @@ void* hacerUnaOperacion(){
 		destruir_operacion(operacion);
 		recv(sockcoordinador,resultado,2,0);
 		log_info(logger,"Se realizo la operacion");
+		log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":"ABORTA");
 		if(resultado[0] == 'a' || !feof(f))
 		send(sockplanificador,resultado,2,0);
 	}
@@ -58,10 +59,12 @@ int main(int argc, char**argv){
 	enviarTipoDeCliente(sockcoordinador,"1");
 	resultado = malloc(2);
 	send(sockplanificador,"1",2,0);
+	int cancelValue = 0;
 	while(!feof(f) && recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
 		log_info(logger,"El planificador me dejo ejecutar");
-		if(hiloConexionCoordinador==-1 || (pthread_cancel(&hiloConexionCoordinador))>0) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
+		if(hiloConexionCoordinador==-1 || (cancelValue = pthread_cancel(hiloConexionCoordinador))!=0) //SI CUMPLE LA PRIMERA CONDICION NO ENTRA AL CANCEL
 		{
+			log_info(logger,"SE VA REALIZAR UN GETLINE %s",(cancelValue==3)?"EL PROCESO NO EXISTE":"ES MI PRIMER PROCESO");
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
 		log_info(logger,"La operacion a ejecutar es %s",linea);

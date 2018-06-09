@@ -224,6 +224,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.GET.clave);
     			sem_wait(&semaforoEsi);
     			free(paqueteAEnviar.argumentos.GET.clave);
+    	    	send(socketEsi,"e",2,0);
     			break;
     		}
     		(*instanciaAEnviar).estaDisponible = 0; //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
@@ -238,6 +239,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		}
     		free(paqueteAEnviar.argumentos.SET.clave);
     	    free(paqueteAEnviar.argumentos.SET.valor);
+        	send(socketEsi,"e",2,0);
     		break;
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
@@ -245,12 +247,12 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		free(paqueteAEnviar.argumentos.STORE.clave);
+        	send(socketEsi,"e",2,0);
     		break;
     	default:
     		log_error(logger,"Operacion invalida");
     		break;
     	}
-    	send(socketEsi,"e",2,0);
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
             log_info(logger,"Se desconecto un ESI");
