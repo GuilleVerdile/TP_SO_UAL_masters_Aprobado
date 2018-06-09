@@ -15,10 +15,10 @@ int nroReemplazo;
 pthread_mutex_t mutexAlmacenamiento;
 char* path;
 int main(){
-	logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
-	int sockcoordinador;
-	int nroReemplazo = 0;
-	t_config* config = config_create(pathInstancia);
+    logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
+    int sockcoordinador;
+    int nroReemplazo = 0;
+    t_config* config = config_create(pathInstancia);
     if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
     	config_destroy(config);
     	log_error(logger,"Error en la conexion con el coordinador");
@@ -36,10 +36,10 @@ int main(){
     int recvValor;
     buff = malloc(2);
     t_esi_operacion paquete;
-	pthread_t id;
-	tablas = list_create();
-	pthread_create(&id,NULL,hacerDump,NULL);
-	pthread_mutex_init(&mutexAlmacenamiento,NULL);
+    pthread_t id;
+    tablas = list_create();
+    pthread_create(&id,NULL,hacerDump,NULL);
+    pthread_mutex_init(&mutexAlmacenamiento,NULL);
     while((recvValor =recv(sockcoordinador,buff,2,0))>0){
     	switch(buff[0]){
     		case 'r': //RECONEXION LE PIDO AL COORDINADOR CUALES FUERON LAS CLAVES BLOQUEADAS EN ESTA INSTANCIA
@@ -79,7 +79,7 @@ void inicializarTablaEntradas(int sockcoordinador){
     log_info(logger,"El tamagno de entradas es %d", tamEntradas);
     int i = 0;
     while(i != (cantEntradasDisponibles-1)){
-    	entradas[i] = malloc(tamEntradas);
+    	entradas[i] = malloc(tamEntradas);	 //Asigno un espacio de memoria para cada fila de la tabla de entradas
     	i++;
     }
     free(buff);
@@ -87,14 +87,14 @@ void inicializarTablaEntradas(int sockcoordinador){
 void* hacerDump(){
 	while(1){
 		t_config *config=config_create(pathInstancia);
-		sleep(config_get_int_value(config,"dump"));
+		sleep(config_get_int_value(config,"dump"));	//Permite la ejecucion de manera periodica del dump
 		config_destroy(config);
 		almacenarTodaInformacion();
 	}
 }
 
 void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
-	pthread_mutex_lock(&mutexAlmacenamiento);
+	pthread_mutex_lock(&mutexAlmacenamiento);	//Garantizo mutua exclusion al ejecutar la seccion critica
 	char* aux = string_new();
 	string_append(&aux,path);
 	tablaEntradas* tabla = list_get(tablas,posTabla);
@@ -113,13 +113,14 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 	munmap(map,strlen(valor));
 	close(desc);
 	free(valor);
-	pthread_mutex_unlock(&mutexAlmacenamiento);
+	pthread_mutex_unlock(&mutexAlmacenamiento); //Garantizo mutua exclusion al ejecutar la seccion critica
 }
 
 void almacenarTodaInformacion(){
 	int i = 0;
 	tablaEntradas* tabla = list_get(tablas,i);
-	while(tabla && (*tabla).entradas !=NULL){
+	while(tabla && (*tabla).entradas !=NULL)
+	{
 		almacenarInformacionDeTalPosicionDeLaTabla(i);
 		i++;
 		tabla = list_get(tablas,i);
@@ -130,7 +131,8 @@ void almacenarTodaInformacion(){
 int encontrarTablaConTalClave(char clave[40]){
 	int i=0;
 	tablaEntradas* tabla = list_get(tablas,i);
-	while(strcmp((*tabla).clave,clave)!=0){
+	while(strcmp((*tabla).clave,clave)!=0)
+	{
 		i++;
 	}
 	return i;
@@ -140,7 +142,6 @@ void liberarClave(int posTabla){
 	tablaEntradas* tabla = list_remove(tablas,posTabla);
 	free((*tabla).entradas);
 	free(tabla);
-
 }
 
 void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
@@ -196,13 +197,13 @@ void meterClaveALaTabla(char clave[40]){
 	int desc = open(pathCompleto, O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
 	free(pathCompleto);
 	close(desc);
-
 }
 
 void meterValorParTalClave(char clave[40], char*valor,int posTabla){
 	int j =0; //ME INDICA LA CANTIDAD DE ENTRADAS QUE ASIGNO AL VALOR
 	tablaEntradas* tabla = list_get(tablas,posTabla);
-	while((*tabla).tamValor - (tamEntradas * j)>0 && cantEntradasDisponibles > 0){ //SI YA METI TODO EL VALOR O NO ME QUEDA ENTRADAS ME SALGO DE LA ITERACION
+	while((*tabla).tamValor - (tamEntradas * j)>0 && cantEntradasDisponibles > 0) //SI YA METI TODO EL VALOR O NO ME QUEDA ENTRADAS ME SALGO DE LA ITERACION
+	{ 
 		char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
 		strcpy(entradas[entradasTotales-cantEntradasDisponibles],valorEntrada); //LE ASIGNO EL VALOR
 		free(valorEntrada);
@@ -212,26 +213,27 @@ void meterValorParTalClave(char clave[40], char*valor,int posTabla){
 		j++;
 	}
 
-	if(cantEntradasDisponibles == 0 && (*tabla).tamValor - (tamEntradas * j)>0 ){ //EL VALOR TOTAL - LA CANTIDAD DE ENTRADAS QUE LE QUITE * TAM ENTRADAS
+	if(cantEntradasDisponibles == 0 && (*tabla).tamValor - (tamEntradas * j)>0 ) //EL VALOR TOTAL - LA CANTIDAD DE ENTRADAS QUE LE QUITE * TAM ENTRADAS
+	{ 
 		char* valorRestante = string_substring_from(valor,tamEntradas*j);
 		circular(clave,valorRestante,posTabla); //LE ENVIO LA CLAVE Y LO QUE SOBRO DEL VALOR
 		free(valorRestante);
 	}
 }
 
-
-
 void circular(char clave[40],char* valor, int posTabla){
 	int valorAux = string_length(valor) + 1;
 	int j = 0;
 	int posEntrada = 0; //ESTA VARIABLE ME SIRVE PARA SABER SI PARTE DEL VALOR YA SE ASIGNO
 	tablaEntradas* tabla = list_get(tablas,posTabla);
-	if((*tabla).entradas !=NULL){
+	if((*tabla).entradas !=NULL)
+	{
 		while((*tabla).entradas[posEntrada]!=NULL){
 			posEntrada++;
 		}
 	}
-	while(valorAux>0){
+	while(valorAux>0)
+	{
 		if(nroReemplazo == cantEntradasDisponibles){ //SI EL ALGORITMO CIRCULAR LLEGO A LA ULTIMA POSICION DE LAS ENTRADAS
 			nroReemplazo = 0; //SE REINICIA
 		}
