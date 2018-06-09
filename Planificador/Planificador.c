@@ -6,6 +6,7 @@
  */
 #include "Planificador.h"
 #include "Consola.h"
+
 // tengo 2 funciones bastantes parecidas ver como poder refactorizar
 bool procesoEsIdABuscar(void * proceso){
 	Proceso *proc=(Proceso*) proceso;
@@ -20,19 +21,6 @@ bool procesoEsIdABuscarSocket(void * proceso){
 		return true;
 	else
 		return false;
-}
-//REvisar este
-void actualizarEstado(int id,Estado estado,int porSocket){// 0 si es busqueda normal, otra cosa si es por socket
-	//si voy a usar esta variable global falta mutex
-		idBuscar= id;
-		bool(*criterio)(void*);
-
-	if(porSocket)
-		criterio=&procesoEsIdABuscarSocket;
-	else
-		criterio=&procesoEsIdABuscar;
-	Proceso *proceso =(Proceso *) list_find(procesos, criterio);
-	(*proceso).estado=estado;
 }
 
 void terminarProceso(){
@@ -73,6 +61,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	}
 	log_destroy(log_planiCorto);
 }
+
 void *ejecutarEsi(void *esi){
 	t_log *log_ejecturarEsi;
 	log_ejecturarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
