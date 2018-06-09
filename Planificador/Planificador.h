@@ -24,7 +24,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <commons/string.h>
-
+#include "Colores.h"
 
 //
 int idBuscar;// esto es por ahora

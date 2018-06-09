@@ -5,15 +5,17 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Consola.c \
-../Planificador.c 
+../Planificador.c \
+../Colores.c
 
 OBJS += \
 ./Consola.o \
-./Planificador.o 
-
+./Planificador.o \
+./Colores.o
 C_DEPS += \
 ./Consola.d \
-./Planificador.d 
+./Planificador.d \
+./Colores.d
 
 
 # Each subdirectory must supply rules for building sources it contributes

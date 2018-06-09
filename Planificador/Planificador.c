@@ -581,6 +581,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 void main()
     {
+	printf("%s",colorear(Blanco,"HOLAAAA\n"));
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
