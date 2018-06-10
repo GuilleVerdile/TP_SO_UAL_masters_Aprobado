@@ -587,6 +587,7 @@ void main()
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create(pathPlanificador);
+	logTest("Se creo archivo config %d",Azul,10);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;

@@ -43,8 +43,6 @@ void imprimir(char*(*color)(char*),char *texto);
 
 void loggear(t_log *log,const char *texto,...);
 
-void logTest(char *texto);
-
-void logImportante(char *texto);
+void darFormatoLog(t_log *log,const char *texto,va_list args);
 
 #endif /* COLORES_H_ */
