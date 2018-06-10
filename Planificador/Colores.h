@@ -39,7 +39,7 @@ char *magenta(char *palabra);
 
 char *cian(char *palabra);
 
-void imprimir(char*(*color)(char*),char *texto);
+void imprimir(char*(*color)(char*),const char *texto,...);
 
 void loggear(t_log *log,const char *texto,...);
 

@@ -52,10 +52,16 @@ char *cian(char *palabra){
 }
 //Funcion ejemplo de utilizacion con puntero a funciones de colores
 
-void imprimir(char*(*color)(char*),char *texto){
-	char *aux=color(texto);
+void imprimir(char*(*color)(char*),const char *texto,...){
+	char *aux2;
+	va_list args;
+	va_start(args,texto);
+	aux2=string_from_vformat(texto,args);
+	va_end(args);
+	char *aux=color(aux2);
 	printf("%s\n",aux);
 	free(aux);
+	free(aux2);
 }
 
 //Funciones de loggeo

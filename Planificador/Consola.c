@@ -9,8 +9,6 @@ int cantidadDeCentinelas(char** centinelas){
 }
 
 void consola() {
-	t_log *log_consola;
-	log_consola =log_create(logPlanificador,"consola",0, LOG_LEVEL_INFO);
   char* linea;
   while(1) {
     linea = readline(">");
@@ -25,72 +23,71 @@ void consola() {
     		break;
     	case 1:
     		if(!strcmp(centinelas[0],"continuar")){
-    			printf("Usted ingreso continuar\n");
-    			log_info(log_consola, "Se ingreso comando continuar");
+    			imprimir(magenta,"Usted ingreso continuar\n");
+    			logTest("Se ingreso comando continuar",Blanco);
     			pthread_mutex_unlock(&mutex_pausa);
     		}
     		else if(!strcmp(centinelas[0],"pausar")){
-        		printf("Usted ingreso pausar\n");
-        		log_info(log_consola, "Se ingreso comando pausar");
+    			imprimir(magenta,"Usted ingreso pausar\n");
+        		logTest("Se ingreso comando pausar",Blanco);
         		pthread_mutex_lock(&mutex_pausa);
     		}
     	    else if(!strcmp(centinelas[0],"deadlock")){
-    	    		printf("Usted ingreso deadlock\n");
-    	    		log_info(log_consola, "Se ingreso comando deadlock");
+    	    	imprimir(magenta,"Usted ingreso Deadlock\n");
+    	    	logTest("Se ingreso comando Deadlock",Blanco);
     	    }
     	    else{
-    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
-    	    	log_error(log_consola, "No se reconocio el comando");
+    	    	imprimir(magenta,"No se reconocio el comando %s\n", centinelas[0]);
+    	    	logTest("No se reconocion el comando",Blanco);
     	    }
     		break;
     	case 2:
 	   		if(!strcmp(centinelas[0],"desbloquear")){
-	    		printf("Usted ingreso desbloquear\n");
-	    		printf("con la clave: %s\n", centinelas[1]);
-	    		log_info(log_consola, "Se ingreso comando desbloquear");
+	    		imprimir(magenta,"Usted ingreso desbloquear\n");
+	    		imprimir(magenta,"con la clave: %s\n", centinelas[1]);
+	    		logTest("Se ingreso comando desbloquear",Blanco);
 	    		liberaClave(centinelas[1]);
 	    	}
 	   		else if(!strcmp(centinelas[0],"listar")){
-	        	printf("Usted ingreso listar\n");
-	        	printf("con el recurso: %s\n",centinelas[1]);
-	        	log_info(log_consola, "Se ingreso comando listar");
+	   			imprimir(magenta,"Usted ingreso listar\n");
+	   			imprimir(magenta,"con el recurso: %s\n",centinelas[1]);
+	        	logTest("Se ingreso comando listar",Blanco);
 	        	listar(centinelas[1]);
 	        }
 	   		else if(!strcmp(centinelas[0],"kill")){
-	        	printf("Usted ingreso kill\n");
-	        	printf("con el id: %s\n",centinelas[0]);
-	        	log_info(log_consola, "Se ingreso comando Kill");
+	   			imprimir(magenta,"Usted ingreso kill\n");
+	   			imprimir(magenta,"con el id: %s\n",centinelas[0]);
+	   			logTest("Se ingreso comando Kill",Blanco);
 	        	}
 	   	    else if(!strcmp(centinelas[0],"status")){
-	   	    	printf("Usted ingreso status\n");
-	   	    	printf("con la clave %s\n",centinelas[1]);
-	   	    	log_info(log_consola, "Se ingreso comando status");
+	   	    	imprimir(magenta,"Usted ingreso status\n");
+	   	    	imprimir(magenta,"con la clave %s\n",centinelas[1]);
+	   	    	logTest("Se ingreso comando estatus",Blanco);
 	   	    }
     	    else{
-    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
-    	    	log_error(log_consola, "No se reconocio el comando");
+    	    	imprimir(Amarillo,"No se reconocio el comando %s\n", centinelas[0]);
+    	    	logTest("No se reconocio el comando",Blanco);
     	    }
     		break;
     	case 3:
 			if(!strcmp(centinelas[0],"bloquear")){
-		    	printf("Usted ingreso bloquear\n");
-		    	printf("con la clave: %s\n", centinelas[1]);
-		    	printf("con el id: %s\n",centinelas[2]);
-		    	log_info(log_consola, "Se ingreso comando bloquear");
+				imprimir(magenta,"Usted ingreso bloquear\n");
+				imprimir(magenta,"con la clave: %s\n", centinelas[1]);
+				imprimir(magenta,"con el id: %s\n",centinelas[2]);
+		    	logTest("Se ingreso comando bloquear",Blanco);
 		    	bloquearPorConsola(centinelas[1],transformarNumero(centinelas[2],0));
 			}
 			else{
-    	    	printf("No se reconocio el comando %s\n", centinelas[0]);
-    	    	log_error(log_consola, "No se reconocio el comando");
+				imprimir(amarillo,"No se reconocio el comando %s\n", centinelas[0]);
+    	    	logTest("No se reconocio el comando",Blanco);
 			}
     		break;
     	default:
 
-    		printf("Usted ingreso una cantidad de argumentos invalida\n");
-    		log_error(log_consola, "Cantidad de argumentos invalida");
+    		imprimir(rojo,"Usted ingreso una cantidad de argumentos invalida\n");
+    		logTest("Cantidad de argumentos invalida",Blanco);
     }
     free(centinelas);
     free(linea);
   }
-    log_destroy(log_consola);
 }

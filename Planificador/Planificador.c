@@ -34,32 +34,30 @@ void terminarProceso(){
 
 void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
 	t_log *log_planiCorto;
-	log_planiCorto=log_create(logPlanificador,"Planificador Corto Plazo",1, LOG_LEVEL_INFO);
 	Proceso*(*algoritmo)();
 	algoritmo=(Proceso*(*)()) miAlgoritmo;
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
-	log_info(log_planiCorto, "esperando segnal de sem planificador");
+	logTest("esperando segnal de sem planificador",Blanco);
 	sem_wait(&sem_replanificar);
-	log_info(log_planiCorto, "se obtuvo segnal de sem planificador");
+	logTest("se obtuvo segnal de sem planificador",Blanco);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
 	if(proceso){
-	log_info(log_planiCorto, "Se selecciono un proceso por el algoritmo");
-	log_info(log_planiCorto, "esperando el semaforo sem fin de ejecucion");
+	logImportante("Se selecciono un proceso por el algoritmo",Azul);
+	logTest("Esperando el semaforo sem fin de ejecucion",Blanco);
 	sem_wait(&sem_finDeEjecucion);
-	log_info(log_planiCorto, "se paso el semaforo sem fin de ejecucion");
+	logTest("Se paso el semaforo sem fin de ejecucion",Blanco);
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
-	log_info(log_planiCorto, "se paso el semaforo sem fin de ejecucion");
+	logTest("Se paso el semaforo sem fin de ejecucion",Blanco);
 	sem_post(&sem_procesoEnEjecucion);
-	log_info(log_planiCorto, "se dio segnal de ejecutar el esi en ejecucion");
+	logTest("se dio segnal de ejecutar el esi en ejecucion",Blanco);
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
 	}
 	}
-	log_destroy(log_planiCorto);
 }
 
 void *ejecutarEsi(void *esi){
@@ -420,7 +418,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 		tirarErrorYexit("No se pudo crear el socket servidor");
 	 }
 	 else
-		 logImportante("Se creo socket de servidor",Verde);
+		 logImportante("Se creo socket de servidor",Azul);
      int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
      int nbytes;
      int addrlen;
@@ -437,13 +435,13 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}*/
     	else
-    		logImportante("Se establecio comunicacion con\n\t el coordinador como cliente",Verde);
+    		logImportante("Se establecio comunicacion con\n\t el coordinador como cliente",Azul);
      config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
      if (listen(listener, 10) == -1){
     	 tirarErrorYexit("No se pudo escuchar");
      }
      else
-    	 logImportante("En espera de conexion",Verde);
+    	 logImportante("En espera de conexion",Azul);
 
      FD_SET(listener, &master);
      FD_SET(casoDiscriminador, &master);
@@ -462,7 +460,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                  for(i = 0; i <= fdmax; i++) {
                      if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
                          if (i == listener) {
-                        	 logImportante("Conexion entrante de un nuevo ESI",Verde);
+                        	 logImportante("Conexion entrante de un nuevo ESI",Azul);
                              // gestionar nuevas conexiones
                              addrlen = sizeof(their_addr);
                              if ((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,
@@ -478,7 +476,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
-                                 logImportante("Ingreso un nuevo ESI",Verde);
+                                 logImportante("Ingreso un nuevo ESI",Azul);
                              }
                          }
                          else if(i==casoDiscriminador){ //aca trato al coordinador//Caso discriminador
@@ -500,7 +498,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         	                             }
                         	 else{
 
-                            	 	 	 	 	 	 	 	logImportante("Conexion entrante del coordinador",Verde);
+                            	 	 	 	 	 	 	 	logImportante("Conexion entrante del coordinador",Azul);
                         		                         	char *aux= malloc(2);
                         		                         	strcpy(aux,buf);
                         		                         	free(buf);
@@ -510,15 +508,15 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
                         		                         	case 'n':
-                        		                         		logImportante("Se decidio verificar un GET de la clave %s",Verde,buf);
+                        		                         		logImportante("Se decidio verificar un GET de la clave %s",Azul,buf);
                         		                         		send(i,sePuedeBloquear(buf),2,0);
                         		                         		break;
                         		                         	case 'v':
-                        		                         		logImportante("Se decidio verificar un SET o STORE de la clave %s",Verde,buf);
+                        		                         		logImportante("Se decidio verificar un SET o STORE de la clave %s",Azul,buf);
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
                         		                         		break;
                         		                         	case 'b':
-                        		                         		logImportante("Se decidio bloquear la clave %s",Verde,buf);
+                        		                         		logImportante("Se decidio bloquear la clave %s",Azul,buf);
                         		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
@@ -606,7 +604,7 @@ void main()
 			miAlgoritmo=&sjf;
 			flag_desalojo=0;
 		}
-	logImportante("Se asigno el algoritmo %s",Verde,algoritmo);
+	logImportante("Se asigno el algoritmo %s",Azul,algoritmo);
 	config_destroy(config);
 	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
 	logTest("Se creo el hilo planificador CORTO PLAZO",Blanco);
@@ -615,7 +613,7 @@ void main()
 	pthread_create(&hilo_consola,NULL,(void *)consola,NULL);
 	logTest("Se creo hilo para la CONSOLA",Blanco);
 	crearSelect(estimacionInicial);
-	cerrarPlanificador();
+	//cerrarPlanificador();
     }
 void listar(char* clave){
 	claveABuscar=clave;
@@ -643,10 +641,12 @@ void bloquearClavesIniciales(t_config *config){
 	int i=0;
 	while(aux){
 		bloquearPorID(aux,0);
-		logImportante("Se bloqueo la clave inicial %s",Verde,aux);
+		logImportante("Se bloqueo la clave inicial %s",Azul,aux);
+		free(aux);
 		i++;
 		aux=*(claves+i);
 	}
+	free(claves);
 }
 void destruirUnBloqueado(void *elemento){
 	Bloqueo *b=(Bloqueo *) elemento;
