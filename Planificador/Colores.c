@@ -47,9 +47,19 @@ void imprimir(char*(*color)(char*),char *texto){
 	free(aux);
 }
 
+//Funciones de loggeo
+
 void loggear(t_log *log,Color color,char *texto){
 	printf("\x1b[1;3%dm",color);
 	log_info(log,texto);
 	printf("\x1b[0m");
+}
+
+void logTest(char *texto){
+	loggear(log_test,Blanco,texto);
+}
+
+void logImportante(char *texto){
+	loggear(log_test,Verde,texto);
 }
 

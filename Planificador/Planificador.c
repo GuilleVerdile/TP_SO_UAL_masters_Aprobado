@@ -581,11 +581,13 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 void main()
     {
-	printf("%s",colorear(Blanco,"HOLAAAA\n"));
+	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
+	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create(pathPlanificador);
+	logTest("Se creo el config correctamente");
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;
