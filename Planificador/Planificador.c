@@ -408,6 +408,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
 	 bloquearClavesIniciales(config);
+
 	//HOLA
 	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
@@ -419,9 +420,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 		tirarErrorYexit("No se pudo crear el socket servidor");
 	 }
 	 else
-		 log_info(logger, "Se creo el socket de Servidor");
+		 logImportante("Se creo socket de servidor",Verde);
      int nuevoCliente;        // descriptor de socket de nueva conexión aceptada
-
      int nbytes;
      int addrlen;
      int i;
@@ -437,13 +437,13 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}*/
     	else
-    		log_info(logger, "Se creo el socket de cliente");
+    		logImportante("Se establecio comunicacion con\n\t el coordinador como cliente",Verde);
      config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
      if (listen(listener, 10) == -1){
     	 tirarErrorYexit("No se pudo escuchar");
      }
      else
-    	 log_info(logger, "Se esta escuchando");
+    	 logImportante("En espera de conexion",Verde);
 
      FD_SET(listener, &master);
      FD_SET(casoDiscriminador, &master);
@@ -457,12 +457,12 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                 	 tirarErrorYexit("Error al seleccionar");
                  }
                  else
-                	 log_info(logger, "Se selecciono correctamente");
+                	 logTest("Hay informacion en el select",Blanco);
                  // explorar conexiones existentes en busca de datos que leer
                  for(i = 0; i <= fdmax; i++) {
                      if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
                          if (i == listener) {
-                        	 log_info(logger, "Conexion entrante del listener");
+                        	 logImportante("Conexion entrante de un nuevo ESI",Verde);
                              // gestionar nuevas conexiones
                              addrlen = sizeof(their_addr);
                              if ((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,
@@ -478,7 +478,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
-                                 log_info(logger, "Ingreso un nuevo cliente");
+                                 logImportante("Ingreso un nuevo ESI",Verde);
                              }
                          }
                          else if(i==casoDiscriminador){ //aca trato al coordinador//Caso discriminador
@@ -488,7 +488,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         	                                 // error o conexión cerrada por el cliente
                         		 if (nbytes == 0) {
                         	                                     // conexión cerrada
-                        	                             	 log_info(logger, "El coordinator se fue");
+                        	                             	 logTest("El coordinador se fue",Blanco);
                         	                                     printf("selectserver: socket %d hung up\n", i);
                         	                                     cerrarPlanificador();
                         	                                 } else {
@@ -500,7 +500,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         	                             }
                         	 else{
 
-                        		                         	log_info(logger, "Conexion entrante del discriminador");
+                            	 	 	 	 	 	 	 	logImportante("Conexion entrante del coordinador",Verde);
                         		                         	char *aux= malloc(2);
                         		                         	strcpy(aux,buf);
                         		                         	free(buf);
@@ -510,15 +510,15 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         	log_info(logger,"Se realizo el recv %s",buf);
                         		                         	switch(aux[0]){
                         		                         	case 'n':
-                        		                         		log_info(logger,"Se decidio verificar un GET de la clave %s",buf);
+                        		                         		logImportante("Se decidio verificar un GET de la clave %s",Verde,buf);
                         		                         		send(i,sePuedeBloquear(buf),2,0);
                         		                         		break;
                         		                         	case 'v':
-                        		                         		log_info(logger,"Se decidio verificar un SET o STORE de la clave %s",buf);
+                        		                         		logImportante("Se decidio verificar un SET o STORE de la clave %s",Verde,buf);
                         		                         		send(i,verificarClave(procesoEnEjecucion,buf),2,0);
                         		                         		break;
                         		                         	case 'b':
-                        		                         		log_info(logger,"Se decidio bloquear la clave %s",buf);
+                        		                         		logImportante("Se decidio bloquear la clave %s",Verde,buf);
                         		                         		bloquear(buf);
                         		                         		break;
                         		                         	case 'l':
@@ -526,7 +526,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         		liberaClave(buf);
                         		                         		break;
                         		                         	}
-                        		                         	log_info(logger,"Se realizo correctamente la comunicacion con el coordinador");
+                        		                         	logTest("Se realizo correctamente la comunicacion con el coordinador",Blanco);
                         		                         	free(buf);
                         		                         	free(aux);
                         	 }
@@ -587,8 +587,9 @@ void main()
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create(pathPlanificador);
-	logTest("Se creo archivo config %d",Azul,10);
+	logTest("Se creo archivo config",Blanco);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
+	logTest("La estimacion inicial es : %d",Blanco,estimacionInicial);
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;
 	pthread_t hilo_ejecutarEsi;
@@ -605,10 +606,14 @@ void main()
 			miAlgoritmo=&sjf;
 			flag_desalojo=0;
 		}
+	logImportante("Se asigno el algoritmo %s",Verde,algoritmo);
 	config_destroy(config);
 	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
+	logTest("Se creo el hilo planificador CORTO PLAZO",Blanco);
 	pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
+	logTest("Se creo hilo para ejecutar ESIS",Blanco);
 	pthread_create(&hilo_consola,NULL,(void *)consola,NULL);
+	logTest("Se creo hilo para la CONSOLA",Blanco);
 	crearSelect(estimacionInicial);
 	cerrarPlanificador();
     }
@@ -638,6 +643,7 @@ void bloquearClavesIniciales(t_config *config){
 	int i=0;
 	while(aux){
 		bloquearPorID(aux,0);
+		logImportante("Se bloqueo la clave inicial %s",Verde,aux);
 		i++;
 		aux=*(claves+i);
 	}
