@@ -9,6 +9,8 @@
 #define COLORES_H_
 
 #include <commons/log.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 //->Defino los colores que voy a usar
 
@@ -39,7 +41,7 @@ char *cian(char *palabra);
 
 void imprimir(char*(*color)(char*),char *texto);
 
-void loggear(t_log *log,Color color,char *texto);
+void loggear(t_log *log,const char *texto,...);
 
 void logTest(char *texto);
 

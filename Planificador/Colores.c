@@ -49,12 +49,20 @@ void imprimir(char*(*color)(char*),char *texto){
 
 //Funciones de loggeo
 
-void loggear(t_log *log,Color color,char *texto){
+void loggear(t_log *log,const char *texto,...){
+	char *texto_imprimir;
+	va_list args;
+	va_start(args,texto);
+	Color color=va_arg(args,Color);
+	texto_imprimir=string_from_vformat(texto,args);
+	va_end(args);
 	printf("\x1b[1;3%dm",color);
-	log_info(log,texto);
+	log_info(log,texto_imprimir);
 	printf("\x1b[0m");
-}
+	free(texto_imprimir);
 
+}
+/*
 void logTest(char *texto){
 	loggear(log_test,Blanco,texto);
 }
@@ -62,4 +70,4 @@ void logTest(char *texto){
 void logImportante(char *texto){
 	loggear(log_test,Verde,texto);
 }
-
+*/
