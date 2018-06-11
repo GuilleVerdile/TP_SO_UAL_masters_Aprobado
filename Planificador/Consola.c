@@ -89,10 +89,6 @@ void consola() {
     		imprimir(rojo,"Usted ingreso una cantidad de argumentos invalida\n");
     		logTest("Cantidad de argumentos invalida",Blanco);
     }
-
-    while(NULL){
-
-    }
     recorrerCentinela(centinelas,1);
     free(centinelas);
     free(linea);

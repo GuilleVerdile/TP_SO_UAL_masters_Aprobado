@@ -347,7 +347,8 @@ void liberaClave(char *clave){
 			else{
 				log_info(logger,"La clave %s NO tiene procesos bloqueados",clave);
 				claveABuscar=clave;
-				free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+				list_remove_by_condition(bloqueados,&esIgualAClaveABuscar);
+				destruirUnBloqueado(block);
 			}
 	}
 	else
@@ -378,7 +379,6 @@ char *verificarClave(Proceso *proceso,char *clave){
 void tirarErrorYexit(char* mensajeError) {
 	log_error(logger, mensajeError);
 	log_destroy(logger);
-	cerrarPlanificador();
 	exit(-1);
 }
 void matarESI(int id){
