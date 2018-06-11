@@ -1,8 +1,10 @@
 #include "Consola.h"
 
-int cantidadDeCentinelas(char** centinelas){
+int recorrerCentinela(char** centinelas,int liberar){
 	int i = 0;
 	while(centinelas[i]){
+		if(liberar)
+			free(centinelas[i]);
 		i++;
 	}
 	return i;
@@ -17,7 +19,7 @@ void consola() {
     }
     int i =0;
     char** centinelas = string_split(linea," ");
-    int n = cantidadDeCentinelas(centinelas);
+    int n = recorrerCentinela(centinelas,0);
     switch(n){
     	case 0:
     		break;
@@ -87,6 +89,11 @@ void consola() {
     		imprimir(rojo,"Usted ingreso una cantidad de argumentos invalida\n");
     		logTest("Cantidad de argumentos invalida",Blanco);
     }
+
+    while(NULL){
+
+    }
+    recorrerCentinela(centinelas,1);
     free(centinelas);
     free(linea);
   }

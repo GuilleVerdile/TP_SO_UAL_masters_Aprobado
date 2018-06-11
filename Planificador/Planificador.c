@@ -177,9 +177,11 @@ bool esIgualAClaveABuscar(void *a){
 	else
 		return false;
 }
+
 Bloqueo *buscarClave(){
 	return list_find(bloqueados,&esIgualAClaveABuscar);
 }
+
 //antes de esta funcion un mutex
 Bloqueo *buscarBloqueoPorProceso(int id){
 	idBuscar=id;

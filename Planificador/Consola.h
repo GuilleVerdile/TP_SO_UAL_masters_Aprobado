@@ -10,6 +10,6 @@
 #include "Planificador.h"
 
 void consola();
-int cantidadDeCentinelas(char** centinelas);
+int recorrerCentinela(char** centinelas,int liberar);
 
 #endif /* CONSOLA_CONSOLA_H_ */
