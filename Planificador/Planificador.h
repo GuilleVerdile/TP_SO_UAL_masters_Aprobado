@@ -29,6 +29,7 @@
 //
 int idBuscar;// esto es por ahora
 int idGlobal;// esto es por ahora
+int idBanquero;
 char *claveABuscar;
 t_list *procesos;
 t_list *listos;

@@ -674,3 +674,64 @@ void cerrarPlanificador(){
 	list_destroy(terminados);
 	list_destroy_and_destroy_elements(procesos,&destruirUnProceso);
 }
+//*****************Algoritmo de banquero
+//****************transformaciones
+void *transformarBloques(void *a){
+	Bloqueo *n=(Bloqueo *) a;
+	return idBanquero==(*n).idProceso;
+}
+void *transformarProcesos(void *a){
+	Proceso *n = (Proceso*) a;
+	idBanquero = (*n).idProceso;
+	return list_map(bloqueados,&transformarBloques);
+}
+//tranformaciones logica repetida VER COMO REFACTORIZAR
+void *transformarBloquesNecesidad(void *a){
+	Bloqueo *n=(Bloqueo *) a;
+	return idBanquero==(*n).idProceso;
+}
+void *transformarProcesosNecesidad(void *a){
+	Proceso *n = (Proceso*) a;
+	idBanquero = (*n).idProceso;
+	return list_map(bloqueados,&transformarBloquesNecesidad);
+}
+//
+void *transformarPorDisponibilidad(void *a){
+	Bloqueo *n=(Bloqueo *) a;
+	return idBanquero==-1;
+}
+void *transformarTotal(void *a){
+	Bloqueo *n=(Bloqueo *) a;
+	return 1;
+}
+//***************igualaciones con comparaciones
+//comparadores
+int listasIguales(list *a,list *b,int index){
+	return list_get(a,index)==list_get(a,index);
+}
+int esMenor(list *a,list *b,int index){
+	return list_get(a,index)<list_get(a,index);
+}
+//igualador
+int compararListas(list *a,list *b,int (*comparador) (list *,list *,int)){
+	//a y b tienen el mismo tamagno
+	int cantidadElementos=list_size(a);
+	for(int i=0,i<cantidadElementos,i++){
+		if(!comparador(a,b,i))//pregunto por falla de comparador
+			return 0; //el comparador encontro 1 elemento que falle con la restriccion
+	}
+	return 1;
+}
+
+int algoritmoBanquero(){
+	int cantidadRecursos=list_size(bloqueados);
+	int cantidadProcesos=list_size(Procesos);
+	list *matrizDeAsignados=list_map(proceso,&transformarProcesos);
+	list *matrizDeNecesidad=list_map(proceso,&transformarProcesosNecesidad);
+	list *vectorRecursosActuales=map(bloqueos,&transformarPorDisponibilidad);
+	list *vectorRecursosTotales=map(bloqueos,&transformarTotal);
+	for(int i=0,i<cantidadProcesos,i++){
+
+	}
+
+}
