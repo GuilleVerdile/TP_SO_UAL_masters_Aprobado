@@ -44,7 +44,7 @@ void* hacerUnaOperacion(){
 		recv(sockcoordinador,resultado,2,0);
 		log_info(logger,"Se realizo la operacion");
 		log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":"ABORTA");
-		if(resultado[0] == 'a' || !feof(f))
+		if(resultado[0] != 'b')
 		send(sockplanificador,resultado,2,0);
 	}
 	else{
@@ -67,7 +67,7 @@ int main(int argc, char**argv){
 	sockplanificador = conectarESI("Planificador");
 	resultado = malloc(2);
 	log_info(logger,"Esperando la respuesta del planificador :D");
-	while(!feof(f) && recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
+	while((!feof(f) || !noBloqueado)&& recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
 		log_info(logger,"El planificador me dejo ejecutar");
 		if(noBloqueado){
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
@@ -77,6 +77,7 @@ int main(int argc, char**argv){
 		hacerUnaOperacion();
 		noBloqueado = strcmp(resultado,"b");
 		close(sockcoordinador);
+		if(noBloqueado < 0)break;
 	}
 	if(linea){
 		free(linea);

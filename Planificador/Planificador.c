@@ -557,6 +557,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                case 'f':
                             	   terminarProceso();
                             	   sem_post(&sem_replanificar);
+                            	   close(i); // cierra socket
+                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
                             	   tiempo_de_ejecucion++;
@@ -572,6 +574,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   buf = realloc(buf,tam);
                             	   recv(i,buf,tam,0);
                             	   matarESI(transformarNumero(buf,0));
+                            	   close(i); // cierra socket
+                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                }
                              }
