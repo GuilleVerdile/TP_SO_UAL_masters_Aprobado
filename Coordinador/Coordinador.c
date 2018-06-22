@@ -52,7 +52,7 @@ int main(){
 	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
 	log_info(logger, "Se acepto la conexion");
 	pthread_t* hilosInstancias = NULL;
-	pthread_t hiloEsi;
+	pthread_t hiloEsi = 0;
 	instancias = list_create();
 	//ACA COMIENZA LO DIVERTIDO =)
 	sem_wait(&esperaInicializacion);
@@ -67,6 +67,7 @@ int main(){
 		free(buff);
 		switch(tipoCliente){
 		case 1:
+			pthread_join(hiloEsi,NULL);
 			log_info(logger,"El cliente es ESI");
 			if((pthread_create(&hiloEsi , NULL , conexionESI, (void*)&nuevoCliente)) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
 	    	{
