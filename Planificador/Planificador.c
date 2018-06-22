@@ -64,6 +64,7 @@ void *ejecutarEsi(void *esi){
 	t_log *log_ejecutarEsi;
 	log_ejecutarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
 	while(1){
+		log_info(log_ejecutarEsi, "Esperando al semaforo para ejecucion");
 		sem_wait(&sem_procesoEnEjecucion);
 		log_info(log_ejecutarEsi, "se entro a ejecutar el esi en ejecucion");
 		while(procesoEnEjecucion && (*procesoEnEjecucion).estado==ejecucion){
@@ -475,6 +476,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
                                  if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
+                                	 log_info(logger,"Se decidio replanificar :D");
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }
@@ -565,6 +567,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   sem_post(&semCambioEstado);
                                    break;
                                case 'a':
+                            	   log_warning(logger, "ABORTANDO EL ESI");
                             	   tam = obtenerTamDelSigBuffer(i);
                             	   buf = realloc(buf,tam);
                             	   recv(i,buf,tam,0);

@@ -196,7 +196,9 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 	sem_post(&esperaInicializacion);
     int recvValor;
     instancia* instanciaAEnviar;
-    while((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
+    char* resultadoEsi;
+
+   if((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
     	t_config* config = config_create(pathCoordinador);
     	sleep(config_get_int_value(config,"Retardo"));
     	config_destroy(config);
@@ -210,7 +212,8 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			sem_post(&semaforoPlanificador);
     			sem_wait(&semaforoEsi);
     			free(paqueteAEnviar.argumentos.GET.clave);
-    			break;  //CON ESTO NOS ASEGURAMOS A QUE EL ESI NOS ENVIA DEVUELTA EL MENSAJE
+    			resultadoEsi = "b";
+    			break;
     		}
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
@@ -225,7 +228,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.GET.clave);
     			sem_wait(&semaforoEsi);
     			free(paqueteAEnviar.argumentos.GET.clave);
-    	    	send(socketEsi,"e",2,0);
+    	    	resultadoEsi = "e";
     			break;
     		}
     		(*instanciaAEnviar).estaDisponible = 0; //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
@@ -234,31 +237,35 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	case SET:
     		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
-    			free(paqueteAEnviar.argumentos.SET.clave);
-    			free(paqueteAEnviar.argumentos.SET.valor);
-    			return 0;
+    			resultadoEsi = "a";
     		}
     		free(paqueteAEnviar.argumentos.SET.clave);
     	    free(paqueteAEnviar.argumentos.SET.valor);
-        	send(socketEsi,"e",2,0);
+        	resultadoEsi = "e";
     		break;
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
-    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)) return 0;
+    		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)){
+    			resultadoEsi = "a";
+    		}
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		free(paqueteAEnviar.argumentos.STORE.clave);
-        	send(socketEsi,"e",2,0);
+        	resultadoEsi = "e";
     		break;
     	default:
     		log_error(logger,"Operacion invalida");
+    		resultadoEsi = "a";
     		break;
     	}
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
             log_info(logger,"Se desconecto un ESI");
-        else if(recvValor == -1)
+        else if(recvValor == -1){
             log_error(logger,"Error al recibir el tam del codigo serializado");
+            resultadoEsi = "a";
+        }
+    send(socketEsi,resultadoEsi,2,0);
     close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
     return 0;
 }
@@ -269,8 +276,6 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 	verificacionEsi("v");
 	if (!operacionValida) {
 		//VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
-		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR CODEAR PARA EL OJETE YA QUE DE ALGUNA FORMA LA CLAVE NO FUE BLOQUEADA POR TAL ESI.
-		close(socketEsi);
 		return 0;
 	}
 	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
@@ -279,8 +284,6 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 	sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo)); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
-		send(socketEsi, "a", 2, 0); //SE LE PIDE ABORTAR EL ESI POR DESCONEXION DE LA INSTANCIA
-		close(socketEsi);
 		return 0;
 	}
 	return 1;
