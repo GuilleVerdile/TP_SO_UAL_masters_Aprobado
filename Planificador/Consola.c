@@ -67,7 +67,7 @@ void consola() {
 	   	    	logTest("Se ingreso comando estatus",Blanco);
 	   	    }
     	    else{
-    	    	imprimir(Amarillo,"No se reconocio el comando %s\n", centinelas[0]);
+    	    	imprimir(amarillo,"No se reconocio el comando %s\n", centinelas[0]);
     	    	logTest("No se reconocio el comando",Blanco);
     	    }
     		break;
@@ -85,7 +85,6 @@ void consola() {
 			}
     		break;
     	default:
-
     		imprimir(rojo,"Usted ingreso una cantidad de argumentos invalida\n");
     		logTest("Cantidad de argumentos invalida",Blanco);
     }
