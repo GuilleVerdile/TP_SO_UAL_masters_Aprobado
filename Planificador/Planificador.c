@@ -334,9 +334,9 @@ void liberaClave(char *clave){
 				log_info(logger,"Se removio el primer elemento de la lista de bloqueados");
 				if(list_is_empty((*block).bloqueados)){
 					log_info(logger,"la clave %s NO POSEE elementos bloqueados",clave);
-					list_destroy((*block).bloqueados);
 					claveABuscar=clave;
-					free(list_remove_by_condition(bloqueados,&esIgualAClaveABuscar));
+					list_remove_by_condition(bloqueados,&esIgualAClaveABuscar);
+					destruirUnBloqueado(block);
 				}
 				else
 				(*block).idProceso=-1;
@@ -400,11 +400,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
      terminados=list_create();
      bloqueados=list_create();
      procesoEnEjecucion = NULL;
-	 sem_init(&sem_replanificar,0,0);
-	 sem_init(&sem_procesoEnEjecucion,0,0);
-	 sem_init(&sem_ESIejecutoUnaSentencia,0,1);
-	 sem_init(&sem_finDeEjecucion,0,1);
-	 sem_init(&semCambioEstado,0,0);
 	 int listener;
 	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
@@ -590,6 +585,11 @@ void main()
     {
 	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
+	sem_init(&sem_replanificar,0,0);
+	sem_init(&sem_procesoEnEjecucion,0,0);
+	sem_init(&sem_ESIejecutoUnaSentencia,0,1);
+	sem_init(&sem_finDeEjecucion,0,1);
+	sem_init(&semCambioEstado,0,0);
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	Proceso*(*miAlgoritmo)();

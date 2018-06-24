@@ -11,6 +11,7 @@ int recorrerCentinela(char** centinelas,int liberar){
 }
 
 void consola() {
+  int pause = 0;
   char* linea;
   while(1) {
     linea = readline(">");
@@ -27,12 +28,16 @@ void consola() {
     		if(!strcmp(centinelas[0],"continuar")){
     			imprimir(magenta,"Usted ingreso continuar\n");
     			logTest("Se ingreso comando continuar",Blanco);
+    			if(pause){
     			pthread_mutex_unlock(&mutex_pausa);
+    			pause = 0;}
     		}
     		else if(!strcmp(centinelas[0],"pausar")){
     			imprimir(magenta,"Usted ingreso pausar\n");
         		logTest("Se ingreso comando pausar",Blanco);
-        		pthread_mutex_lock(&mutex_pausa);
+        		if(!pause){
+        			pthread_mutex_lock(&mutex_pausa);
+        			pause = 1;}
     		}
     	    else if(!strcmp(centinelas[0],"deadlock")){
     	    	imprimir(magenta,"Usted ingreso Deadlock\n");
