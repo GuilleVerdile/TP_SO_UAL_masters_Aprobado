@@ -17,12 +17,14 @@
 #include <string.h>
 #include <commons/collections/list.h>
 const char* INSTANCIA = "0";
-void inicializarTablaEntradas(int sockcoordinador);
+void compactacion();
+void inicializarTablaEntradas();
 void manejarPaquete(t_esi_operacion paquete,int sockcoordinador);
 void meterClaveALaTabla(char* clave);
-void meterValorParTalClave(char clave[40], char*valor,int posTabla);
+void meterValorParTalClave(char*valor,int posTabla);
 int encontrarTablaConTalClave(char clave[40]);
 void* hacerDump();
 void almacenarTodaInformacion();
-void algoritmoCircular(char clave[40], char*valor,int posicionTablaE,int posicionEntradaDeTabla,int posicionEnEntradas, int cuantoFaltaGuardar) ;
+int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntradasAOcupar);
+int posicionDeLaEntrada(char* entradaABuscar);
 #endif /* SOCKET_INSTANCIA_H_ */
