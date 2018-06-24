@@ -85,15 +85,18 @@ int cuantasEntradasAMover(int posicionDelArray){
 void compactacion(){
 	char* posicionConProblemas;
 	int posicionDelArray=0;
+	log_warning(logger,"Se va realizar una compactacion");
 	while(posicionDelArray < entradasTotales){
 		char* bit =list_get(bitArray,posicionDelArray);
 		if(!(bit[0]-48)){
 			int cantEntradasAMover = cuantasEntradasAMover(posicionDelArray+1);
-			if(posicionDelArray+cantEntradasAMover-1 < entradasTotales){ //VERIFICO QUE NO COMPACTE AL PEDO
+			log_info(logger,"Se va compactar desde la posicion %d hasta %d",posicionDelArray,cantEntradasAMover);
+			if(posicionDelArray+cantEntradasAMover < entradasTotales){ //VERIFICO QUE NO COMPACTE AL PEDO
 				while(cantEntradasAMover !=0){
 					posicionConProblemas = list_remove(entradas,posicionDelArray); //LO SACO
 					list_add(entradas,posicionConProblemas); //Y LO METO AL FINAL DE LA LISTA
 					posicionConProblemas = list_remove(bitArray, posicionDelArray); //LO MISMO PARA EL BIT ARRAY
+					log_info(logger,"Posicion del array: %d con estado %c",posicionDelArray,posicionConProblemas[0]);
 					list_add(bitArray,posicionConProblemas);
 					cantEntradasAMover--;
 					posicionDelArray++;
@@ -131,7 +134,7 @@ void inicializarTablaEntradas(){
     int i = 0;
     entradas=list_create();
     char* unaEntrada;
-    while(i != (entradasTotales-1)){
+    while(i < entradasTotales){
     	unaEntrada = malloc(tamEntradas+1);	 //ASIGNO EL TAMAGNO DE UNA ENTRADA + EL /0
     	list_add(entradas,unaEntrada); //METO UNA ENTRADA A LAS ENTRADAS :v
     	i++;
@@ -159,15 +162,15 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 			cantidadEntradasALeer++;
 		}
 		int posEntrada = posicionDeLaEntrada((*tabla).entrada);
-		log_info(logger,"La posicion de entrada es %d",posEntrada);
-		log_info(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
+		log_trace(logger,"La posicion de entrada es %d",posEntrada);
+		log_trace(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
 		for(int j = 0; j<cantidadEntradasALeer; j++){
 			char* entrada = list_get(entradas,posEntrada);
-			log_info(logger,"La entrada a almacenar %s",entrada);
+			log_trace(logger,"La entrada a almacenar %s",entrada);
 			string_append(&valor,entrada);
 			posEntrada++;
 		}
-		log_info(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
+		log_trace(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
 		string_append(&aux,(*tabla).clave);
 		int desc = open(aux, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		free(aux);
@@ -275,7 +278,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 					(*tabla).seAlmacenoElValor=0;
 				}
 			}else{
-				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
+				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.valor,paquete.argumentos.SET.clave);
 				meterValorParTalClave(paquete.argumentos.SET.valor,posTabla);
 			}
 			(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
@@ -324,6 +327,7 @@ int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntra
 			(*hayQueCompactar)=1;
 			return 0; //COMO EN LA SIGUIENTE POSICION ESTA OCUPADO HAY FRAGMENTACION EXTERNA, ESTO PROVOCA QUE HAY QUE COMPACTAR SI NO LLEGO A ENCONTRAR LUGAR
 		}
+		log_info(logger,"Posicion libre: %d entradas permitidas: %d",(*posicion),i);
 		(*posicion)++;
 		i++;
 	}
@@ -335,11 +339,11 @@ int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntra
 
 int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 	int encontrado = 0;
-	int posicion = 0;
 	int primeraPosicionEncontrada;
 	int hayQueCompactar;
 	char* valorCoordi;
 	while(1){
+		int posicion = 0;
 		hayQueCompactar = 0;
 		while(!encontrado && posicion < entradasTotales){
 			char* bit = list_get(bitArray,posicion);
@@ -350,21 +354,20 @@ int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 			}
 			posicion ++;
 		}
+		log_warning(logger,"El valor de encontrado es %d",encontrado);
 		if(encontrado){
 			return primeraPosicionEncontrada;
 		}else if(!hayQueCompactar){
 			return -1; //SI NO HACE FALTA COMPACTAR TENGO QUE HACER EL ALGORITMO DE REEMPLAZO
 		}
 		send(sockcoordinador,"c",2,0); //ENVIO UNA SOLICITUD DE COMPACTACION AL COORDINADOR
-		valorCoordi = malloc(2);
-		recv(sockcoordinador,valorCoordi,2,0); //ESPERO A QUE EL COORDINADOR ME DIGA COMPACTATE
-		free(valorCoordi);
 		compactacion();
 	}
 }
 
 void meterValorParTalClave(char*valor,int posTabla){
 	int cantEntradasAOcupar = (string_length(valor))/tamEntradas;
+	log_info(logger,"La cantidad de entradas a ocupar son: %d",cantEntradasAOcupar);
 	if(string_length(valor)%tamEntradas){
 		cantEntradasAOcupar++;
 	}
@@ -386,6 +389,7 @@ void meterValorParTalClave(char*valor,int posTabla){
 		}
 	}
 	else{
+		log_info(logger,"Tengo que hacer el algoritmo de reemplazo D:");
 		//ALGORITMO DE SUSTITUCION
 	}
 }
