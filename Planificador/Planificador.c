@@ -706,32 +706,92 @@ void *transformarTotal(void *a){
 }
 //***************igualaciones con comparaciones
 //comparadores
-int listasIguales(list *a,list *b,int index){
-	return list_get(a,index)==list_get(a,index);
+int listasIguales(t_list *a,t_list *b,int index){
+	return list_get(a,index)==list_get(b,index);
 }
-int esMenor(list *a,list *b,int index){
-	return list_get(a,index)<list_get(a,index);
+int esMenorIgual(t_list *a,t_list *b,int index){
+	return list_get(a,index)<=list_get(b,index);
 }
 //igualador
-int compararListas(list *a,list *b,int (*comparador) (list *,list *,int)){
+int compararListas(t_list *a,t_list *b,int (*comparador) (t_list *,t_list *,int)){
 	//a y b tienen el mismo tamagno
 	int cantidadElementos=list_size(a);
-	for(int i=0,i<cantidadElementos,i++){
+	for(int i=0;i<cantidadElementos;i++){
 		if(!comparador(a,b,i))//pregunto por falla de comparador
 			return 0; //el comparador encontro 1 elemento que falle con la restriccion
 	}
 	return 1;
 }
 
+//AlgunoCumple
+bool esIgualAlIndixeABuscar(void *i){
+	int *index=(int*) i;
+	return (*index)==idBanquero;
+}
+bool estaElProceso(t_list *a,int index){
+	idBanquero=index;
+	return list_any_satisfy(a,&esIgualAlIndixeABuscar);
+}
+//
+//Preparo el elegido
+int dameRecursos(t_list *fila){
+	int aux=0;
+	int cantidad=list_size(fila);
+	for(int i=0;i<list_size(fila);i++){
+		int *i=list_get(fila,i);
+		aux+=(*i);
+	}
+	return aux;
+}
+bool esIgualAlIndixeABuscar(void *i){
+	int *index=(int*) i;
+	return (*index)==idBanquero;
+}
+int* dameElQueRetieneMas(t_list*elegidos,t_list *matrizDeAsignados){
+	int aux=0;
+	int *bigmac;
+	for(int i=0;i<list_size(elegidos);i++){
+		int *candidato=list_get(elegidos,i);
+		int aux2=dameRecursos(list_get(matrizDeAsignados,(*candidato)));
+		if(aux2>aux){
+			aux=aux2;
+			bigmac=candidato;
+		}
+	}
+	return bigmac;
+}
 int algoritmoBanquero(){
 	int cantidadRecursos=list_size(bloqueados);
-	int cantidadProcesos=list_size(Procesos);
-	list *matrizDeAsignados=list_map(proceso,&transformarProcesos);
-	list *matrizDeNecesidad=list_map(proceso,&transformarProcesosNecesidad);
-	list *vectorRecursosActuales=map(bloqueos,&transformarPorDisponibilidad);
-	list *vectorRecursosTotales=map(bloqueos,&transformarTotal);
-	for(int i=0,i<cantidadProcesos,i++){
+	int cantidadProcesos=list_size(procesos);
+	t_list *matrizDeAsignados=list_map(procesos,&transformarProcesos);
+	t_list *matrizDeNecesidad=list_map(procesos,&transformarProcesosNecesidad);
+	t_list *vectorRecursosActuales=map(bloqueados,&transformarPorDisponibilidad);
+	t_list *vectorRecursosTotales=map(bloqueados,&transformarTotal);
+	t_list *indicesQueCumplen=list_create();
+	t_list *procesosDescartados=list_create();
+	for (int j=0;j<cantidadProcesos;j++){
+		for(int i=0;i<cantidadProcesos;i++){// el i me va dando el indice
+			t_list *enesima=list_get(matrizDeNecesidad,i);
+			int *aux=malloc(sizeof(int));
+			(*aux)=i;
 
+			if(!estaElProceso(procesosDescartados,i)&&compararListas(enesima,vectorRecursosActuales,&esMenorIgual)){
+				list_add(indicesQueCumplen,aux);
+			}
+			i++;
+		}
+		if(list_is_empty(indicesQueCumplen))
+			return false;
+		else{
+			int *elMejor=dameElQueRetieneMas(indicesQueCumplen,matrizDeAsignados);
+			list_add(procesosDescartados,elMejor);
+			list_clean(indicesQueCumplen);
+		}
+		//Falta la ultima comparacion para ver si es igual al vector de recursos totales, entonces tengo que sumar
+		//en cada iteracion la fila de la matriz de asignados con la de vectorRecursosActuales;
+		j++;
 	}
+
+
 
 }
