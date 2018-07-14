@@ -281,29 +281,34 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 	return 1;
 }
 
-instancia* crearInstancia(int sockInstancia,char* nombreInstancia){
+instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas){
 	instancia* instanciaNueva = NULL;
 	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
 		(*instanciaNueva).estaDisponible = 1;
+		cantidadDeEntradas = (*instanciaNueva).cantEntradasDisponibles;
 		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
 		log_info(logger,"Es una reconexion de la instancia %s", nombreInstancia);
 		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
 	}
 	instanciaNueva = malloc(sizeof(instancia));
+	(*instanciaNueva).cantEntradasDisponibles = cantidadDeEntradas;
 	inicializarInstancia(instanciaNueva,nombreInstancia); //Inicializamos la instancia.
 	return instanciaNueva;
 }
 
 algoritmo obtenerAlgoritmoDistribucion(){
 	t_config *config=config_create(pathCoordinador);
+	log_info(logger,"Vamos a seleccionar un algoritmo");
 	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
 	case EL: //EQUITATIVE LOAD
 		config_destroy(config);
+		log_info(logger,"Usted eligio el algoritmo Equitative Load");
 		return &equitativeLoad;
 		break;
 	case LSU: //LSU
 		config_destroy(config);
-		//return lsu(sockInstancia);
+		log_info(logger,"Usted eligio el algoritmo LSU");
+		return &lsu;
 		break;
 	case KE: //KEYEXPLICIT
 		config_destroy(config);
@@ -318,7 +323,7 @@ algoritmo obtenerAlgoritmoDistribucion(){
 
 void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	t_config *config=config_create(pathCoordinador);
-	(*instanciaNueva).cantEntradasDisponibles = config_get_int_value(config, "CantidadEntradas");
+	(*(*instanciaNueva).cantEntradasDisponibles) = config_get_int_value(config, "CantidadEntradas");
 	config_destroy(config);
 	(*instanciaNueva).clavesBloqueadas = NULL;
 	(*instanciaNueva).estaDisponible = 1;
@@ -363,6 +368,27 @@ instancia* equitativeLoad(instancia* instancia){
 	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
 }
 
+instancia* lsu(instancia* instanciaAUsar){
+	if(instanciaAUsar == NULL){
+		int i=1;
+		instancia* instanciaAux;
+		instanciaAUsar = list_get(instancias,0);
+		pthread_mutex_lock(&mutexInstancias);
+		do{
+			instanciaAux = list_get(instancias,i);
+			if(instanciaAux!=NULL && (*(*instanciaAux).cantEntradasDisponibles) > (*(*instanciaAUsar).cantEntradasDisponibles)){
+				instanciaAUsar = instanciaAux;
+			}
+			i++;
+		}while(instanciaAux !=NULL);
+		pthread_mutex_unlock(&mutexInstancias);
+		log_info(logger,"Se logro realizar el lsu %s",instanciaAUsar!=NULL?(*instanciaAUsar).nombreInstancia:"Es null csm");
+		return instanciaAUsar;
+	}
+	return NULL;
+}
+
+
 void compactacionSimultanea(int semaforoNoNecesario){
 	int nroSemaforo = 0;
 	sem_t* semaforo;
@@ -386,10 +412,11 @@ void *conexionInstancia(void* cliente){
 	log_info(logger,"El tam del buffer es %d",tam);
 	recv(socketInstancia,buff,tam,0);
 	log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
-	instancia* instanciaNueva = crearInstancia(socketInstancia,buff);
+	int cantidadDeEntradasRestantes;
+	instancia* instanciaNueva = crearInstancia(socketInstancia,buff,&cantidadDeEntradasRestantes);
 	free(buff);
 	if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
-		algoritmoDeDistribucion(instanciaNueva);//LO METO EN LA LISTA SEGUN EL ALGORITMO DE DIST USADO
+		list_add(instancias,instanciaNueva);
 	}
 	sem_post(&esperaInicializacion);
 	//ACA TERMINE DE INICIALIZAR LA INSTANCIA
@@ -416,6 +443,11 @@ void *conexionInstancia(void* cliente){
 						break;
 					case 'r':
 						operacionValida=1;
+						int bytes = obtenerTamDelSigBuffer(socketInstancia);
+						char* cantidadDeEntradasARestar = malloc(sizeof(bytes));
+						recv(socketInstancia,cantidadDeEntradasARestar,bytes,0);
+						cantidadDeEntradasRestantes=transformarNumero(cantidadDeEntradasARestar,0);
+						free(cantidadDeEntradasARestar);
 						sem_post(&semaforoEsi);
 						break;
 				}
