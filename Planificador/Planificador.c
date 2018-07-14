@@ -760,7 +760,14 @@ int* dameElQueRetieneMas(t_list*elegidos,t_list *matrizDeAsignados){
 	}
 	return bigmac;
 }
-int algoritmoBanquero(){
+void sumar(t_list *a,t_list *b){
+	for(int i=0;i<list_size(a);i++){
+		int *aux=list_get(a,i);
+		int *aux2=list_get(b,i);
+		(*aux)=(*aux)+(*aux2);
+	}
+}
+bool algoritmoBanquero(){
 	int cantidadRecursos=list_size(bloqueados);
 	int cantidadProcesos=list_size(procesos);
 	t_list *matrizDeAsignados=list_map(procesos,&transformarProcesos);
@@ -786,12 +793,9 @@ int algoritmoBanquero(){
 			int *elMejor=dameElQueRetieneMas(indicesQueCumplen,matrizDeAsignados);
 			list_add(procesosDescartados,elMejor);
 			list_clean(indicesQueCumplen);
+			sumar(vectorRecursosActuales,list_get(matrizDeAsignados,(*elMejor)));
 		}
-		//Falta la ultima comparacion para ver si es igual al vector de recursos totales, entonces tengo que sumar
-		//en cada iteracion la fila de la matriz de asignados con la de vectorRecursosActuales;
 		j++;
 	}
-
-
-
+	return compararListas(vectorRecursosTotales,vectorRecursosActuales,&listasIguales);
 }
