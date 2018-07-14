@@ -19,7 +19,7 @@
 const char* INSTANCIA = "0";
 void compactacion();
 void inicializarTablaEntradas();
-void manejarPaquete(t_esi_operacion paquete,int sockcoordinador);
+void manejarPaquete(t_esi_operacion paquete);
 void meterClaveALaTabla(char* clave);
 void meterValorParTalClave(char*valor,int posTabla);
 int encontrarTablaConTalClave(char clave[40]);

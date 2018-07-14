@@ -31,7 +31,7 @@ struct Instancia{
 	int estaDisponible; //ESTE VALOR DEFINE SI SE SIGUE MANTENIENDO UNA CONEXION CON EL SERVIDOR
 	char* nombreInstancia; //ME VA SERVIR COMO CLAVE PARA LA RECONEXION
 	t_list* clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
-	int cantEntradasDisponibles; //PARA EL LSU
+	int* cantEntradasDisponibles; //PARA EL LSU
 	int nroSemaforo;
 }typedef instancia;
 void *conexionESI(void* nuevoCliente);
@@ -40,8 +40,10 @@ void* conexionPlanificador(void* cliente);
 void enviarDatosInstancia(int sockInstancia, char* tipo);
 typedef instancia*(*algoritmo)(instancia* instancia);
 instancia* equitativeLoad(instancia* instancia);
+instancia* lsu(instancia* instanciaAUsar);
 void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
 instancia* existeEnLaLista(char* id);
-instancia* crearInstancia(int sockInstancia,char* nombreInstancia);
+instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas);
 algoritmo obtenerAlgoritmoDistribucion();
+
 #endif /* COORDINADOR_H_ */

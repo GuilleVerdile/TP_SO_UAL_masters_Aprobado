@@ -53,7 +53,7 @@ int main(){
     				exit(-1);
     			}
     			log_info(logger,"Recibi la operacion");
-    			manejarPaquete(paquete,sockcoordinador);
+    			manejarPaquete(paquete);
 
     			break;
     		case 'v':
@@ -231,7 +231,23 @@ void liberarClave(int posTabla){
 	free(tabla);
 }
 
-void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
+void enviarEntradasRestantes(){
+	int cantidadEntradas = 0;
+
+	for(int i =0;i<entradasTotales;i++){
+		char* bit = list_get(bitArray,i);
+		if(!(bit[0]-48)){
+			cantidadEntradas++;
+		}
+	}
+	char* buff = string_itoa(cantidadEntradas);
+	enviarCantBytes(sockcoordinador,buff);
+	send(sockcoordinador,buff,strlen(buff)+1,0);
+	free(buff);
+	return;
+}
+
+void manejarPaquete(t_esi_operacion paquete){
 	int posTabla;
 	switch(paquete.keyword){
 		case GET:
@@ -301,6 +317,7 @@ void manejarPaquete(t_esi_operacion paquete, int sockcoordinador){
 	else
 	{
 		log_info(logger, "Mensaje enviado correctamente");
+		enviarEntradasRestantes();
 	}
 }
 
@@ -393,32 +410,4 @@ void meterValorParTalClave(char*valor,int posTabla){
 		//ALGORITMO DE SUSTITUCION
 	}
 }
-/*
-void circular(char clave[40],char* valor, int posTabla){
-	int valorAux = string_length(valor) + 1;
-	int j = 0;
-	int posEntrada = 0; //ESTA VARIABLE ME SIRVE PARA SABER SI PARTE DEL VALOR YA SE ASIGNO
-	tablaEntradas* tabla = list_get(tablas,posTabla);
-	if((*tabla).entradas !=NULL)
-	{
-		while((*tabla).entradas[posEntrada]!=NULL){
 
-			posEntrada++;
-		}
-	}
-	while(valorAux>0)
-	{
-		if(nroReemplazo == cantEntradasDisponibles){ //SI EL ALGORITMO CIRCULAR LLEGO A LA ULTIMA POSICION DE LAS ENTRADAS
-			nroReemplazo = 0; //SE REINICIA
-		}
-		char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
-		strcpy(entradas[nroReemplazo],valorEntrada);
-		free(valorEntrada);
-		(*tabla).entradas = realloc((*tabla).entradas,sizeof(char*)*(posEntrada+1));
-		(*tabla).entradas[posEntrada] = entradas[nroReemplazo];
-		posEntrada++;
-		valorAux -= tamEntradas;
-		nroReemplazo++; //ME POSICIONO A LA SIGUIENTE ENTRADA PARA REEMPLAZO
-		j++;
-	}
-}*/
