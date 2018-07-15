@@ -851,4 +851,141 @@ bool algoritmoBanquero(){
 	}
 	return compararListas(vectorRecursosTotales,vectorRecursosActuales,&listasIguales);
 }
+//algoritmoBanquerro 2*******************
+int cantidadDeFilasProcesos(){
+	int filas = list_size(procesos);
+	if(estaElProcesoZero){
+		filas++;
+	}
+	return filas;
+}
+int cantidadColumasClaves(){
+	int columnas= list_size(bloqueados);
+	return columnas;
+}
+//DISCRIMINANTES MATRIZES
+bool loPosee(int indexProceso,int indexClave){
+	Proceso *proceso=list_get(procesos,indexProceso);
+	Bloqueo *block=list_get(proceso,indexClave);
+	return (*proceso).idProceso==(*block).idProceso;
+}
+//
+bool noLoPosee(int indexProceso,int indexClave){
+	Proceso *proceso=list_get(procesos,indexProceso);
+	Bloqueo *block=list_get(proceso,indexClave);
+	return (*proceso).idProceso!=(*block).idProceso;
+}
+int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encargado de rellenar los valores de la matriz
+	//Ver como refactorizar estos 2 enteros
+	int filas=cantidadDeFilasProcesos();
+	int columnas=cantidadColumasClaves();
+	//
+	int i;
+	//ASigno espacio
+	int **matriz = (int **)malloc(filas * sizeof(int *));
+	    for (i=0; i<filas; i++)
+	         matriz[i] = (int *)malloc(columnas * sizeof(int));
+	 //meto valores
+	 for (i = 0; i <  list_size(procesos); i++)
+	         for (int j = 0; j < columnas; j++)
+	            matriz[i][j] = discriminante(i,j) ;
+	 if(estaElProcesoZero()){
+		 for (int j = 0; j < columnas; j++)
+			  matriz[filas][j] = discriminante(filas,j) ;
+	 }
+	 return matriz;
+}
+//DISCRIMINANTES VECTORES
+bool total(int index){
+	return 1;
+}
+bool actual(int index){
+	Bloqueo *block = list_get(bloqueados,index);
+	return (*block).idProceso==-1;//Esta libre
+}
+//
+int *dameVector(bool (*discriminante) (int)){
+	int elementos=cantidadColumasClaves();
+	int *vector = (int *)malloc(elementos * sizeof(int));
+	  for (int i = 0; i < elementos; i++)
+		            vector[i] = discriminante(i);
+	 return vector;
+}
+//Comparadores
+bool elementoMenorOIgual(int a,int b){
+	return a<=b;
+}
+bool elementoIgual(int a,int b){
+	return a==b;
+}
+bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int cantidadElementosAComparar){
+	for(int i=0;i<cantidadElementosAComparar;i++){
+		if(!comparador(a[i],b[i]))//Si no se cumple la condicion de comparacion para algun elemento retorno falso
+			return false;
+	}
+	return true;
 
+}
+//Funciones de manejo de indices
+void sumarVectores(int *a,int *b,int cantidadElementosAComparar){
+	for(int i=0;i<cantidadElementosAComparar;i++){
+			a[i]=a[i]+b[i];
+		}
+}
+//Para obtener el mejor caso
+int dameLaNorma(int *a,int cantElementos){
+	int aux=0;
+	for(int i=0;i<cantElementos;i++){
+				aux=aux+a[i];
+			}
+	return aux;
+}
+int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadColumnas){
+	int aux=0;
+	int auxIndice=0;
+	for(int i=0;i<list_size(indicesQueCumplen);i++){
+		int *indice=list_get(indicesQueCumplen,i);
+		int aux2 = dameLaNorma(matrizDeAsignados[(*indice)],cantidadColumnas);
+		if(aux2>aux){
+			aux=aux2;
+			auxIndice=(*indice);
+		}
+	}
+	return auxIndice;
+}
+bool algoritmoBanquero2(){
+	int filas=cantidadDeFilasProcesos();
+	int columnas=cantidadColumasClaves();
+	int **matrizDeAsignados=dameMatriz(&loPosee);
+	int **matrizDeNecesidad=dameMatriz(&noLoPosee);
+	int *vectorRecursosTotales=dameVector(&total);
+	int *vectorRecursosActuales=dameVector(&actual);
+	//INDICES
+	t_list *indicesQueCumplen=list_create();
+	t_list *indicesDescartados=list_create();
+	for (int j=0;j<filas;j++){
+		for(int i=0;i<filas;i++){
+			int *aux=malloc(sizeof(int));
+			(*aux)=i;
+			if(!estaElProceso(indicesDescartados,i)&&
+					compararElementosVectores(matrizDeNecesidad[i],vectorRecursosActuales,&elementoMenorOIgual,columnas)){
+					list_add(indicesQueCumplen,aux);
+			}
+			i++;
+		}
+		if(list_get(indicesQueCumplen,0)==NULL){
+			//No se encontraron filas que cumplan con la condicion
+			return false;
+		}
+		else{
+				int elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
+				//
+				list_add(indicesDescartados,elMejor);
+				list_clean(indicesQueCumplen);
+				//
+				sumarVectores(vectorRecursosActuales,matrizDeAsignados[elMejor],columnas);
+			}
+			j++;
+	}
+	return compararElementosVectores(vectorRecursosTotales,vectorRecursosActuales,&elementoIgual,columnas);
+}
