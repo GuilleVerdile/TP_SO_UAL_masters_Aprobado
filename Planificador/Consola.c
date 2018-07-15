@@ -42,9 +42,9 @@ void consola() {
     	    else if(!strcmp(centinelas[0],"deadlock")){
     	    	imprimir(magenta,"Usted ingreso Deadlock\n");
     	    	logTest("Se ingreso comando Deadlock",Blanco);
-    	    	pthread_mutex_lock(&mutex_pausa);pause = 1;
+    	    	pthread_mutex_lock(&mutex_pausa);
     	    	algoritmoBanquero2();
-    	    	pthread_mutex_unlock(&mutex_pausa);pause = 0;
+    	    	pthread_mutex_unlock(&mutex_pausa);
     	    }
     	    else{
     	    	imprimir(magenta,"No se reconocio el comando %s\n", centinelas[0]);

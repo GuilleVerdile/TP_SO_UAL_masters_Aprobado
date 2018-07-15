@@ -863,17 +863,27 @@ int cantidadColumasClaves(){
 	int columnas= list_size(bloqueados);
 	return columnas;
 }
-//DISCRIMINANTES MATRIZES
+//DISCRIMINANTES MATRIZES si el index es negativo se trata del caso 0
 bool loPosee(int indexProceso,int indexClave){
-	Proceso *proceso=list_get(procesos,indexProceso);
-	Bloqueo *block=list_get(proceso,indexClave);
-	return (*proceso).idProceso==(*block).idProceso;
+	Bloqueo *block=list_get(bloqueados,indexClave);
+	if(indexProceso<0){
+		return 0==(*block).idProceso;
+	}
+	else{
+		Proceso *proceso=list_get(procesos,indexProceso);
+		return (*proceso).idProceso==(*block).idProceso;
+	}
 }
 //
 bool noLoPosee(int indexProceso,int indexClave){
-	Proceso *proceso=list_get(procesos,indexProceso);
-	Bloqueo *block=list_get(proceso,indexClave);
-	return (*proceso).idProceso!=(*block).idProceso;
+	Bloqueo *block=list_get(bloqueados,indexClave);
+	if(indexProceso<0){
+		return (0!=(*block).idProceso);
+	}
+	else{
+		Proceso *proceso=list_get(procesos,indexProceso);
+		return (*proceso).idProceso!=(*block).idProceso;
+	}
 }
 int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encargado de rellenar los valores de la matriz
 	//Ver como refactorizar estos 2 enteros
@@ -891,7 +901,7 @@ int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encarga
 	            matriz[i][j] = discriminante(i,j) ;
 	 if(estaElProcesoZero()){
 		 for (int j = 0; j < columnas; j++)
-			  matriz[filas][j] = discriminante(filas,j) ;
+			  matriz[filas-1][j] = discriminante(-1,j) ;
 	 }
 	 return matriz;
 }
@@ -920,6 +930,8 @@ bool elementoIgual(int a,int b){
 }
 bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int cantidadElementosAComparar){
 	for(int i=0;i<cantidadElementosAComparar;i++){
+		imprimir(blanco,"%d",a[i]);
+		imprimir(rojo,"%d",b[i]);
 		if(!comparador(a[i],b[i]))//Si no se cumple la condicion de comparacion para algun elemento retorno falso
 			return false;
 	}
@@ -987,5 +999,5 @@ bool algoritmoBanquero2(){
 			}
 			j++;
 	}
-	return compararElementosVectores(vectorRecursosTotales,vectorRecursosActuales,&elementoIgual,columnas);
+	return !compararElementosVectores(vectorRecursosTotales,vectorRecursosActuales,&elementoIgual,columnas);
 }
