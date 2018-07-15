@@ -678,7 +678,9 @@ void cerrarPlanificador(){
 //****************transformaciones
 void *transformarBloques(void *a){
 	Bloqueo *n=(Bloqueo *) a;
-	return idBanquero==(*n).idProceso;
+	int *aux=malloc(sizeof(int));
+	(*aux)=(idBanquero==(*n).idProceso);
+	return aux;
 }
 void *transformarProcesos(void *a){
 	Proceso *n = (Proceso*) a;
@@ -688,7 +690,9 @@ void *transformarProcesos(void *a){
 //tranformaciones logica repetida VER COMO REFACTORIZAR
 void *transformarBloquesNecesidad(void *a){
 	Bloqueo *n=(Bloqueo *) a;
-	return idBanquero==(*n).idProceso;
+	int *aux=malloc(sizeof(int));
+	(*aux)=(idBanquero==(*n).idProceso);
+	return aux;
 }
 void *transformarProcesosNecesidad(void *a){
 	Proceso *n = (Proceso*) a;
@@ -698,11 +702,15 @@ void *transformarProcesosNecesidad(void *a){
 //
 void *transformarPorDisponibilidad(void *a){
 	Bloqueo *n=(Bloqueo *) a;
-	return idBanquero==-1;
+	int *aux=malloc(sizeof(int));
+	(*aux)=(idBanquero==-1);
+	return aux;
 }
 void *transformarTotal(void *a){
 	Bloqueo *n=(Bloqueo *) a;
-	return 1;
+	int *aux=malloc(sizeof(int));
+	(*aux)=1;
+	return aux;
 }
 //***************igualaciones con comparaciones
 //comparadores
@@ -736,17 +744,20 @@ bool estaElProceso(t_list *a,int index){
 //Preparo el elegido
 int dameRecursos(t_list *fila){
 	int aux=0;
+	int *puntero;
 	int cantidad=list_size(fila);
 	for(int i=0;i<list_size(fila);i++){
-		int *i=list_get(fila,i);
-		aux+=(*i);
+		puntero=list_get(fila,i);
+		aux+=(*puntero);
 	}
 	return aux;
 }
+/*
 bool esIgualAlIndixeABuscar(void *i){
 	int *index=(int*) i;
 	return (*index)==idBanquero;
 }
+*/
 int* dameElQueRetieneMas(t_list*elegidos,t_list *matrizDeAsignados){
 	int aux=0;
 	int *bigmac;
@@ -767,35 +778,77 @@ void sumar(t_list *a,t_list *b){
 		(*aux)=(*aux)+(*aux2);
 	}
 }
+void elTest(t_list *vector){
+	for(int i=0;i<list_size(vector);i++){
+			int *aux=list_get(vector,i);
+			imprimir(rojo,"%d,",(*aux));
+		}
+	printf("\n");
+}
+//Funciones de matriz
+bool estaElProcesoZero(){
+
+	if(!buscarBloqueoPorProceso(0))
+		return false;
+	else
+		return true;
+}
+t_list *dameMatrizDeProcesos(void *(*transformador)(void *)){
+	t_list *matriz=list_map(procesos,transformador);
+	if(estaElProcesoZero){
+		logTest("Se va a meter al proceso 0 a la matriz",Blanco);
+		idBanquero = 0;
+		t_list *filaProcesoZero=list_map(bloqueados,transformador);
+		list_add(matriz,filaProcesoZero);
+	}
+	return matriz;
+}
 bool algoritmoBanquero(){
 	int cantidadRecursos=list_size(bloqueados);
-	int cantidadProcesos=list_size(procesos);
-	t_list *matrizDeAsignados=list_map(procesos,&transformarProcesos);
-	t_list *matrizDeNecesidad=list_map(procesos,&transformarProcesosNecesidad);
-	t_list *vectorRecursosActuales=map(bloqueados,&transformarPorDisponibilidad);
-	t_list *vectorRecursosTotales=map(bloqueados,&transformarTotal);
+
+	t_list *matrizDeAsignados=dameMatrizDeProcesos(&transformarProcesos);
+	t_list *matrizDeNecesidad=dameMatrizDeProcesos(&transformarProcesosNecesidad);
+	int cantidadProcesos=list_size(matrizDeAsignados);
+
+	t_list *vectorRecursosActuales=list_map(bloqueados,&transformarPorDisponibilidad);
+	t_list *vectorRecursosTotales=list_map(bloqueados,&transformarTotal);
 	t_list *indicesQueCumplen=list_create();
 	t_list *procesosDescartados=list_create();
+	elTest(vectorRecursosActuales);
+	elTest(vectorRecursosTotales);
+	sleep(10);
 	for (int j=0;j<cantidadProcesos;j++){
+		printf("Hola pepe");
 		for(int i=0;i<cantidadProcesos;i++){// el i me va dando el indice
 			t_list *enesima=list_get(matrizDeNecesidad,i);
 			int *aux=malloc(sizeof(int));
 			(*aux)=i;
-
+			logTest("Se le asigno a aux la variable i",Blanco);
 			if(!estaElProceso(procesosDescartados,i)&&compararListas(enesima,vectorRecursosActuales,&esMenorIgual)){
 				list_add(indicesQueCumplen,aux);
 			}
 			i++;
 		}
-		if(list_is_empty(indicesQueCumplen))
-			return false;
+		logTest("Se termino el primer ciclo for",Blanco);
+		if(list_get(indicesQueCumplen,0)==NULL){
+			logTest("se retorno falso",Blanco);
+						return false;
+		}
 		else{
 			int *elMejor=dameElQueRetieneMas(indicesQueCumplen,matrizDeAsignados);
+
+			logTest("zzzzzzzzzzzzz",Blanco);
 			list_add(procesosDescartados,elMejor);
+			logTest("xxxxxxxxxxxx",Blanco);
 			list_clean(indicesQueCumplen);
+			logTest("sssssssssssssssss",Blanco);
 			sumar(vectorRecursosActuales,list_get(matrizDeAsignados,(*elMejor)));
+			logTest("aaaaaaaaaaaa",Blanco);
+			elTest(vectorRecursosActuales);
 		}
+		logTest("vamos al siguiente",Blanco);
 		j++;
 	}
 	return compararListas(vectorRecursosTotales,vectorRecursosActuales,&listasIguales);
 }
+

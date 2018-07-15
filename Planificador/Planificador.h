@@ -102,4 +102,5 @@ void destruirUnBloqueado(void *elemento);
 void bloquearPorConsola(char *clave,int id);
 float* estimarHRRN(Proceso *proc);
 bool compararHRRN(void *a,void *b);
+bool algoritmoBanquero();
 #endif /* SOCKET_PLANIFICADOR_H_ */
