@@ -394,6 +394,7 @@ void matarESI(int id){
 	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
 	free(procesoAEliminar);
 }
+
 void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesos=list_create();
 	 listos=list_create();
@@ -675,62 +676,6 @@ void cerrarPlanificador(){
 	list_destroy_and_destroy_elements(procesos,&destruirUnProceso);
 }
 //*****************Algoritmo de banquero
-//****************transformaciones
-void *transformarBloques(void *a){
-	Bloqueo *n=(Bloqueo *) a;
-	int *aux=malloc(sizeof(int));
-	(*aux)=(idBanquero==(*n).idProceso);
-	return aux;
-}
-void *transformarProcesos(void *a){
-	Proceso *n = (Proceso*) a;
-	idBanquero = (*n).idProceso;
-	return list_map(bloqueados,&transformarBloques);
-}
-//tranformaciones logica repetida VER COMO REFACTORIZAR
-void *transformarBloquesNecesidad(void *a){
-	Bloqueo *n=(Bloqueo *) a;
-	int *aux=malloc(sizeof(int));
-	(*aux)=(idBanquero==(*n).idProceso);
-	return aux;
-}
-void *transformarProcesosNecesidad(void *a){
-	Proceso *n = (Proceso*) a;
-	idBanquero = (*n).idProceso;
-	return list_map(bloqueados,&transformarBloquesNecesidad);
-}
-//
-void *transformarPorDisponibilidad(void *a){
-	Bloqueo *n=(Bloqueo *) a;
-	int *aux=malloc(sizeof(int));
-	(*aux)=(idBanquero==-1);
-	return aux;
-}
-void *transformarTotal(void *a){
-	Bloqueo *n=(Bloqueo *) a;
-	int *aux=malloc(sizeof(int));
-	(*aux)=1;
-	return aux;
-}
-//***************igualaciones con comparaciones
-//comparadores
-int listasIguales(t_list *a,t_list *b,int index){
-	return list_get(a,index)==list_get(b,index);
-}
-int esMenorIgual(t_list *a,t_list *b,int index){
-	return list_get(a,index)<=list_get(b,index);
-}
-//igualador
-int compararListas(t_list *a,t_list *b,int (*comparador) (t_list *,t_list *,int)){
-	//a y b tienen el mismo tamagno
-	int cantidadElementos=list_size(a);
-	for(int i=0;i<cantidadElementos;i++){
-		if(!comparador(a,b,i))//pregunto por falla de comparador
-			return 0; //el comparador encontro 1 elemento que falle con la restriccion
-	}
-	return 1;
-}
-
 //AlgunoCumple
 bool esIgualAlIndixeABuscar(void *i){
 	int *index=(int*) i;
@@ -741,50 +686,6 @@ bool estaElProceso(t_list *a,int index){
 	return list_any_satisfy(a,&esIgualAlIndixeABuscar);
 }
 //
-//Preparo el elegido
-int dameRecursos(t_list *fila){
-	int aux=0;
-	int *puntero;
-	int cantidad=list_size(fila);
-	for(int i=0;i<list_size(fila);i++){
-		puntero=list_get(fila,i);
-		aux+=(*puntero);
-	}
-	return aux;
-}
-/*
-bool esIgualAlIndixeABuscar(void *i){
-	int *index=(int*) i;
-	return (*index)==idBanquero;
-}
-*/
-int* dameElQueRetieneMas(t_list*elegidos,t_list *matrizDeAsignados){
-	int aux=0;
-	int *bigmac;
-	for(int i=0;i<list_size(elegidos);i++){
-		int *candidato=list_get(elegidos,i);
-		int aux2=dameRecursos(list_get(matrizDeAsignados,(*candidato)));
-		if(aux2>aux){
-			aux=aux2;
-			bigmac=candidato;
-		}
-	}
-	return bigmac;
-}
-void sumar(t_list *a,t_list *b){
-	for(int i=0;i<list_size(a);i++){
-		int *aux=list_get(a,i);
-		int *aux2=list_get(b,i);
-		(*aux)=(*aux)+(*aux2);
-	}
-}
-void elTest(t_list *vector){
-	for(int i=0;i<list_size(vector);i++){
-			int *aux=list_get(vector,i);
-			imprimir(rojo,"%d,",(*aux));
-		}
-	printf("\n");
-}
 //Funciones de matriz
 bool estaElProcesoZero(){
 
@@ -802,54 +703,6 @@ t_list *dameMatrizDeProcesos(void *(*transformador)(void *)){
 		list_add(matriz,filaProcesoZero);
 	}
 	return matriz;
-}
-bool algoritmoBanquero(){
-	int cantidadRecursos=list_size(bloqueados);
-
-	t_list *matrizDeAsignados=dameMatrizDeProcesos(&transformarProcesos);
-	t_list *matrizDeNecesidad=dameMatrizDeProcesos(&transformarProcesosNecesidad);
-	int cantidadProcesos=list_size(matrizDeAsignados);
-
-	t_list *vectorRecursosActuales=list_map(bloqueados,&transformarPorDisponibilidad);
-	t_list *vectorRecursosTotales=list_map(bloqueados,&transformarTotal);
-	t_list *indicesQueCumplen=list_create();
-	t_list *procesosDescartados=list_create();
-	elTest(vectorRecursosActuales);
-	elTest(vectorRecursosTotales);
-	sleep(10);
-	for (int j=0;j<cantidadProcesos;j++){
-		printf("Hola pepe");
-		for(int i=0;i<cantidadProcesos;i++){// el i me va dando el indice
-			t_list *enesima=list_get(matrizDeNecesidad,i);
-			int *aux=malloc(sizeof(int));
-			(*aux)=i;
-			logTest("Se le asigno a aux la variable i",Blanco);
-			if(!estaElProceso(procesosDescartados,i)&&compararListas(enesima,vectorRecursosActuales,&esMenorIgual)){
-				list_add(indicesQueCumplen,aux);
-			}
-			i++;
-		}
-		logTest("Se termino el primer ciclo for",Blanco);
-		if(list_get(indicesQueCumplen,0)==NULL){
-			logTest("se retorno falso",Blanco);
-						return false;
-		}
-		else{
-			int *elMejor=dameElQueRetieneMas(indicesQueCumplen,matrizDeAsignados);
-
-			logTest("zzzzzzzzzzzzz",Blanco);
-			list_add(procesosDescartados,elMejor);
-			logTest("xxxxxxxxxxxx",Blanco);
-			list_clean(indicesQueCumplen);
-			logTest("sssssssssssssssss",Blanco);
-			sumar(vectorRecursosActuales,list_get(matrizDeAsignados,(*elMejor)));
-			logTest("aaaaaaaaaaaa",Blanco);
-			elTest(vectorRecursosActuales);
-		}
-		logTest("vamos al siguiente",Blanco);
-		j++;
-	}
-	return compararListas(vectorRecursosTotales,vectorRecursosActuales,&listasIguales);
 }
 //algoritmoBanquerro 2*******************
 int cantidadDeFilasProcesos(){
@@ -965,7 +818,7 @@ int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadCo
 	}
 	return auxIndice;
 }
-bool algoritmoBanquero2(){
+bool algoritmoBanquero(){
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
 	int **matrizDeAsignados=dameMatriz(&loPosee);

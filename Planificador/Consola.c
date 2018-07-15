@@ -43,7 +43,7 @@ void consola() {
     	    	imprimir(magenta,"Usted ingreso Deadlock\n");
     	    	logTest("Se ingreso comando Deadlock",Blanco);
     	    	pthread_mutex_lock(&mutex_pausa);
-    	    	algoritmoBanquero2();
+    	    	algoritmoBanquero();
     	    	pthread_mutex_unlock(&mutex_pausa);
     	    }
     	    else{
