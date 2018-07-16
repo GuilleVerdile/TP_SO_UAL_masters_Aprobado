@@ -141,7 +141,7 @@ float* estimarHRRN(Proceso *proc){
 bool compararHRRN(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	return (*(estimarHRRN(a)))<=(*(estimarHRRN(b)));
+	return (*(estimarHRRN(a)))>=(*(estimarHRRN(b)));
 }
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	t_list *aux=list_duplicate(listos);
@@ -597,6 +597,7 @@ void main()
 	t_config *config=config_create(pathPlanificador);
 	logTest("Se creo archivo config",Blanco);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
+	alfaPlanificador=config_get_int_value(config,"Alfa planificacion")/100;
 	logTest("La estimacion inicial es : %d",Blanco,estimacionInicial);
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;
