@@ -119,13 +119,18 @@ float *estimarSJF(Proceso *proc){
 		(*aux)=(*proc).estimacionAnterior;
 	}
 	else
-		(*aux) = alfaPlanificador*(*proc).rafagaRealAnterior -(1-alfaPlanificador)*(*proc).estimacionAnterior;
+		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) -(1-alfaPlanificador)*((*proc).estimacionAnterior);
 	return (void*) aux;
 }
 bool compararSJF(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	return (*(estimarSJF(a)))<=(*(estimarSJF(b)));
+	float af=(*(estimarSJF(a)));
+	float bf=(*(estimarSJF(b)));
+	printf("\n%f\n",af);
+	printf("\n%f\n",bf);
+	fflush(stdout);
+	return af<=bf;
 }
 float* estimarHRRN(Proceso *proc){
 	float *s;
@@ -300,7 +305,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			(*block).idProceso=(*procesoEnEjecucion).idProceso;
 		}
 		else{
-			log_warning(logger,"No se puede usar se agrega a la cola de bloqueados");
+			log_warning(logger,"No se puede usar, se agrega a la cola de bloqueados");
 			(*procesoEnEjecucion).estado = bloqueado;
 			list_add((*block).bloqueados,procesoEnEjecucion);
 			procesoEnEjecucion = NULL;
@@ -607,7 +612,8 @@ void main()
 	t_config *config=config_create(pathPlanificador);
 	logTest("Se creo archivo config",Blanco);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
-	alfaPlanificador=config_get_int_value(config,"Alfa planificacion")/100;
+	alfaPlanificador=(float)config_get_int_value(config,"Alfa planificacion")/100;
+	imprimir(rojo,"alfaPlanificador = %f",alfaPlanificador);
 	logTest("La estimacion inicial es : %d",Blanco,estimacionInicial);
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;
@@ -829,7 +835,7 @@ int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadCo
 	}
 	return auxIndice;
 }
-bool algoritmoBanquero(){
+bool algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
 	int **matrizDeAsignados=dameMatriz(&loPosee);
@@ -851,7 +857,7 @@ bool algoritmoBanquero(){
 		}
 		if(list_get(indicesQueCumplen,0)==NULL){
 			//No se encontraron filas que cumplan con la condicion
-			return false;
+			return true;
 		}
 		else{
 				int elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
