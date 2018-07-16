@@ -29,6 +29,7 @@ void consola() {
     			imprimir(magenta,"Usted ingreso continuar\n");
     			logTest("Se ingreso comando continuar",Blanco);
     			if(pause){
+    			sem_post(&sem_pausar);
     			pthread_mutex_unlock(&mutex_pausa);
     			pause = 0;}
     		}
@@ -36,6 +37,7 @@ void consola() {
     			imprimir(magenta,"Usted ingreso pausar\n");
         		logTest("Se ingreso comando pausar",Blanco);
         		if(!pause){
+        			sem_wait(&sem_pausar);
         			pthread_mutex_lock(&mutex_pausa);
         			pause = 1;}
     		}

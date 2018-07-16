@@ -39,7 +39,12 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	// se tiene que ejecutar todo el tiempo en un hilo aparte
 	while(1){
 	logTest("esperando segnal de sem planificador",Blanco);
+	//hay que parar
 	sem_wait(&sem_replanificar);
+	//
+	sem_wait(&sem_pausar);
+	sem_post(&sem_pausar);
+	//
 	logTest("se obtuvo segnal de sem planificador",Blanco);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
 	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
@@ -65,6 +70,7 @@ void *ejecutarEsi(void *esi){
 	log_ejecutarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
 	while(1){
 		log_info(log_ejecutarEsi, "Esperando al semaforo para ejecucion");
+
 		sem_wait(&sem_procesoEnEjecucion);
 		log_info(log_ejecutarEsi, "se entro a ejecutar el esi en ejecucion");
 		while(procesoEnEjecucion && (*procesoEnEjecucion).estado==ejecucion){
@@ -74,14 +80,13 @@ void *ejecutarEsi(void *esi){
 			if(procesoEnEjecucion){
 				log_info(log_ejecutarEsi, "pasando semaforo de esi ejecuto una sentencia");
 				send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a permitir al ESI ejecutar una sentencia
+         	   tiempo_de_ejecucion++;
+         	   (*procesoEnEjecucion).rafagaRealActual=(*procesoEnEjecucion).rafagaRealActual+1;
 				log_info(log_ejecutarEsi, "se envio al es en ejecucion de ejecutar");
 			}
+
 			sem_wait(&semCambioEstado);
 			pthread_mutex_unlock(&mutex_pausa);
-		}
-		if(procesoEnEjecucion){
-		(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
-		(*procesoEnEjecucion).rafagaRealActual=0;
 		}
 		sem_post(&sem_finDeEjecucion);
 		log_info(log_ejecutarEsi, "se da segnal de fin de ejecucion");
@@ -112,14 +117,19 @@ Proceso* fifo(){
 }
 float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
-	if(!(*proc).rafagaRealActual){
+	if((*proc).rafagaRealActual){
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
 	}
 	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
 		(*aux)=(*proc).estimacionAnterior;
 	}
-	else
-		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) -(1-alfaPlanificador)*((*proc).estimacionAnterior);
+	else{
+		imprimir(rojo,"rafagaREalActual %f\n",(*proc).rafagaRealActual);
+		imprimir(rojo,"rafagaREalAnterior %f\n",(*proc).rafagaRealAnterior);
+		//(*aux) = alfaPlanificador*((*proc).rafagaRealActual) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
+		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
+	}
+
 	return (void*) aux;
 }
 bool compararSJF(void *a,void *b){
@@ -127,6 +137,8 @@ bool compararSJF(void *a,void *b){
 	Proceso *segundo=(Proceso *) b;
 	float af=(*(estimarSJF(a)));
 	float bf=(*(estimarSJF(b)));
+	(*primero).estimacionAnterior=af;
+	(*segundo).estimacionAnterior=bf;
 	printf("\n%f\n",af);
 	printf("\n%f\n",bf);
 	fflush(stdout);
@@ -283,6 +295,7 @@ void bloquearPorConsola(char *clave,int id){
 	else
 		log_warning(logger,"El proceso no se encontraba en listo o ejecucion");
 }
+//jiava
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
 	char *aux=malloc(strlen(clave)+1);
 	strcpy(aux,clave);
@@ -306,6 +319,10 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		}
 		else{
 			log_warning(logger,"No se puede usar, se agrega a la cola de bloqueados");
+			if(procesoEnEjecucion){
+				(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
+				(*procesoEnEjecucion).rafagaRealActual=0;
+			}
 			(*procesoEnEjecucion).estado = bloqueado;
 			list_add((*block).bloqueados,procesoEnEjecucion);
 			procesoEnEjecucion = NULL;
@@ -572,8 +589,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
-                            	   tiempo_de_ejecucion++;
-                            	   (*procesoEnEjecucion).rafagaRealActual++;
                             	   if(flag_desalojo && flag_nuevoProcesoEnListo){
                             		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
                             	   else sem_post(&sem_ESIejecutoUnaSentencia);
@@ -606,8 +621,10 @@ void main()
 	sem_init(&sem_ESIejecutoUnaSentencia,0,1);
 	sem_init(&sem_finDeEjecucion,0,1);
 	sem_init(&semCambioEstado,0,0);
+	sem_init(&sem_pausar,0,1);
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
+	tiempo_de_ejecucion=0;
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create(pathPlanificador);
 	logTest("Se creo archivo config",Blanco);
