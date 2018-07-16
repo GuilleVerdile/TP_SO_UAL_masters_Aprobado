@@ -388,6 +388,46 @@ instancia* lsu(instancia* instanciaAUsar){
 	return NULL;
 }
 
+int contarCantidadDeInstanciasDisponibles(){
+	int i = 0;
+	instancia* unaInstancia;
+	while((unaInstancia = list_get(instancias,0))!= NULL){
+		if((*unaInstancia).estaDisponible)
+		i++;
+	}
+	return i;
+}
+
+int obtenerLetra(){
+	int restarSegunMayusOMinus = 65;
+	if(claveAComunicar[0] >= 97){
+		restarSegunMayusOMinus = 97;
+	}
+	return claveAComunicar[0]-restarSegunMayusOMinus;
+}
+
+instancia* keyExplicit(instancia* instancia){
+	if(instancia == NULL){
+		int cantidadInstancias = contarCantidadDeInstanciasDisponibles();
+		int rangoAscii = 25/cantidadInstancias;
+		if(25%cantidadInstancias){
+			rangoAscii++;
+		}
+		int nroInstancia = 0;
+		int i =0;
+		int letraABuscar = obtenerLetra();
+		while((instancia = list_get(instancias,i))){
+			if((*instancia).estaDisponible){
+				if(letraABuscar>= nroInstancia*rangoAscii && letraABuscar <= (nroInstancia+1)*rangoAscii){
+					return instancia;
+				}
+				nroInstancia++;
+			}
+			i++;
+		}
+	}
+	return NULL;
+}
 
 void compactacionSimultanea(int semaforoNoNecesario){
 	int nroSemaforo = 0;
