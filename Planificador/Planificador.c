@@ -144,13 +144,23 @@ bool compararHRRN(void *a,void *b){
 	return (*(estimarHRRN(a)))>=(*(estimarHRRN(b)));
 }
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
+	imprimir(rojo,"ttttttt");
 	t_list *aux=list_duplicate(listos);
-	Proceso *proceso;
-	list_sort(aux,comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
-	proceso=list_get(aux,0);
-	list_destroy(aux);
-	idBuscar = (*proceso).idProceso;
-	list_remove_by_condition(listos,&procesoEsIdABuscar); //ELIMINO EL PROCESO QUE COINCIDA CON TAL ID EN LA COLA DE LISTOS
+	imprimir(rojo,"zzzzzzzzzzzzzz");
+	Proceso *proceso=NULL;
+	if(list_get(listos,0)!=NULL){//REVISAR ESTA SOLUCION PARA QUE NO MUERA EL PLANIFICADOR*******
+			list_sort(aux,comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
+			imprimir(rojo,"aaaaaaaaaaa");
+			proceso=list_get(aux,0);
+			imprimir(rojo,"ssssssssssss");
+			list_destroy(aux);
+			imprimir(rojo,"mmmmmmmmmm");
+			idBuscar = (*proceso).idProceso;
+			imprimir(magenta,"%d",idBuscar);
+			imprimir(rojo,"wwwwwwwwwww");
+			list_remove_by_condition(listos,&procesoEsIdABuscar); //ELIMINO EL PROCESO QUE COINCIDA CON TAL ID EN LA COLA DE LISTOS
+			imprimir(rojo,"xxxxxxxxxxx");
+	}
 	return proceso;
 }
 Proceso *sjf(){

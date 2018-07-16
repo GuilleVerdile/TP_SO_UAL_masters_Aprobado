@@ -43,16 +43,10 @@ void* hacerUnaOperacion(){
 		destruir_operacion(operacion);
 		recv(sockcoordinador,resultado,2,0);
 		log_info(logger,"Se realizo la operacion");
-		log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":"ABORTA");
+		log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
 		if(resultado[0] != 'b')
-		send(sockplanificador,resultado,2,0);
+			send(sockplanificador,resultado,2,0);
 	}
-	else{
-		send(sockplanificador,"a",2,0);
-		log_error(logger, "La linea <%s> no es valida",linea);
-		exit(-1);
-	}
-
 }
 
 int main(int argc, char**argv){
