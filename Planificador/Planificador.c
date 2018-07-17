@@ -41,13 +41,14 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	logTest("esperando segnal de sem planificador",Blanco);
 	//hay que parar
 	sem_wait(&sem_replanificar);
+	flag_seEnvioSignalPlanificar=0;
 	//
 	sem_wait(&sem_pausar);
 	sem_post(&sem_pausar);
 	//
 	logTest("se obtuvo segnal de sem planificador",Blanco);
 	// aca necesito sincronizar para que se ejecute solo cuando le den la segnal de replanificar
-	//no se si aca hay que hacer malloc esta bien ya que lo unico que quiero es un puntero que va a apuntar a la direccion de memoria que me va a pasar mi algoritmo
+	//
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
 	if(proceso){
@@ -88,6 +89,7 @@ void *ejecutarEsi(void *esi){
 			sem_wait(&semCambioEstado);
 			pthread_mutex_unlock(&mutex_pausa);
 		}
+		//el proceso esi actual dejo de ser el que tiene que ejecutar
 		sem_post(&sem_finDeEjecucion);
 		log_info(log_ejecutarEsi, "se da segnal de fin de ejecucion");
 	}
@@ -102,7 +104,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).rafagaRealActual=0;
 	(*proceso).rafagaRealAnterior=0;
 	(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
-	 list_add(listos, proceso);
+	meterEsiColaListos(proceso);
 	 list_add(procesos, proceso);
 	 flag_nuevoProcesoEnListo = 1;
 	 idGlobal++;
@@ -150,7 +152,10 @@ float* estimarHRRN(Proceso *proc){
 	s=estimarSJF(proc);
 	(*w)=tiempo_de_ejecucion-(*proc).tiempo_que_entro;
 	float *aux=malloc(sizeof(float));
+	imprimir(rojo,"S ->%f",*s );
+	imprimir(rojo,"W ->%f",*w);
 	(*aux)=(*w)/(*s);
+	imprimir(rojo,"RR ->%f",*aux);
 	free(s);
 	free(w);
 	return aux;
@@ -158,7 +163,9 @@ float* estimarHRRN(Proceso *proc){
 bool compararHRRN(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	return (*(estimarHRRN(a)))>=(*(estimarHRRN(b)));
+	float af=(*(estimarHRRN(a)));
+	float bf=(*(estimarHRRN(b)));
+	return af>=bf;
 }
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	imprimir(rojo,"ttttttt");
@@ -328,6 +335,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			procesoEnEjecucion = NULL;
 			sem_post(&sem_ESIejecutoUnaSentencia);
 			sem_post(&semCambioEstado);
+			//revisar este semaforo
 			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
@@ -372,9 +380,8 @@ void liberaClave(char *clave){
 				}
 				else
 				(*block).idProceso=-1;
-				(*proceso).estado=listo;
-				list_add(listos,proceso);
-				sem_post(&sem_replanificar);
+				//(*proceso).estado=listo;
+				meterEsiColaListos(proceso);
 			}
 			else{
 				log_info(logger,"La clave %s NO tiene procesos bloqueados",clave);
@@ -503,11 +510,11 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                      fdmax = nuevoCliente;
                                  }
                                  planificadorLargoPlazo(nuevoCliente,estimacionInicial);
-                                 if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
+                                 /*if(procesoEnEjecucion==NULL){ //SI ES NULL SIGNIFICA QUE NO HAY NADIE EN EJECUCION.
                                 	 log_info(logger,"Se decidio replanificar :D");
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
-                                 }
+                                 }*/
                                  logImportante("Ingreso un nuevo ESI",Azul);
                              }
                          }
@@ -614,6 +621,9 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 void main()
     {
+	//jiva
+	flag_seEnvioSignalPlanificar=0;
+	//
 	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	sem_init(&sem_replanificar,0,0);
@@ -648,6 +658,10 @@ void main()
 			miAlgoritmo=&sjf;
 			flag_desalojo=0;
 		}
+	if(!strcmp(algoritmo,"HRRN")){
+				miAlgoritmo=&hrrn;
+				flag_desalojo=0;
+			}
 	logImportante("Se asigno el algoritmo %s",Azul,algoritmo);
 	config_destroy(config);
 	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
@@ -888,3 +902,35 @@ bool algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 	}
 	return !compararElementosVectores(vectorRecursosTotales,vectorRecursosActuales,&elementoIgual,columnas);
 }
+//Planificacion
+void enviarSegnalPlanificar(){
+	//si todavia no se envio la signal
+	if(!flag_seEnvioSignalPlanificar){
+		flag_seEnvioSignalPlanificar=1;
+		sem_post(&sem_replanificar);
+	}
+}
+void meterEsiColaListos(Proceso *proceso){
+	list_add(listos,proceso);
+
+if((*proceso).estado==bloqueado||flag_desalojo==1){
+	//si estaba bloqueado y lo quiero agregar fue porque se desbloqueo
+	enviarSegnalPlanificar();
+}
+else if((*proceso).estado==ejecucion){
+	//el proceso en ejecucion fue desalojado por algun otro proceso
+	//no tengo que replanificar
+}
+//aca quiere decir que es proceso nuevo
+else{
+	//llego proceso nuevo y esta habilitado el desalojo entonces replanifico
+	if(flag_desalojo==1){
+		enviarSegnalPlanificar();
+	}
+}
+if(procesoEnEjecucion==NULL){
+	enviarSegnalPlanificar();
+}
+(*proceso).estado=listo;
+}
+

@@ -42,9 +42,12 @@ sem_t sem_finDeEjecucion;
 //semaforos in jiava lenguage
 sem_t sem_pausar;
 pthread_mutex_t mutex_pausa;
+//flags in jiava lenguage
+int flag_seEnvioSignalPlanificar;
 //
 sem_t sem_finDeEsiCompleto;
 sem_t semCambioEstado;
+
 int flag_desalojo;
 int flag_nuevoProcesoEnListo;
 int tiempo_de_ejecucion;
