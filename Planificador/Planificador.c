@@ -41,7 +41,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	logTest("esperando segnal de sem planificador",Blanco);
 	//hay que parar
 	sem_wait(&sem_replanificar);
-	flag_seEnvioSignalPlanificar=0;
+
 	//
 	sem_wait(&sem_pausar);
 	sem_post(&sem_pausar);
@@ -51,6 +51,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	//
 	Proceso *proceso; // ese es el proceso que va a pasar de la cola de ready a ejecucion
 	proceso = (*algoritmo)();
+
 	if(proceso){
 	logImportante("Se selecciono un proceso por el algoritmo",Azul);
 	logTest("Esperando el semaforo sem fin de ejecucion",Blanco);
@@ -59,6 +60,9 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	(*proceso).estado=ejecucion;
 	procesoEnEjecucion=proceso;
 	logTest("Se paso el semaforo sem fin de ejecucion",Blanco);
+
+	flag_seEnvioSignalPlanificar=0;
+
 	sem_post(&sem_procesoEnEjecucion);
 	logTest("se dio segnal de ejecutar el esi en ejecucion",Blanco);
 	// el while de abajo termina cuando el proceso pasa a otra lista es decir se pone en otro estado que no sea el de ejecucion
@@ -103,7 +107,7 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).estimacionAnterior=(float)estimacionInicial;
 	(*proceso).rafagaRealActual=0;
 	(*proceso).rafagaRealAnterior=0;
-	(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
+
 	meterEsiColaListos(proceso);
 	 list_add(procesos, proceso);
 	 flag_nuevoProcesoEnListo = 1;
@@ -154,7 +158,7 @@ float* estimarHRRN(Proceso *proc){
 	float *aux=malloc(sizeof(float));
 	imprimir(rojo,"S ->%f",*s );
 	imprimir(rojo,"W ->%f",*w);
-	(*aux)=(*w)/(*s);
+	(*aux)=(float)1+(float)(*w)/(*s);
 	imprimir(rojo,"RR ->%f",*aux);
 	free(s);
 	free(w);
@@ -516,6 +520,9 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }*/
+                                 if(procesoEnEjecucion==NULL){
+                                 	enviarSegnalPlanificar();
+                                 }
                                  logImportante("Ingreso un nuevo ESI",Azul);
                              }
                          }
@@ -634,7 +641,7 @@ void main()
 	flag_seEnvioSignalPlanificar=0;
 	flag_quierenDesalojar=0;
 	//
-	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
+	log_test=log_create(logPlanificador,"Plani_test",0, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	sem_init(&sem_replanificar,0,0);
 	sem_init(&sem_procesoEnEjecucion,0,0);
@@ -949,6 +956,7 @@ else{
 if(procesoEnEjecucion==NULL){
 	enviarSegnalPlanificar();
 }
+(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
 (*proceso).estado=listo;
 }
 
