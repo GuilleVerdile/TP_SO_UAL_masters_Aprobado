@@ -596,8 +596,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
-                            	   if(flag_desalojo && flag_nuevoProcesoEnListo){
-                            		  sem_post(&sem_replanificar); flag_nuevoProcesoEnListo = 0;}
+                            	   if(flag_quierenDesalojar&&flag_desalojo)
+                            		   meterEsiColaListos(procesoEnEjecucion);
                             	   else sem_post(&sem_ESIejecutoUnaSentencia);
                             	   sem_post(&semCambioEstado);
                                    break;
@@ -623,6 +623,7 @@ void main()
     {
 	//jiva
 	flag_seEnvioSignalPlanificar=0;
+	flag_quierenDesalojar=0;
 	//
 	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
@@ -913,7 +914,11 @@ void enviarSegnalPlanificar(){
 void meterEsiColaListos(Proceso *proceso){
 	list_add(listos,proceso);
 
-if((*proceso).estado==bloqueado||flag_desalojo==1){
+if((*proceso).estado==bloqueado&&flag_desalojo==1){
+	if(procesoEnEjecucion!=NULL){
+		//tengo que esperar a que finalice su sentencia
+		flag_quierenDesalojar=1;
+	}
 	//si estaba bloqueado y lo quiero agregar fue porque se desbloqueo
 	enviarSegnalPlanificar();
 }
@@ -925,6 +930,10 @@ else if((*proceso).estado==ejecucion){
 else{
 	//llego proceso nuevo y esta habilitado el desalojo entonces replanifico
 	if(flag_desalojo==1){
+		if(procesoEnEjecucion!=NULL){
+			//tengo que esperar a que finalice su sentencia
+			flag_quierenDesalojar=1;
+		}
 		enviarSegnalPlanificar();
 	}
 }

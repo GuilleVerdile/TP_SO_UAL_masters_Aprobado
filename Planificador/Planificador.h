@@ -44,6 +44,7 @@ sem_t sem_pausar;
 pthread_mutex_t mutex_pausa;
 //flags in jiava lenguage
 int flag_seEnvioSignalPlanificar;
+int flag_quierenDesalojar;
 //
 sem_t sem_finDeEsiCompleto;
 sem_t semCambioEstado;
@@ -108,4 +109,7 @@ void bloquearPorConsola(char *clave,int id);
 float* estimarHRRN(Proceso *proc);
 bool compararHRRN(void *a,void *b);
 bool algoritmoBanquero();
+//jiava
+void meterEsiColaListos(Proceso *proceso);
+void enviarSegnalPlanificar();
 #endif /* SOCKET_PLANIFICADOR_H_ */
