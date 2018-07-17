@@ -336,7 +336,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			sem_post(&sem_ESIejecutoUnaSentencia);
 			sem_post(&semCambioEstado);
 			//revisar este semaforo
-			sem_post(&sem_replanificar); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
+			enviarSegnalPlanificar(); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
 }
@@ -426,7 +426,8 @@ void matarESI(int id){
 		list_remove_by_condition(listos,&procesoEsIdABuscar);
 	}
 	if((*procesoEnEjecucion).idProceso==id){
-		sem_post(&sem_replanificar);
+		//sem_post(&sem_replanificar);
+		enviarSegnalPlanificar();
 	}
 	liberarRecursos(id);
 	idBuscar = id;
@@ -591,14 +592,22 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                switch(buf[0]){
                                case 'f':
                             	   terminarProceso();
-                            	   sem_post(&sem_replanificar);
+                            	  // sem_post(&sem_replanificar);
+                            	   if(list_get(listos,0)!=NULL)
+                            		   //envia solo la signal si no hay mas procesos para planificar
+                            		   enviarSegnalPlanificar();
                             	   close(i); // cierra socket
                             	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
-                            	   if(flag_quierenDesalojar&&flag_desalojo)
+                            	   if(flag_quierenDesalojar&&flag_desalojo){
+                            		   //ver la linea de abajo SOLUCION VAGA NO ME PARECE QUE DEBA ESTAR
+                            		   flag_quierenDesalojar=0;
                             		   meterEsiColaListos(procesoEnEjecucion);
-                            	   else sem_post(&sem_ESIejecutoUnaSentencia);
+                            		   //ESTO ES PARTE DE LA SOLUCION VAGA
+                            		   //enviarSegnalPlanificar();
+                            	   }
+                            	   sem_post(&sem_ESIejecutoUnaSentencia);
                             	   sem_post(&semCambioEstado);
                                    break;
                                case 'a':
