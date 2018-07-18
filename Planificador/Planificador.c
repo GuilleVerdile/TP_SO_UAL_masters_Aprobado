@@ -340,7 +340,8 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			sem_post(&sem_ESIejecutoUnaSentencia);
 			sem_post(&semCambioEstado);
 			//revisar este semaforo
-			enviarSegnalPlanificar(); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
+			if(list_get(listos,0)!=NULL)//SI NO ESTA VACIA LA LISTA DE DE LISTOS
+				enviarSegnalPlanificar(); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
 	}
 }
@@ -638,7 +639,7 @@ void main()
 	flag_seEnvioSignalPlanificar=0;
 	flag_quierenDesalojar=0;
 	//
-	log_test=log_create(logPlanificador,"Plani_test",0, LOG_LEVEL_INFO);
+	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	sem_init(&sem_replanificar,0,0);
 	sem_init(&sem_procesoEnEjecucion,0,0);
@@ -801,9 +802,14 @@ bool noLoPosee(int indexProceso,int indexClave){
 }
 bool estaBloqueado(int indexProceso,int indexClave){
 	Bloqueo *block=list_get(bloqueados,indexClave);
-	Proceso *proceso=list_get(procesos,indexProceso);
-	idBuscar = (*proceso).idProceso;
-	return contieneAlProceso(block);
+	if(indexProceso<0){
+			return false;
+	}
+	else{
+		Proceso *proceso=list_get(procesos,indexProceso);
+		idBuscar = (*proceso).idProceso;
+		return contieneAlProceso(block);
+	}
 }
 //
 int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encargado de rellenar los valores de la matriz
@@ -851,8 +857,8 @@ bool elementoIgual(int a,int b){
 }
 bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int cantidadElementosAComparar){
 	for(int i=0;i<cantidadElementosAComparar;i++){
-		imprimir(blanco,"%d",a[i]);
-		imprimir(rojo,"%d",b[i]);
+		/*imprimir(blanco,"%d",a[i]);
+		imprimir(rojo,"%d",b[i]);*/
 		if(!comparador(a[i],b[i]))//Si no se cumple la condicion de comparacion para algun elemento retorno falso
 			return false;
 	}
@@ -891,9 +897,9 @@ bool retieneAlgo(int index,int**matrizDeAsignados,int columnas){
 	int *vec = matrizDeAsignados[index];
 	for(int i=0;i<columnas;i++){
 		if(vec[i]!=0)
-			return false;
+			return true;
 	}
-	return true;
+	return false;
 }
 t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int filas=cantidadDeFilasProcesos();
@@ -933,12 +939,13 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 			//
 		}
 		else{
-				int elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
+				int *elMejor=malloc(sizeof(int));
+				(*elMejor)=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
 				//
 				list_add(indicesDescartados,elMejor);
 				list_clean(indicesQueCumplen);
 				//
-				sumarVectores(vectorRecursosActuales,matrizDeAsignados[elMejor],columnas);
+				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
 			}
 			j++;
 	}
@@ -996,3 +1003,16 @@ if(procesoEnEjecucion==NULL){
 }
 
 //
+void deadlock(){
+	t_list *elementos=algoritmoBanquero();
+	if(list_get(elementos,0)==NULL){
+		imprimir(rojo,"NO HAY DEADLOCK");
+	}
+	else{
+		for(int i=0;i<list_size(elementos);i++){
+			int *index=list_get(elementos,i);
+			Proceso *proceso=list_get(procesos,(*index));
+			imprimir(rojo,"El proceso de id : %d esta en deadlock",(*proceso).idProceso);
+		}
+	}
+}

@@ -45,11 +45,7 @@ void consola() {
     	    	imprimir(magenta,"Usted ingreso Deadlock\n");
     	    	logTest("Se ingreso comando Deadlock",Blanco);
     	    	pthread_mutex_lock(&mutex_pausa);
-    	    	if(algoritmoBanquero())
-    	    		imprimir(azul,"Hay deadlock");
-    	    	else
-    	    		imprimir(azul,"No hay deadlock");
-
+    	    	deadlock();
     	    	pthread_mutex_unlock(&mutex_pausa);
     	    }
     	    else{

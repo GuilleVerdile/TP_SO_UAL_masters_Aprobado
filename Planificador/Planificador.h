@@ -109,7 +109,9 @@ void bloquearPorConsola(char *clave,int id);
 float* estimarHRRN(Proceso *proc);
 bool compararHRRN(void *a,void *b);
 t_list *algoritmoBanquero();
+void deadlock();
 //jiava
+
 void meterEsiColaListos(Proceso *proceso);
 void enviarSegnalPlanificar();
 #endif /* SOCKET_PLANIFICADOR_H_ */
