@@ -886,10 +886,19 @@ int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadCo
 	}
 	return auxIndice;
 }
-t_list *algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
+//
+bool retieneAlgo(int index,int**matrizDeAsignados,int columnas){
+	int *vec = matrizDeAsignados[index];
+	for(int i=0;i<columnas;i++){
+		if(vec[i]!=0)
+			return false;
+	}
+	return true;
+}
+t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
-	int **matrizDeAsignados=dameMatriz(&loPosee);
+	int **matrizDeAsignados=dameMatriz(&loPosee);//retencion
 	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
 	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
 	int *vectorRecursosTotales=dameVector(&total);
@@ -914,7 +923,8 @@ t_list *algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 			for(int k=0;k<filas;k++){
 				int *aux=malloc(sizeof(int));
 				(*aux)=k;
-				if(!estaElProceso(indicesDescartados,k)){
+				if(!estaElProceso(indicesDescartados,k)&&
+						retieneAlgo(k,matrizDeAsignados,columnas)){
 					list_add(indicesProcesosQueEstanEnDeadlock,aux);
 				}
 			}
@@ -937,7 +947,7 @@ t_list *algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 		for(int k=0;k<filas;k++){
 					int *aux=malloc(sizeof(int));
 					(*aux)=k;
-					if(!estaElProceso(indicesDescartados,k)){
+					if(!estaElProceso(indicesDescartados,k)&&retieneAlgo(k,matrizDeAsignados,columnas)){
 						list_add(indicesProcesosQueEstanEnDeadlock,aux);
 					}
 				}
