@@ -377,7 +377,7 @@ void liberaClave(char *clave){
 			log_info(logger,"La clave %s tiene procesos bloqueados",clave);
 				Proceso *proceso=list_remove((*block).bloqueados,0);
 				log_info(logger,"Se removio el primer elemento de la lista de bloqueados");
-				if(list_is_empty((*block).bloqueados)){
+				if(list_get((*block).bloqueados,0)==NULL){
 					log_info(logger,"la clave %s NO POSEE elementos bloqueados",clave);
 					claveABuscar=clave;
 					list_remove_by_condition(bloqueados,&esIgualAClaveABuscar);
@@ -745,8 +745,13 @@ bool esIgualAlIndixeABuscar(void *i){
 	return (*index)==idBanquero;
 }
 bool estaElProceso(t_list *a,int index){
-	idBanquero=index;
-	return list_any_satisfy(a,&esIgualAlIndixeABuscar);
+	if(list_get(a,0)==NULL)
+		return false;
+	else
+	{
+		idBanquero=index;
+		return list_any_satisfy(a,&esIgualAlIndixeABuscar);
+	}
 }
 //
 //Funciones de matriz
@@ -801,11 +806,11 @@ bool noLoPosee(int indexProceso,int indexClave){
 	}
 }
 bool estaBloqueado(int indexProceso,int indexClave){
-	Bloqueo *block=list_get(bloqueados,indexClave);
 	if(indexProceso<0){
 			return false;
 	}
 	else{
+		Bloqueo *block=list_get(bloqueados,indexClave);
 		Proceso *proceso=list_get(procesos,indexProceso);
 		idBuscar = (*proceso).idProceso;
 		return contieneAlProceso(block);
@@ -823,26 +828,34 @@ int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encarga
 	    for (i=0; i<filas; i++)
 	         matriz[i] = (int *)malloc(columnas * sizeof(int));
 	 //meto valores
-	 for (i = 0; i <  list_size(procesos); i++)
-	         for (int j = 0; j < columnas; j++)
-	            matriz[i][j] = discriminante(i,j) ;
+	 for (i = 0; i <  list_size(procesos); i++){
+		  for (int j = 0; j < columnas; j++)
+			            matriz[i][j] = discriminante(i,j) ;
+	 }
 	 if(estaElProcesoZero()){
 		 for (int j = 0; j < columnas; j++)
 			  matriz[filas-1][j] = discriminante(-1,j) ;
 	 }
 	 return matriz;
 }
+void imprimirMatriz(int **a,int filas,int columnas){
+	 for (int i = 0; i < filas; i++){
+			  for (int j = 0; j < columnas; j++){
+				  printf("%d " ,a[i][j]);
+			  }
+			  printf("\n");
+}
+}
 //DISCRIMINANTES VECTORES
 bool total(int index){
-	return 1;
+	return true;
 }
 bool actual(int index){
 	Bloqueo *block = list_get(bloqueados,index);
-	return (*block).idProceso==-1;//Esta libre
+	return ((*block).idProceso==-1);//Esta libre
 }
 //
-int *dameVector(bool (*discriminante) (int)){
-	int elementos=cantidadColumasClaves();
+int *dameVector(bool (*discriminante) (int),int elementos){
 	int *vector = (int *)malloc(elementos * sizeof(int));
 	  for (int i = 0; i < elementos; i++)
 		            vector[i] = discriminante(i);
@@ -868,7 +881,8 @@ bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int ca
 //Funciones de manejo de indices
 void sumarVectores(int *a,int *b,int cantidadElementosAComparar){
 	for(int i=0;i<cantidadElementosAComparar;i++){
-			a[i]=a[i]+b[i];
+			printf(" %d|%d\n",(*a+i),(*b+i));
+
 		}
 }
 //Para obtener el mejor caso
@@ -879,15 +893,15 @@ int dameLaNorma(int *a,int cantElementos){
 			}
 	return aux;
 }
-int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadColumnas){
+int *dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadColumnas){
 	int aux=0;
-	int auxIndice=0;
+	int *auxIndice;
 	for(int i=0;i<list_size(indicesQueCumplen);i++){
 		int *indice=list_get(indicesQueCumplen,i);
 		int aux2 = dameLaNorma(matrizDeAsignados[(*indice)],cantidadColumnas);
 		if(aux2>aux){
 			aux=aux2;
-			auxIndice=(*indice);
+			auxIndice=indice;
 		}
 	}
 	return auxIndice;
@@ -901,14 +915,24 @@ bool retieneAlgo(int index,int**matrizDeAsignados,int columnas){
 	}
 	return false;
 }
+void imprimirVector(int *a,int columnas){
+	for(int i=0;i<columnas;i++){
+		printf("%d ",a[i]);
+	}
+	printf("\n ");
+}
 t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
 	int **matrizDeAsignados=dameMatriz(&loPosee);//retencion
 	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
 	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
-	int *vectorRecursosTotales=dameVector(&total);
-	int *vectorRecursosActuales=dameVector(&actual);
+	imprimirMatriz(matrizDeAsignados,filas,columnas);
+	imprimirMatriz(matrizDeNecesidad,filas,columnas);
+	int *vectorRecursosTotales=dameVector(&total,columnas);
+	int *vectorRecursosActuales=dameVector(&actual,columnas);
+	imprimirVector(vectorRecursosTotales,columnas);
+	imprimirVector(vectorRecursosActuales,columnas);
 	//INDICES
 	t_list *indicesQueCumplen=list_create();
 	t_list *indicesDescartados=list_create();
@@ -923,9 +947,11 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 			}
 			i++;
 		}
+		//
 		if(list_get(indicesQueCumplen,0)==NULL){
 			//No se encontraron filas que cumplan con la condicion
 			//REFACTORIZAR ESTA PARTE
+			imprimir(azul,"yupi me fui");
 			for(int k=0;k<filas;k++){
 				int *aux=malloc(sizeof(int));
 				(*aux)=k;
@@ -939,18 +965,23 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 			//
 		}
 		else{
-				int *elMejor=malloc(sizeof(int));
-				(*elMejor)=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
+			imprimir(azul,"encontre >OOOO");
+				int *elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
 				//
+
 				list_add(indicesDescartados,elMejor);
+
 				list_clean(indicesQueCumplen);
-				//
+
+				imprimirVector(matrizDeAsignados[(*elMejor)],columnas);
+
 				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
 			}
 			j++;
 	}
 	//REVISAR ESTA PARTE
 	if(!compararElementosVectores(vectorRecursosActuales,vectorRecursosTotales,&elementoMenorOIgual,columnas)){
+		imprimir(azul,"asdasdqseqwewqeqw");
 		for(int k=0;k<filas;k++){
 					int *aux=malloc(sizeof(int));
 					(*aux)=k;
