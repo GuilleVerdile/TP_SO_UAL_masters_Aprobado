@@ -345,26 +345,19 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 		}
 	}
 }
+void aplicacion(void *a){
+	Bloqueo *block=(Bloqueo *) a;
+	if((*block).idProceso==idBuscar){
+				liberaClave((*block).clave);
+	}
+	else{
+				list_remove_by_condition((*block).bloqueados,&procesoEsIdABuscar);
+			}
+}
 void liberarRecursos(int id){
 	Bloqueo *block;
 	int i=0;
-	while((block=list_get(bloqueados,i))!=NULL){
-		if((*block).idProceso==id){
-			liberaClave((*block).clave);
-		}
-		else{
-			Proceso *proceso;
-			int j=0;
-			while((proceso=list_get((*block).bloqueados,j))!=NULL){
-				if((*proceso).idProceso==id){
-					list_remove((*block).bloqueados,j);
-					break;
-				}
-				j++;
-			}
-		}
-		i++;
-	}
+	list_iterate(bloqueados,aplicacion);
 }
 
 void liberaClave(char *clave){
@@ -596,6 +589,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                int tam;
                                switch(buf[0]){
                                case 'f':
+                            	   imprimir(magenta,"SE VA A TERMINAR EL PROCESO");
                             	   terminarProceso();
                             	  // sem_post(&sem_replanificar);
                             	   if(list_get(listos,0)!=NULL)
