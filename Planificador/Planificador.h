@@ -108,7 +108,7 @@ void destruirUnBloqueado(void *elemento);
 void bloquearPorConsola(char *clave,int id);
 float* estimarHRRN(Proceso *proc);
 bool compararHRRN(void *a,void *b);
-bool algoritmoBanquero();
+t_list *algoritmoBanquero();
 //jiava
 void meterEsiColaListos(Proceso *proceso);
 void enviarSegnalPlanificar();

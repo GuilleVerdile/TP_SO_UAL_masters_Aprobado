@@ -520,9 +520,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 	 sem_post(&sem_replanificar);
                                 	 flag_nuevoProcesoEnListo = 0; //COMO YA METI UN NUEVO PROCESO A EJECUCION NO HACE FALTA QUE REPLANIFIQUE EN CASO DE DESALOJO
                                  }*/
-                                 if(procesoEnEjecucion==NULL){
-                                 	enviarSegnalPlanificar();
-                                 }
                                  logImportante("Ingreso un nuevo ESI",Azul);
                              }
                          }
@@ -792,7 +789,6 @@ bool loPosee(int indexProceso,int indexClave){
 		return (*proceso).idProceso==(*block).idProceso;
 	}
 }
-//
 bool noLoPosee(int indexProceso,int indexClave){
 	Bloqueo *block=list_get(bloqueados,indexClave);
 	if(indexProceso<0){
@@ -803,6 +799,13 @@ bool noLoPosee(int indexProceso,int indexClave){
 		return (*proceso).idProceso!=(*block).idProceso;
 	}
 }
+bool estaBloqueado(int indexProceso,int indexClave){
+	Bloqueo *block=list_get(bloqueados,indexClave);
+	Proceso *proceso=list_get(procesos,indexProceso);
+	idBuscar = (*proceso).idProceso;
+	return contieneAlProceso(block);
+}
+//
 int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encargado de rellenar los valores de la matriz
 	//Ver como refactorizar estos 2 enteros
 	int filas=cantidadDeFilasProcesos();
@@ -883,16 +886,18 @@ int dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadCo
 	}
 	return auxIndice;
 }
-bool algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
+t_list *algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
 	int **matrizDeAsignados=dameMatriz(&loPosee);
-	int **matrizDeNecesidad=dameMatriz(&noLoPosee);
+	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
+	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
 	int *vectorRecursosTotales=dameVector(&total);
 	int *vectorRecursosActuales=dameVector(&actual);
 	//INDICES
 	t_list *indicesQueCumplen=list_create();
 	t_list *indicesDescartados=list_create();
+	t_list *indicesProcesosQueEstanEnDeadlock=list_create();
 	for (int j=0;j<filas;j++){
 		for(int i=0;i<filas;i++){
 			int *aux=malloc(sizeof(int));
@@ -905,7 +910,17 @@ bool algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 		}
 		if(list_get(indicesQueCumplen,0)==NULL){
 			//No se encontraron filas que cumplan con la condicion
-			return true;
+			//REFACTORIZAR ESTA PARTE
+			for(int k=0;k<filas;k++){
+				int *aux=malloc(sizeof(int));
+				(*aux)=k;
+				if(!estaElProceso(indicesDescartados,k)){
+					list_add(indicesProcesosQueEstanEnDeadlock,aux);
+				}
+			}
+
+			return indicesProcesosQueEstanEnDeadlock;
+			//
 		}
 		else{
 				int elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
@@ -917,7 +932,17 @@ bool algoritmoBanquero(){//devuelve true si hay deadlock false si no lo hay
 			}
 			j++;
 	}
-	return !compararElementosVectores(vectorRecursosTotales,vectorRecursosActuales,&elementoIgual,columnas);
+	//REVISAR ESTA PARTE
+	if(!compararElementosVectores(vectorRecursosActuales,vectorRecursosTotales,&elementoMenorOIgual,columnas)){
+		for(int k=0;k<filas;k++){
+					int *aux=malloc(sizeof(int));
+					(*aux)=k;
+					if(!estaElProceso(indicesDescartados,k)){
+						list_add(indicesProcesosQueEstanEnDeadlock,aux);
+					}
+				}
+	}
+	return indicesProcesosQueEstanEnDeadlock;
 }
 //Planificacion
 void enviarSegnalPlanificar(){
@@ -960,3 +985,4 @@ if(procesoEnEjecucion==NULL){
 (*proceso).estado=listo;
 }
 
+//
