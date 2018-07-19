@@ -159,9 +159,10 @@ void* hacerDump(){
 }
 
 void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
+		//Garantizo mutua exclusion al ejecutar la seccion critica
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 		if(!(*tabla).seAlmacenoElValor){
-		pthread_mutex_lock(&mutexAlmacenamiento);	//Garantizo mutua exclusion al ejecutar la seccion critica
+		log_error(logger,"La posicion de la tabla %d",posTabla);
 		char* aux = string_new();
 		string_append(&aux,path);
 		char* valor = string_new();
@@ -170,15 +171,15 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 			cantidadEntradasALeer++;
 		}
 		int posEntrada = posicionDeLaEntrada((*tabla).entrada);
-		log_trace(logger,"La posicion de entrada es %d",posEntrada);
-		log_trace(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
+		log_error(logger,"La posicion de entrada es %d",posEntrada);
+		log_error(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
 		for(int j = 0; j<cantidadEntradasALeer; j++){
 			char* entrada = list_get(entradas,posEntrada);
 			log_trace(logger,"La entrada a almacenar %s",entrada);
 			string_append(&valor,entrada);
 			posEntrada++;
 		}
-		log_trace(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
+		log_error(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
 		string_append(&aux,(*tabla).clave);
 		int desc = open(aux, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		free(aux);
@@ -189,19 +190,21 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 		close(desc);
 		free(valor);
 		(*tabla).seAlmacenoElValor = 1;
-		pthread_mutex_unlock(&mutexAlmacenamiento); //Garantizo mutua exclusion al ejecutar la seccion critica
+		//Garantizo mutua exclusion al ejecutar la seccion critica
 	}
 }
 
 void almacenarTodaInformacion(){
 	int i = 0;
 	tablaEntradas* tabla = list_get(tablas,i);
+	pthread_mutex_lock(&mutexAlmacenamiento);
 	while(tabla && (*tabla).entrada !=NULL)
 	{
 		almacenarInformacionDeTalPosicionDeLaTabla(i);
 		i++;
 		tabla = list_get(tablas,i);
 	}
+	pthread_mutex_unlock(&mutexAlmacenamiento);
 }
 
 int encontrarTablaConTalClave(char clave[40]){
@@ -260,6 +263,7 @@ void enviarEntradasRestantes(){
 void manejarPaquete(t_esi_operacion paquete){
 	int posTabla;
 	char* resultado = "r";
+	pthread_mutex_lock(&mutexAlmacenamiento);
 	switch(paquete.keyword){
 		case GET:
 			log_info(logger,"Se selecciono el caso GET");
@@ -274,7 +278,6 @@ void manejarPaquete(t_esi_operacion paquete){
 				break;
 			}
 			tablaEntradas* tabla = list_get(tablas,posTabla);
-			pthread_mutex_lock(&mutexAlmacenamiento);
 			if((*tabla).entrada!=NULL){ //ME FIJO SI YA TENIA UN VALOR ASIGNADO
 				int cantEntradasNecesarias = strlen(paquete.argumentos.SET.valor)/tamEntradas;
 				if(strlen(paquete.argumentos.SET.valor)%tamEntradas){
@@ -288,8 +291,10 @@ void manejarPaquete(t_esi_operacion paquete){
 				log_info(logger,"La cantidad de entradas ocupadas son %d y las que necesita son %d",cantEntradasOcupadas,cantEntradasNecesarias);
 				int posEntrada = posicionDeLaEntrada((*tabla).entrada);
 				int j = 0;
+				(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
 				if(cantEntradasNecesarias>cantEntradasOcupadas){
 					cantEntradasNecesarias = cantEntradasOcupadas;
+					(*tabla).tamValor = tamEntradas*cantEntradasOcupadas;
 				}
 				while(j < cantEntradasNecesarias){
 					char* entrada =	list_get(entradas,posEntrada);
@@ -310,9 +315,9 @@ void manejarPaquete(t_esi_operacion paquete){
 			}else{
 				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.valor,paquete.argumentos.SET.clave);
 				meterValorParTalClave(paquete.argumentos.SET.valor,tabla);
+				(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
 			}
-			(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
-			pthread_mutex_unlock(&mutexAlmacenamiento);
+
 			free(paquete.argumentos.SET.clave);
 			free(paquete.argumentos.SET.valor);
 			break;
@@ -327,6 +332,7 @@ void manejarPaquete(t_esi_operacion paquete){
 			free(paquete.argumentos.STORE.clave);
 			break;
 	}
+	pthread_mutex_unlock(&mutexAlmacenamiento);
 	if(send(sockcoordinador,resultado,2,0)==-1)
 	{
 		log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
