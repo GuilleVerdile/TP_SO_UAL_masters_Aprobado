@@ -390,7 +390,7 @@ instancia* lsu(instancia* instanciaAUsar){
 int contarCantidadDeInstanciasDisponibles(){
 	int i = 0;
 	instancia* unaInstancia;
-	while((unaInstancia = list_get(instancias,0))!= NULL){
+	while((unaInstancia = list_get(instancias,i))!= NULL){
 		if((*unaInstancia).estaDisponible)
 		i++;
 	}
@@ -412,6 +412,7 @@ instancia* keyExplicit(instancia* instancia){
 		if(25%cantidadInstancias){
 			rangoAscii++;
 		}
+		log_info(logger,"El rango ascii es %d",rangoAscii);
 		int nroInstancia = 0;
 		int i =0;
 		int letraABuscar = obtenerLetra();
