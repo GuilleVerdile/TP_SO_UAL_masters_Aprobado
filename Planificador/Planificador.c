@@ -877,7 +877,7 @@ void sumarVectores(int *a,int *b,int cantidadElementosAComparar){
 		}
 }
 //Para obtener el mejor caso
-int dameLaNorma(int *a,int cantElementos){
+int dameLaNormaInfinita(int *a,int cantElementos){
 	int aux=0;
 	for(int i=0;i<cantElementos;i++){
 				aux=aux+a[i];
@@ -885,11 +885,12 @@ int dameLaNorma(int *a,int cantElementos){
 	return aux;
 }
 int *dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadColumnas){
-	int aux=0;
+	int aux=-1;
 	int *auxIndice;
 	for(int i=0;i<list_size(indicesQueCumplen);i++){
 		int *indice=list_get(indicesQueCumplen,i);
-		int aux2 = dameLaNorma(matrizDeAsignados[(*indice)],cantidadColumnas);
+		imprimir(blanco,"la norma es %d",dameLaNormaInfinita(matrizDeAsignados[(*indice)],cantidadColumnas));
+		int aux2 = dameLaNormaInfinita(matrizDeAsignados[(*indice)],cantidadColumnas);
 		if(aux2>aux){
 			aux=aux2;
 			auxIndice=indice;
@@ -956,17 +957,17 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 		}
 		else{
 			imprimir(azul,"encontre >OOOO");
-			imprimir(azul,"%d",list_size(indicesQueCumplen));
 				int *elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
 				//
-
+				imprimir(azul,"xxxxxxxxxx");
 				list_add(indicesDescartados,elMejor);
-
+				imprimir(azul,"zzzzzzzzzzzzz");
 				list_clean(indicesQueCumplen);
-
+				imprimir(azul,"ttttttttttttttt");
 				imprimirVector(matrizDeAsignados[(*elMejor)],columnas);
-
+				imprimir(azul,"ssssssssssssss");
 				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
+				imprimir(azul,"aaaaaaaaaaaaa");
 			}
 	}
 	//REVISAR ESTA PARTE
