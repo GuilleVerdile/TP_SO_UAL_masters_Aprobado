@@ -198,7 +198,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 
    if((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
     	t_config* config = config_create(pathCoordinador);
-    	sleep(config_get_int_value(config,"Retardo"));
+    	usleep(config_get_int_value(config,"Retardo")*1000);
     	config_destroy(config);
     	switch (paqueteAEnviar.keyword){
     	case GET:
