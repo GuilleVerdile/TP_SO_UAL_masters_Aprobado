@@ -62,6 +62,8 @@ int main(int argc, char**argv){
 	resultado = malloc(2);
 	log_info(logger,"Esperando la respuesta del planificador :D");
 	while((!feof(f) || !noBloqueado)&& recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
+		if(resultado[0]=='f')//me forzaron a finalizar
+			break;
 		log_info(logger,"El planificador me dejo ejecutar");
 		if(noBloqueado){
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
