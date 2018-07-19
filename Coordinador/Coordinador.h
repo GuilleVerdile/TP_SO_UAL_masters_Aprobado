@@ -25,7 +25,6 @@
 
 extern t_list* instancias;
 
-enum algoritmos {EL, KE , LSU}; //PARA LOS ALGORITMOS DE DISTRIBUCION
 
 struct Instancia{
 	int estaDisponible; //ESTE VALOR DEFINE SI SE SIGUE MANTENIENDO UNA CONEXION CON EL SERVIDOR
@@ -45,5 +44,5 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
 instancia* existeEnLaLista(char* id);
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas);
 algoritmo obtenerAlgoritmoDistribucion();
-
+instancia* keyExplicit(instancia* instancia);
 #endif /* COORDINADOR_H_ */

@@ -299,26 +299,25 @@ instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadD
 algoritmo obtenerAlgoritmoDistribucion(){
 	t_config *config=config_create(pathCoordinador);
 	log_info(logger,"Vamos a seleccionar un algoritmo");
-	switch (config_get_int_value(config, "AlgoritmoDeDistribucion")){
-	case EL: //EQUITATIVE LOAD
-		config_destroy(config);
+	char* algoritmo = config_get_string_value(config,"AlgoritmoDeDistribucion");
+	if(strcmp("EL",algoritmo)==0){
 		log_info(logger,"Usted eligio el algoritmo Equitative Load");
+		config_destroy(config);
 		return &equitativeLoad;
-		break;
-	case LSU: //LSU
-		config_destroy(config);
-		log_info(logger,"Usted eligio el algoritmo LSU");
-		return &lsu;
-		break;
-	case KE: //KEYEXPLICIT
-		config_destroy(config);
-		//return keyExplicit(sockInstancia);
-		break;
-	default:
-		config_destroy(config);
-		log_error(logger,"No se reconocio el algoritmo de distribucion");
-		exit(-1);
 	}
+	if(strcmp("KE",algoritmo)==0){
+		log_info(logger,"Usted eligio el algoritmo KE");
+		config_destroy(config);
+		return &keyExplicit;
+	}
+	if(strcmp("LSU",algoritmo)==0){
+		log_info(logger,"Usted eligio el algoritmo LSU");
+		config_destroy(config);
+		return &lsu;
+	}
+	log_error(logger,"No se reconocio el algoritmo seleccionado");
+	exit(-1);
+	return NULL;
 }
 
 void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
