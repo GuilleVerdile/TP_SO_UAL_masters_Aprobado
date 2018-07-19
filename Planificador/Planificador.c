@@ -779,7 +779,6 @@ bool loPosee(int indexProceso,int indexClave){
 	else{
 
 		Proceso *proceso=list_get(procesos,indexProceso);
-		imprimir(rojo,"%d",(*proceso).idProceso);
 		return ((*proceso).idProceso)==((*block).idProceso);
 	}
 }
@@ -801,7 +800,6 @@ bool estaBloqueado(int indexProceso,int indexClave){
 		Bloqueo *block=list_get(bloqueados,indexClave);
 		Proceso *proceso=list_get(procesos,indexProceso);
 		idBuscar = (*proceso).idProceso;
-		imprimir(rojo,"%d",idBuscar);
 		return contieneAlProceso(block);
 	}
 }
@@ -917,8 +915,6 @@ void imprimirVector(int *a,int columnas){
 t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
-	imprimir(rojo,"Columnas > %d",columnas);
-	imprimir(rojo,"filas > %d",filas);
 	int **matrizDeAsignados=dameMatriz(&loPosee);//retencion
 	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
 	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
@@ -940,7 +936,6 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 					compararElementosVectores(matrizDeNecesidad[i],vectorRecursosActuales,&elementoMenorOIgual,columnas)){
 					list_add(indicesQueCumplen,aux);
 			}
-			i++;
 		}
 		//
 		if(list_get(indicesQueCumplen,0)==NULL){
@@ -961,6 +956,7 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 		}
 		else{
 			imprimir(azul,"encontre >OOOO");
+			imprimir(azul,"%d",list_size(indicesQueCumplen));
 				int *elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
 				//
 
@@ -972,7 +968,6 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 
 				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
 			}
-			j++;
 	}
 	//REVISAR ESTA PARTE
 	if(!compararElementosVectores(vectorRecursosActuales,vectorRecursosTotales,&elementoMenorOIgual,columnas)){
