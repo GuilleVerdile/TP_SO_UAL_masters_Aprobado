@@ -200,13 +200,10 @@ Proceso *hrrn(){
 //Programas de Busqueda
 
 
-bool contieneAlProceso(void *a){
+bool contieneAlProceso(void *a){//me dice si un bloque contiene al proceso
 	Bloqueo *b=(Bloqueo*) a;
-	Proceso *proceso=list_find((*b).bloqueados,&procesoEsIdABuscar);
-	if(!proceso)
-		return true;
-	else
-		return false;
+	//EL PROBLEMA ESTA ACA
+	return list_any_satisfy((*b).bloqueados,&procesoEsIdABuscar);
 }
 bool esIgualAClaveABuscar(void *a){
 	Bloqueo *b=(Bloqueo*) a;
@@ -749,27 +746,22 @@ bool estaElProceso(t_list *a,int index){
 }
 //
 //Funciones de matriz
-bool estaElProcesoZero(){
-
-	if(!buscarBloqueoPorProceso(0))
-		return false;
-	else
-		return true;
-}
-t_list *dameMatrizDeProcesos(void *(*transformador)(void *)){
-	t_list *matriz=list_map(procesos,transformador);
-	if(estaElProcesoZero){
-		logTest("Se va a meter al proceso 0 a la matriz",Blanco);
-		idBanquero = 0;
-		t_list *filaProcesoZero=list_map(bloqueados,transformador);
-		list_add(matriz,filaProcesoZero);
+bool esBloqueCero(void *a){
+	Bloqueo *block=(Bloqueo *) a;
+	if((*block).idProceso){
+				return false;
 	}
-	return matriz;
+	else{
+				return true;
+			}
+}
+bool estaElProcesoZero(){
+	return list_any_satisfy(bloqueados,&esBloqueCero);
 }
 //algoritmoBanquerro 2*******************
 int cantidadDeFilasProcesos(){
 	int filas = list_size(procesos);
-	if(estaElProcesoZero){
+	if(estaElProcesoZero()){
 		filas++;
 	}
 	return filas;
@@ -785,8 +777,10 @@ bool loPosee(int indexProceso,int indexClave){
 		return 0==(*block).idProceso;
 	}
 	else{
+
 		Proceso *proceso=list_get(procesos,indexProceso);
-		return (*proceso).idProceso==(*block).idProceso;
+		imprimir(rojo,"%d",(*proceso).idProceso);
+		return ((*proceso).idProceso)==((*block).idProceso);
 	}
 }
 bool noLoPosee(int indexProceso,int indexClave){
@@ -807,6 +801,7 @@ bool estaBloqueado(int indexProceso,int indexClave){
 		Bloqueo *block=list_get(bloqueados,indexClave);
 		Proceso *proceso=list_get(procesos,indexProceso);
 		idBuscar = (*proceso).idProceso;
+		imprimir(rojo,"%d",idBuscar);
 		return contieneAlProceso(block);
 	}
 }
@@ -815,16 +810,19 @@ int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encarga
 	//Ver como refactorizar estos 2 enteros
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
+	int cantidadProcesos=list_size(procesos);
 	//
-	int i;
 	//ASigno espacio
 	int **matriz = (int **)malloc(filas * sizeof(int *));
-	    for (i=0; i<filas; i++)
-	         matriz[i] = (int *)malloc(columnas * sizeof(int));
+	    for (int i=0; i<filas; i++){
+	    	matriz[i] = (int *)malloc(columnas * sizeof(int));
+	    }
+
 	 //meto valores
-	 for (i = 0; i <  list_size(procesos); i++){
-		  for (int j = 0; j < columnas; j++)
-			            matriz[i][j] = discriminante(i,j) ;
+	 for (int i = 0; i <  cantidadProcesos ; i++){
+		  for (int j = 0; j < columnas; j++){
+			  matriz[i][j] = discriminante(i,j) ;
+		  }
 	 }
 	 if(estaElProcesoZero()){
 		 for (int j = 0; j < columnas; j++)
@@ -835,6 +833,9 @@ int **dameMatriz(bool(*discriminante)(int,int)){//el discriminante es el encarga
 void imprimirMatriz(int **a,int filas,int columnas){
 	 for (int i = 0; i < filas; i++){
 			  for (int j = 0; j < columnas; j++){
+				  if(a[i]==NULL){
+				  }
+
 				  printf("%d " ,a[i][j]);
 			  }
 			  printf("\n");
@@ -864,8 +865,6 @@ bool elementoIgual(int a,int b){
 }
 bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int cantidadElementosAComparar){
 	for(int i=0;i<cantidadElementosAComparar;i++){
-		/*imprimir(blanco,"%d",a[i]);
-		imprimir(rojo,"%d",b[i]);*/
 		if(!comparador(a[i],b[i]))//Si no se cumple la condicion de comparacion para algun elemento retorno falso
 			return false;
 	}
@@ -875,7 +874,7 @@ bool compararElementosVectores(int *a,int *b,bool (*comparador) (int,int),int ca
 //Funciones de manejo de indices
 void sumarVectores(int *a,int *b,int cantidadElementosAComparar){
 	for(int i=0;i<cantidadElementosAComparar;i++){
-			printf(" %d|%d\n",(*a+i),(*b+i));
+			a[i]=a[i]+b[i];
 
 		}
 }
@@ -918,6 +917,8 @@ void imprimirVector(int *a,int columnas){
 t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int filas=cantidadDeFilasProcesos();
 	int columnas=cantidadColumasClaves();
+	imprimir(rojo,"Columnas > %d",columnas);
+	imprimir(rojo,"filas > %d",filas);
 	int **matrizDeAsignados=dameMatriz(&loPosee);//retencion
 	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
 	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
