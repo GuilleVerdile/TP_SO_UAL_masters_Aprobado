@@ -24,13 +24,19 @@ bool procesoEsIdABuscarSocket(void * proceso){
 }
 
 void terminarProceso(){
-
-	//ESte liberar recursos lo paso al cerrar socket
+	sem_post(&sem_ESIejecutoUnaSentencia);
+		liberarRecursos((*procesoEnEjecucion).idProceso);
+		(*procesoEnEjecucion).estado = finalizado;
+		list_add(terminados,procesoEnEjecucion);
+		procesoEnEjecucion = NULL;
+		sem_post(&semCambioEstado);
+	/*//ESte liberar recursos lo paso al cerrar socket
 	//liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
 	procesoEnEjecucion = NULL;
 	sem_post(&sem_ESIejecutoUnaSentencia);
 	sem_post(&semCambioEstado);
+	*/
 }
 
 void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pasar la direccion de memoria de mi funcion algoritmo
@@ -416,11 +422,25 @@ void tirarErrorYexit(char* mensajeError) {
 	log_destroy(logger);
 	exit(-1);
 }
+void sendFinaliza(int id){
+	imprimir(rojo,"La id es %d",id);
+	idBuscar=id;
+	imprimir(rojo,"AAAAAAAAAAAAAAA");
+	Proceso* procesoAEliminar = list_find(procesos,&procesoEsIdABuscar);
+	imprimir(rojo,"BBBBBBBBBBBBBBBBBb");
+	imprimir(rojo,"%d",(*procesoAEliminar).idProceso);
+	imprimir(rojo,"%d",(*procesoAEliminar).socketProceso);
+	send((*procesoAEliminar).socketProceso,"f",2,0);
+	imprimir(rojo,"CCCCCCCCCCCCCCCCCCCCCCC");
+}
 void matarESI(int id){
 	idBuscar=id;
-	if(!list_find(listos,&procesoEsIdABuscar)){
-		list_remove_by_condition(listos,&procesoEsIdABuscar);
-	}
+	list_remove_by_condition(listos,&procesoEsIdABuscar);
+	liberarRecursos(id);
+	Proceso* procesoAEliminar = list_find(procesos,&procesoEsIdABuscar);
+	(*procesoAEliminar).estado=finalizado;
+	list_add(terminados,procesoAEliminar);
+	/*
 	if((*procesoEnEjecucion).idProceso==id){
 		if(list_get(listos,0)!=NULL){
 			enviarSegnalPlanificar();
@@ -430,6 +450,7 @@ void matarESI(int id){
 	idBuscar = id;
 	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
 	free(procesoAEliminar);
+	*/
 }
 
 void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
@@ -573,12 +594,13 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                              if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
-                                     // conexión cerrada y liberacion de recursos
+                                     /*// conexión cerrada y liberacion de recursos
                                 	 idBuscar=i;
                                 	 Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
                                 	 liberarRecursos((*proc_finalizado).idProceso);
                                 	 list_add(terminados,proc_finalizado);
-                                	 log_warning(logger, "El ESI se fue y se liberaron sus recursos");
+                                	 log_warning(logger, "El ESI se fue y se liberaron sus recursos");*/
+                                	 log_warning(logger, "El ESI se fue ");
                                  } else {
                                 	 printf("%d",nbytes);
                                 	 tirarErrorYexit("Problema de conexion con el ESI");
@@ -594,13 +616,22 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                switch(buf[0]){
                                case 'f':
                             	   imprimir(magenta,"SE VA A TERMINAR EL PROCESO");
-                            	   terminarProceso();
-                            	  // sem_post(&sem_replanificar);
-                            	   if(list_get(listos,0)!=NULL)
-                            		   //envia solo la signal si no hay mas procesos para planificar
-                            		   enviarSegnalPlanificar();
-                            	   //close(i); // cierra socket
-                            	   //FD_CLR(i, &master); // eliminar del conjunto maestro
+                            	   if(procesoEnEjecucion!=NULL&&(*procesoEnEjecucion).socketProceso==i){
+                            		   imprimir(magenta,"El PROCESO ESTA EN EJECUCION");
+                                	   terminarProceso();
+                                	  // sem_post(&sem_replanificar);
+                                	   if(list_get(listos,0)!=NULL)
+                                		   //envia solo la signal si no hay mas procesos para planificar
+                                		   enviarSegnalPlanificar();
+                            	   }
+                            	   else{
+                            		   imprimir(magenta,"El PROCESO no Esta en ejecucion");
+                            		   idBuscar=i;
+                            		   Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
+                            		   matarESI((*proc_finalizado).idProceso);
+                            	   }
+                            	   close(i); // cierra socket
+                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
                             	   if(flag_quierenDesalojar&&flag_desalojo){
@@ -619,8 +650,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   buf = realloc(buf,tam);
                             	   recv(i,buf,tam,0);
                             	   matarESI(transformarNumero(buf,0));
-                            	  // close(i); // cierra socket
-                            	  // FD_CLR(i, &master); // eliminar del conjunto maestro
+                            	  close(i); // cierra socket
+                            	  FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                }
                              }

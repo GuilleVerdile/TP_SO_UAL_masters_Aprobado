@@ -113,7 +113,7 @@ bool compararHRRN(void *a,void *b);
 t_list *algoritmoBanquero();
 void deadlock();
 //jiava
-
+void sendFinaliza(int id);
 void meterEsiColaListos(Proceso *proceso);
 void enviarSegnalPlanificar();
 #endif /* SOCKET_PLANIFICADOR_H_ */

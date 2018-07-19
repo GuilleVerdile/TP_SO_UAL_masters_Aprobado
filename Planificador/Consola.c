@@ -68,7 +68,8 @@ void consola() {
 	        }
 	   		else if(!strcmp(centinelas[0],"kill")){
 	   			imprimir(magenta,"Usted ingreso kill\n");
-	   			imprimir(magenta,"con el id: %s\n",centinelas[0]);
+	   			imprimir(magenta,"con el id: %s\n",centinelas[1]);
+	   			sendFinaliza(transformarNumero(centinelas[1],0));
 	   			logTest("Se ingreso comando Kill",Blanco);
 	        	}
 	   	    else if(!strcmp(centinelas[0],"status")){
