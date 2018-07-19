@@ -24,6 +24,6 @@
  #include <unistd.h>
 
 int esi(char* path,int sockcoordinador,int sockplanificador);
-
+void tirarError(char* mensaje);
 
 #endif /* SOCKET_ESI_H_ */

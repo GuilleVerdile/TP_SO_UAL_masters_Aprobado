@@ -319,6 +319,7 @@ void manejarPaquete(t_esi_operacion paquete){
 		case STORE:
 			log_info(logger,"Se selecciono el caso STORE");
 			if((posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave))==-1){
+				resultado = "e";
 				break;
 			}
 			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);

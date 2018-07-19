@@ -11,7 +11,7 @@ pthread_mutex_t mutexInstancias;
 instancia* (*algoritmoDeDistribucion)();
 char* claveAComunicar;
 char* operacion;
-
+char* errorMensajeInstancia;
 int main(){
 	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
@@ -43,14 +43,23 @@ int main(){
 	log_info(logger, "Se esta escuchando");
 	addrlen = sizeof(their_addr);
 	pthread_t hiloPlanificador;
+	char* buff= malloc(2);
+	while(1){
 	if((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
 	    log_error(logger, "No se aceptar la conexion");
 	    log_destroy(logger);
 	    return -1;
 	}
+		recv(nuevoCliente,buff,2,0);
+		if(buff[0]=='p'){
+			log_info(logger, "Se acepto la conexion");
+			free(buff);
+			break;
+		}
+		close(nuevoCliente);
+	}
 	pthread_create(&hiloPlanificador,NULL,conexionPlanificador,(void*)&nuevoCliente);
 	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
-	log_info(logger, "Se acepto la conexion");
 	pthread_t* hilosInstancias = NULL;
 	pthread_t hiloEsi = 0;
 	instancias = list_create();
@@ -59,7 +68,6 @@ int main(){
 	while((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))) //Esperamos a que llegue la primera conexion
 	{
 		log_info(logger,"Se acepto una nueva conexion");
-		char* buff;
 		buff = malloc(2);
 		int recValor = recv(nuevoCliente, buff, 2, 0);
 		int tipoCliente = 2;
@@ -228,7 +236,8 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	case SET:
     		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
-    			resultadoEsi = "a";
+    		    close(socketEsi);
+    		    return 0;
     		}
     		free(paqueteAEnviar.argumentos.SET.clave);
     	    free(paqueteAEnviar.argumentos.SET.valor);
@@ -237,16 +246,13 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	case STORE:
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)){
-    			resultadoEsi = "a";
+    			close(socketEsi);
+    			return 0;
     		}
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		free(paqueteAEnviar.argumentos.STORE.clave);
         	resultadoEsi = "e";
-    		break;
-    	default:
-    		log_error(logger,"Operacion invalida");
-    		resultadoEsi = "a";
     		break;
     	}
     }//GET SET STORE IMPLEMENTACION
@@ -255,8 +261,9 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
         else if(recvValor == -1){
             log_error(logger,"Error al recibir el tam del codigo serializado");
             resultadoEsi = "a";
+        }else{
+        	send(socketEsi,resultadoEsi,2,0);
         }
-    send(socketEsi,resultadoEsi,2,0);
     close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
     return 0;
 }
@@ -264,18 +271,29 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 int validarYenviarPaquete(char* clave, int socketEsi) {
 	claveAComunicar = clave;
 	instancia* instanciaAEnviar;
-	verificacionEsi("v");
-	if (!operacionValida) {
-		//VERIFICO SI LA CLAVE ESTA TOMADA POR EL MISMO ESI
+	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
+	if(instanciaAEnviar == NULL){
+		send(socketEsi,"a",2,0);
+		enviarCantBytes(socketEsi,"Coordinador: Error de Clave no Identificada");
+		send(socketEsi,"Coordinador: Error de Clave no Identificada",44,0);
 		return 0;
 	}
-	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
 	log_info(logger,"Se encontro la instancia con tal clave");
 	log_info(logger,"La instancia a enviar es: %s",(*instanciaAEnviar).nombreInstancia);
+	verificacionEsi("v");
+	if (!operacionValida) {
+		send(socketEsi,"a",2,0);
+		enviarCantBytes(socketEsi,"Planificador: Error Clave No Bloqueada");
+		send(socketEsi,"Planificador: Error Clave No Bloqueada",44,0);
+		return 0;
+	}
 	operacion = "p";
 	sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo)); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
+		send(socketEsi,"a",2,0);
+		enviarCantBytes(socketEsi,errorMensajeInstancia);
+		send(socketEsi,errorMensajeInstancia,strlen(errorMensajeInstancia)+1,0);
 		return 0;
 	}
 	return 1;
@@ -464,14 +482,16 @@ void *conexionInstancia(void* cliente){
 	while(true){
 		sem_wait(list_get(semaforosInstancias,nroSemaforo));
 		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",nroSemaforo);
-		send(socketInstancia,operacion,2,0); //SE LE ENVIA UN "p" DE PAQUETE PARA DECIRLE QUE SE LE VA ENVIAR UNA SENTENCIA.
+		send(socketInstancia,operacion,2,MSG_NOSIGNAL);
 		if(operacion[0]=='p'){
 			buff = malloc(2);
 			buff[0]='n';
+			log_info(logger,"Vamos a enviarle un paquete a la instancia");
 			enviar(socketInstancia,paqueteAEnviar);
 			while(buff[0]!= 'r'){
 				if(recv(socketInstancia,buff,2,0)<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
 					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",nroSemaforo);
+					errorMensajeInstancia = "Instancia: Error Clave Inaccesible";
 					operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
 					sem_post(&semaforoEsi);
 					free(buff);
@@ -492,12 +512,13 @@ void *conexionInstancia(void* cliente){
 						break;
 					case 'e':
 						operacionValida=0;
+						errorMensajeInstancia = "Instancia: Error Clave No Encontrada";
 						sem_post(&semaforoEsi);
 						free(buff);
 				}
 			}
 			free(buff);
 		}
-
+		log_info(logger,"Se envio completamente el paquete");
 	}
 }

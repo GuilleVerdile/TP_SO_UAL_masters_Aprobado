@@ -12,6 +12,10 @@
 	int sockplanificador;
 	char* resultado;
 	FILE* f;
+void tirarError(char* mensaje){
+	log_error(logger,"%s",mensaje);
+	resultado[0] = 'a';
+}
 int conectarESI(char* tipoServidor){
 	t_config *config=config_create(pathEsi);
 	char* stringPuerto = malloc(strlen(tipoServidor)+strlen("Puerto de Conexion al ") + 1);
@@ -34,19 +38,29 @@ int conectarESI(char* tipoServidor){
 	return socket;
 }
 
-
-void* hacerUnaOperacion(){
+void hacerUnaOperacion(){
 	enviarTipoDeCliente(sockcoordinador,"1");
 	t_esi_operacion operacion = parse(linea);
 	if(operacion.valido){
-		enviar(sockcoordinador,operacion);
+			enviar(sockcoordinador,operacion);
+			destruir_operacion(operacion);
+			recv(sockcoordinador,resultado,2,0);
+			log_info(logger,"Se realizo la operacion");
+			log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
+			if(resultado[0] == 'e')
+				send(sockplanificador,resultado,2,0);
+			if(resultado[0]=='a'){
+				int tam = obtenerTamDelSigBuffer(sockcoordinador);
+				char* mensajeError = malloc(tam);
+				recv(sockcoordinador,mensajeError,tam,0);
+				tirarError(mensajeError);
+				free(mensajeError);
+		}
+	}else{
 		destruir_operacion(operacion);
-		recv(sockcoordinador,resultado,2,0);
-		log_info(logger,"Se realizo la operacion");
-		log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
-		if(resultado[0] != 'b')
-			send(sockplanificador,resultado,2,0);
+		tirarError("ESI: Error Operacion Invalida");
 	}
+	close(sockcoordinador);
 }
 
 int main(int argc, char**argv){
@@ -69,10 +83,14 @@ int main(int argc, char**argv){
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
 		log_info(logger,"La operacion a ejecutar es %s",linea);
+		if(linea)
 		sockcoordinador = conectarESI("Coordinador");
 		hacerUnaOperacion();
+		if(resultado[0]=='a'){
+			break;
+		}
 		noBloqueado = strcmp(resultado,"b");
-		close(sockcoordinador);
+
 		if(noBloqueado < 0)break;
 	}
 	if(linea){
