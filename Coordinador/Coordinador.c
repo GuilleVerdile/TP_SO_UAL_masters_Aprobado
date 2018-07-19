@@ -490,6 +490,10 @@ void *conexionInstancia(void* cliente){
 						free(cantidadDeEntradasARestar);
 						sem_post(&semaforoEsi);
 						break;
+					case 'e':
+						operacionValida=0;
+						sem_post(&semaforoEsi);
+						free(buff);
 				}
 			}
 			free(buff);

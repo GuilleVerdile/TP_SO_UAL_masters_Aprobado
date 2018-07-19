@@ -1,11 +1,5 @@
 #include "Instancia.h"
 
-struct TE{
-	char clave[40]; //Clave
-	char* entrada; //Direcciones de memoria de las entradas de la clave
-	int tamValor; //Tamanio del valor asociado a la clave
-	int seAlmacenoElValor;
-}typedef tablaEntradas;
 
 t_list* tablas;
 int entradasTotales;
@@ -15,6 +9,8 @@ pthread_mutex_t mutexAlmacenamiento;
 char* path;
 t_list* bitArray;
 int sockcoordinador;
+void (*algoritmoDeReemplazo)();
+int nroEntrada = 0;
 
 int main(){
     logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
@@ -39,6 +35,7 @@ int main(){
     t_esi_operacion paquete;
     pthread_t id;
     tablas = list_create();
+    algoritmoDeReemplazo = obtenerAlgoritmoDeReemplazo();
     pthread_create(&id,NULL,hacerDump,NULL);
     pthread_mutex_init(&mutexAlmacenamiento,NULL);
     while((recvValor =recv(sockcoordinador,buff,2,0))>0){
@@ -69,6 +66,17 @@ int main(){
     log_destroy(logger);
     close(sockcoordinador);
 	 return 0;
+}
+
+algoritmo obtenerAlgoritmoDeReemplazo(){
+	t_config *config=config_create(pathInstancia);
+	log_info(logger,"Vamos a seleccionar un algoritmo");
+	char* algoritmo = config_get_string_value(config,"AlgoritmoDeReemplazo");
+	if(strcmp("CIRCULAR",algoritmo) == 0){
+		config_destroy(config);
+		log_info(logger,"Usted selecciono circular");
+		return &circular;
+	}
 }
 
 int cuantasEntradasAMover(int posicionDelArray){
@@ -202,7 +210,9 @@ int encontrarTablaConTalClave(char clave[40]){
 	while(strcmp((*tabla).clave,clave)!=0)
 	{
 		i++;
-		tabla=list_get(tablas,i);
+		if((tabla=list_get(tablas,i))==NULL){
+			return -1;
+		}
 	}
 	return i;
 }
@@ -249,6 +259,7 @@ void enviarEntradasRestantes(){
 
 void manejarPaquete(t_esi_operacion paquete){
 	int posTabla;
+	char* resultado = "r";
 	switch(paquete.keyword){
 		case GET:
 			log_info(logger,"Se selecciono el caso GET");
@@ -258,6 +269,10 @@ void manejarPaquete(t_esi_operacion paquete){
 		case SET:
 			log_info(logger,"Se selecciono el caso SET");
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
+			if(posTabla==-1){
+				resultado = "e";
+				break;
+			}
 			tablaEntradas* tabla = list_get(tablas,posTabla);
 			pthread_mutex_lock(&mutexAlmacenamiento);
 			if((*tabla).entrada!=NULL){ //ME FIJO SI YA TENIA UN VALOR ASIGNADO
@@ -271,31 +286,30 @@ void manejarPaquete(t_esi_operacion paquete){
 				}
 				log_info(logger,"Ya tenia un valor asignado");
 				log_info(logger,"La cantidad de entradas ocupadas son %d y las que necesita son %d",cantEntradasOcupadas,cantEntradasNecesarias);
+				int posEntrada = posicionDeLaEntrada((*tabla).entrada);
+				int j = 0;
 				if(cantEntradasNecesarias>cantEntradasOcupadas){
-					//QUE MIERDA HAGO ACA D:
-				}else{
-					int posEntrada = posicionDeLaEntrada((*tabla).entrada);
-					int j = 0;
-					while(j < cantEntradasNecesarias){
-						char* entrada =	list_get(entradas,posEntrada);
-						char* valorEntrada = string_substring(paquete.argumentos.SET.valor,tamEntradas*j,tamEntradas*(j+1));
-						valorEntrada[tamEntradas] = '\0';
-						strcpy(entrada,valorEntrada);
-						free(valorEntrada);
-						posEntrada++;
-						j++;
-					}
-					while(j<cantEntradasOcupadas){
-						char* bit = list_get(bitArray,posEntrada);
-						bit[0]='0';
-						posEntrada++;
-						j++;
-					}
-					(*tabla).seAlmacenoElValor=0;
+					cantEntradasNecesarias = cantEntradasOcupadas;
 				}
+				while(j < cantEntradasNecesarias){
+					char* entrada =	list_get(entradas,posEntrada);
+					char* valorEntrada = string_substring(paquete.argumentos.SET.valor,tamEntradas*j,tamEntradas*(j+1));
+					valorEntrada[tamEntradas] = '\0';
+					strcpy(entrada,valorEntrada);
+					free(valorEntrada);
+					posEntrada++;
+					j++;
+				}
+				while(j<cantEntradasOcupadas){
+					char* bit = list_get(bitArray,posEntrada);
+					bit[0]='0';
+					posEntrada++;
+					j++;
+				}
+				(*tabla).seAlmacenoElValor=0;
 			}else{
 				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.valor,paquete.argumentos.SET.clave);
-				meterValorParTalClave(paquete.argumentos.SET.valor,posTabla);
+				meterValorParTalClave(paquete.argumentos.SET.valor,tabla);
 			}
 			(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
 			pthread_mutex_unlock(&mutexAlmacenamiento);
@@ -304,13 +318,15 @@ void manejarPaquete(t_esi_operacion paquete){
 			break;
 		case STORE:
 			log_info(logger,"Se selecciono el caso STORE");
-			posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave);
+			if((posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave))==-1){
+				break;
+			}
 			almacenarInformacionDeTalPosicionDeLaTabla(posTabla);
 			liberarClave(posTabla);
 			free(paquete.argumentos.STORE.clave);
 			break;
 	}
-	if(send(sockcoordinador,"r",2,0)==-1)
+	if(send(sockcoordinador,resultado,2,0)==-1)
 	{
 		log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
 	}
@@ -328,23 +344,17 @@ void meterClaveALaTabla(char* clave){
 	(*tabla).tamValor = 0;
 	(*tabla).seAlmacenoElValor = 0;
 	list_add(tablas,tabla);
-	char* pathCompleto = malloc(strlen(path)+1);
-	strcpy(pathCompleto,path);
-	string_append(&pathCompleto,clave);
-	int desc = open(pathCompleto, O_CREAT | O_TRUNC,0777); //CREA EL ARCHIVO
-	free(pathCompleto);
-	close(desc);
 }
 
-int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntradasAOcupar){
+int llegaAOcuparTodasLaEntradas(int* posicion,int cantEntradasAOcupar,int* cantidadEntradasLibres){
 	int i = 1;
 	while(i < cantEntradasAOcupar && (*posicion) < entradasTotales){
 		char * bit = list_get(bitArray,(*posicion));
 		if(bit[0]-48){
-			(*hayQueCompactar)=1;
 			return 0; //COMO EN LA SIGUIENTE POSICION ESTA OCUPADO HAY FRAGMENTACION EXTERNA, ESTO PROVOCA QUE HAY QUE COMPACTAR SI NO LLEGO A ENCONTRAR LUGAR
 		}
 		log_info(logger,"Posicion libre: %d entradas permitidas: %d",(*posicion),i);
+		(*cantidadEntradasLibres)++;
 		(*posicion)++;
 		i++;
 	}
@@ -355,42 +365,40 @@ int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntra
 }
 
 int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
-	int encontrado = 0;
 	int primeraPosicionEncontrada;
-	int hayQueCompactar;
-	char* valorCoordi;
 	while(1){
+		int encontrado = 0;
+		int cantEntradasLibres = 0;
 		int posicion = 0;
-		hayQueCompactar = 0;
 		while(!encontrado && posicion < entradasTotales){
 			char* bit = list_get(bitArray,posicion);
 			if(!(bit[0]-48)){ //SI LA POSICION NO ESTA OCUPADA TENGO QUE VERIFICAR QUE LLEGA ENTRAR EL VALOR
 				primeraPosicionEncontrada = posicion;
+				cantEntradasLibres++;
 				posicion ++;
-				encontrado = llegaAOcuparTodasLaEntradas(&posicion,&hayQueCompactar,cantEntradasAOcupar); //VERIFICO SI CUMPLE LA CANTIDAD DE ENTRADAS A METER Y SI HAY QUE COMPACTAR
+				encontrado = llegaAOcuparTodasLaEntradas(&posicion,cantEntradasAOcupar,&cantEntradasLibres); //VERIFICO SI CUMPLE LA CANTIDAD DE ENTRADAS A METER Y SI HAY QUE COMPACTAR
 			}
 			posicion ++;
 		}
 		log_warning(logger,"El valor de encontrado es %d",encontrado);
 		if(encontrado){
 			return primeraPosicionEncontrada;
-		}else if(!hayQueCompactar){
-			return -1; //SI NO HACE FALTA COMPACTAR TENGO QUE HACER EL ALGORITMO DE REEMPLAZO
+		}else if(cantEntradasAOcupar > cantEntradasLibres){
+			algoritmoDeReemplazo();
+		}else{
+			send(sockcoordinador,"c",2,0); //ENVIO UNA SOLICITUD DE COMPACTACION AL COORDINADOR
+			compactacion();
 		}
-		send(sockcoordinador,"c",2,0); //ENVIO UNA SOLICITUD DE COMPACTACION AL COORDINADOR
-		compactacion();
 	}
 }
 
-void meterValorParTalClave(char*valor,int posTabla){
+void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada){
 	int cantEntradasAOcupar = (string_length(valor))/tamEntradas;
 	log_info(logger,"La cantidad de entradas a ocupar son: %d",cantEntradasAOcupar);
 	if(string_length(valor)%tamEntradas){
 		cantEntradasAOcupar++;
 	}
 	int posicionPermitidaParaOcupar = obtenerPrimeraPosicionPermitida(cantEntradasAOcupar);
-	if(posicionPermitidaParaOcupar !=-1){
-		tablaEntradas* tablaEntrada = list_get(tablas,posTabla);
 		(*tablaEntrada).entrada = list_get(entradas,posicionPermitidaParaOcupar);
 		for(int j =0;j<cantEntradasAOcupar;j++){
 			char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
@@ -403,11 +411,39 @@ void meterValorParTalClave(char*valor,int posTabla){
 			log_info(logger,"El valor se copio en la posicion %d con el valor %s",posicionPermitidaParaOcupar,entrada);
 			free(valorEntrada);
 			posicionPermitidaParaOcupar++;
+	}
+}
+
+int obtenerTablaDeTalEntrada(char* entrada){
+	int posTabla=0;
+	tablaEntradas* tabla;
+	while((tabla = list_get(tablas,posTabla))!=NULL){
+		if((*tabla).entrada == entrada){
+			return posTabla;
 		}
+		posTabla++;
 	}
-	else{
-		log_info(logger,"Tengo que hacer el algoritmo de reemplazo D:");
-		//ALGORITMO DE SUSTITUCION
+	return -1;
+}
+
+void circular(){
+	char* bit = list_get(bitArray,nroEntrada);
+	while(!(bit[0]-48)){ //BUSCO HASTA ENCONTRAR UNO OCUPADO
+		nroEntrada++;
+		log_warning(logger,"Seguimos...");
+		if(nroEntrada >= entradasTotales){ //SI SUPERE A LA CANTIDAD DE ENTRADAS TOTALES REINICIO
+			nroEntrada = 0;
+		}
+		bit = list_get(bitArray,nroEntrada);
 	}
+	int posTabla = obtenerTablaDeTalEntrada(list_get(entradas,nroEntrada));
+	tablaEntradas* tabla = list_get(tablas,posTabla);
+	int cantEntradasALiberar = (*tabla).tamValor/tamEntradas;
+	if((*tabla).tamValor%tamEntradas){
+		cantEntradasALiberar++;
+	}
+	log_info(logger,"La victima es %s", (*tabla).clave);
+	nroEntrada += cantEntradasALiberar;
+	liberarClave(posTabla);
 }
 
