@@ -17,14 +17,23 @@
 #include <string.h>
 #include <commons/collections/list.h>
 const char* INSTANCIA = "0";
+struct TE{
+	char clave[40]; //Clave
+	char* entrada; //Direcciones de memoria de las entradas de la clave
+	int tamValor; //Tamanio del valor asociado a la clave
+	int seAlmacenoElValor;
+}typedef tablaEntradas;
 void compactacion();
 void inicializarTablaEntradas();
 void manejarPaquete(t_esi_operacion paquete);
 void meterClaveALaTabla(char* clave);
-void meterValorParTalClave(char*valor,int posTabla);
+void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada);
 int encontrarTablaConTalClave(char clave[40]);
 void* hacerDump();
 void almacenarTodaInformacion();
-int llegaAOcuparTodasLaEntradas(int* posicion,int* hayQueCompactar,int cantEntradasAOcupar);
+int llegaAOcuparTodasLaEntradas(int* posicion,int cantEntradasAOcupar,int* cantidadEntradasLibres);
 int posicionDeLaEntrada(char* entradaABuscar);
+typedef void(*algoritmo)();
+algoritmo obtenerAlgoritmoDeReemplazo();
+void circular();
 #endif /* SOCKET_INSTANCIA_H_ */
