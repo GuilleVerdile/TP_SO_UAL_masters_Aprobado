@@ -75,6 +75,7 @@ void consola() {
 	   	    else if(!strcmp(centinelas[0],"status")){
 	   	    	imprimir(magenta,"Usted ingreso status\n");
 	   	    	imprimir(magenta,"con la clave %s\n",centinelas[1]);
+	   	    	status(centinelas[1]);
 	   	    	logTest("Se ingreso comando estatus",Blanco);
 	   	    }
     	    else{

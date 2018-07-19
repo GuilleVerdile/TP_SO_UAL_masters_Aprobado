@@ -116,4 +116,5 @@ void deadlock();
 void sendFinaliza(int id);
 void meterEsiColaListos(Proceso *proceso);
 void enviarSegnalPlanificar();
+void status(char *clave);
 #endif /* SOCKET_PLANIFICADOR_H_ */

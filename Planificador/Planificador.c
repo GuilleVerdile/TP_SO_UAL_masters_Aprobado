@@ -423,15 +423,12 @@ void tirarErrorYexit(char* mensajeError) {
 	exit(-1);
 }
 void sendFinaliza(int id){
-	imprimir(rojo,"La id es %d",id);
 	idBuscar=id;
-	imprimir(rojo,"AAAAAAAAAAAAAAA");
 	Proceso* procesoAEliminar = list_find(procesos,&procesoEsIdABuscar);
-	imprimir(rojo,"BBBBBBBBBBBBBBBBBb");
-	imprimir(rojo,"%d",(*procesoAEliminar).idProceso);
-	imprimir(rojo,"%d",(*procesoAEliminar).socketProceso);
-	send((*procesoAEliminar).socketProceso,"f",2,0);
-	imprimir(rojo,"CCCCCCCCCCCCCCCCCCCCCCC");
+	if(procesoAEliminar==NULL||(*procesoAEliminar).estado==finalizado)
+		imprimir(rojo,"Error ingreso un id invalido");
+	else
+		send((*procesoAEliminar).socketProceso,"f",2,0);
 }
 void matarESI(int id){
 	idBuscar=id;
@@ -644,15 +641,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   sem_post(&sem_ESIejecutoUnaSentencia);
                             	   sem_post(&semCambioEstado);
                                    break;
-                               case 'a':
-                            	   log_warning(logger, "ABORTANDO EL ESI");
-                            	   tam = obtenerTamDelSigBuffer(i);
-                            	   buf = realloc(buf,tam);
-                            	   recv(i,buf,tam,0);
-                            	   matarESI(transformarNumero(buf,0));
-                            	  close(i); // cierra socket
-                            	  FD_CLR(i, &master); // eliminar del conjunto maestro
-                            	   break;
                                }
                              }
                              free(buf);
@@ -1075,4 +1063,24 @@ void deadlock(){
 			imprimir(rojo,"El proceso de id : %d esta en deadlock",(*proceso).idProceso);
 		}
 	}
+}
+//
+void mostrarProcesos(void *a){
+	Proceso *proceso=(Proceso*) a;
+	imprimir(azul,"El proceso de id : %d",(*proceso).idProceso);
+}
+void status(char *clave){
+	claveABuscar=clave;
+	Bloqueo *block=buscarClave();
+	if(block){
+		//Aca va todo lo que tiene que hacer status
+		imprimir(azul,"Proceso bloqueados por esta clave : ");
+		if(list_get((*block).bloqueados,0)==NULL)
+			imprimir(rojo,"ninguno");
+		else{
+			list_iterate((*block).bloqueados,&mostrarProcesos);
+		}
+	}
+	else
+		imprimir(rojo,"No se encontro la clave");
 }
