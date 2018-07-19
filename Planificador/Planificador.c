@@ -148,14 +148,17 @@ float *estimarSJF(Proceso *proc){
 bool compararSJF(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	float af=(*(estimarSJF(a)));
-	float bf=(*(estimarSJF(b)));
-	(*primero).estimacionAnterior=af;
-	(*segundo).estimacionAnterior=bf;
-	printf("\n%f\n",af);
-	printf("\n%f\n",bf);
+	float *af=estimarSJF(a);
+	float *bf=estimarSJF(b);
+	(*primero).estimacionAnterior=(*af);
+	(*segundo).estimacionAnterior=(*bf);
+	printf("\n%f\n",*af);
+	printf("\n%f\n",*bf);
 	fflush(stdout);
-	return af<=bf;
+	bool aux=(*af<=*bf);
+	free(af);
+	free(bf);
+	return aux;
 }
 float* estimarHRRN(Proceso *proc){
 	float *s;
@@ -174,16 +177,19 @@ float* estimarHRRN(Proceso *proc){
 bool compararHRRN(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
-	float af=(*(estimarHRRN(a)));
-	float bf=(*(estimarHRRN(b)));
-	return af>=bf;
+	float *af=estimarHRRN(a);
+	float *bf=estimarHRRN(b);
+	bool aux = (*af>=*bf);
+	free(af);
+	free(bf);
+	return aux;
 }
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
 	imprimir(rojo,"ttttttt");
 	t_list *aux=list_duplicate(listos);
 	imprimir(rojo,"zzzzzzzzzzzzzz");
 	Proceso *proceso=NULL;
-	if(list_get(listos,0)!=NULL){//REVISAR ESTA SOLUCION PARA QUE NO MUERA EL PLANIFICADOR*******
+	if(list_get(aux,0)!=NULL){//REVISAR ES9TA SOLUCION PARA QUE NO MUERA EL PLANIFICADOR*******
 			list_sort(aux,comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
 			imprimir(rojo,"aaaaaaaaaaa");
 			proceso=list_get(aux,0);
@@ -328,11 +334,13 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 	}
 	else{
 		log_warning(logger,"La clave %s existe",clave);
+
 		if((*block).idProceso==-1){
 			log_warning(logger,"Pero se puede usar");
 			(*block).idProceso=(*procesoEnEjecucion).idProceso;
 		}
 		else{
+
 			log_warning(logger,"No se puede usar, se agrega a la cola de bloqueados");
 			if(procesoEnEjecucion){
 				(*procesoEnEjecucion).rafagaRealAnterior=(*procesoEnEjecucion).rafagaRealActual;
@@ -347,6 +355,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 			if(list_get(listos,0)!=NULL)//SI NO ESTA VACIA LA LISTA DE DE LISTOS
 				enviarSegnalPlanificar(); //REPLANIFICO CUANDO UN PROCESO SE VA A LA COLA DE BLOQUEADOS!
 		}
+		free(aux);
 	}
 }
 void aplicacion(void *a){
@@ -864,6 +873,7 @@ void imprimirMatriz(int **a,int filas,int columnas){
 			  }
 			  printf("\n");
 }
+
 }
 //DISCRIMINANTES VECTORES
 bool total(int index){
@@ -921,6 +931,8 @@ int *dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadC
 			aux=aux2;
 			auxIndice=indice;
 		}
+		else
+			free(indice);
 	}
 	return auxIndice;
 }
@@ -976,8 +988,16 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 						retieneAlgo(k,matrizDeAsignados,columnas)){
 					list_add(indicesProcesosQueEstanEnDeadlock,aux);
 				}
+				else
+					free(aux);
 			}
-
+			//Libero memoria ocupada por el algoritmo
+			eliminarMatriz(matrizDeNecesidad,filas);
+			eliminarMatriz(matrizDeAsignados,filas);
+			free(vectorRecursosTotales);
+			free(vectorRecursosActuales);
+			list_destroy_and_destroy_elements(indicesQueCumplen,&destruirEntero);
+			list_destroy_and_destroy_elements(indicesDescartados,&destruirEntero);
 			return indicesProcesosQueEstanEnDeadlock;
 			//
 		}
@@ -1005,8 +1025,17 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 					if(!estaElProceso(indicesDescartados,k)&&retieneAlgo(k,matrizDeAsignados,columnas)){
 						list_add(indicesProcesosQueEstanEnDeadlock,aux);
 					}
+					else
+						free(aux);
 				}
 	}
+	//Libero memoria ocupada por el algoritmo
+	eliminarMatriz(matrizDeNecesidad,filas);
+	eliminarMatriz(matrizDeAsignados,filas);
+	free(vectorRecursosTotales);
+	free(vectorRecursosActuales);
+	list_destroy_and_destroy_elements(indicesQueCumplen,&destruirEntero);
+	list_destroy_and_destroy_elements(indicesDescartados,&destruirEntero);
 	return indicesProcesosQueEstanEnDeadlock;
 }
 //Planificacion
@@ -1063,6 +1092,7 @@ void deadlock(){
 			imprimir(rojo,"El proceso de id : %d esta en deadlock",(*proceso).idProceso);
 		}
 	}
+	list_destroy_and_destroy_elements(elementos,&destruirEntero);
 }
 //
 void mostrarProcesos(void *a){
@@ -1083,4 +1113,17 @@ void status(char *clave){
 	}
 	else
 		imprimir(rojo,"No se encontro la clave");
+}
+//liberar memoria
+
+void eliminarMatriz(int **a,int fila){
+	for(int i=0;i<fila;i++){
+		free(a[i]);
+	}
+	free(a);
+}
+void destruirEntero(void *a){
+	int *b = (int*) a;
+	free(b);
+
 }
