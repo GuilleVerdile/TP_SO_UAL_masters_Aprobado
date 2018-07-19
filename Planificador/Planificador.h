@@ -50,7 +50,9 @@ sem_t sem_finDeEsiCompleto;
 sem_t semCambioEstado;
 
 int flag_desalojo;
+//
 int flag_nuevoProcesoEnListo;
+//
 int tiempo_de_ejecucion;
 float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;

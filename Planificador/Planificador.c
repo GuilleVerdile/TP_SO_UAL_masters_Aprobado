@@ -24,11 +24,12 @@ bool procesoEsIdABuscarSocket(void * proceso){
 }
 
 void terminarProceso(){
-	sem_post(&sem_ESIejecutoUnaSentencia);
-	liberarRecursos((*procesoEnEjecucion).idProceso);
+
+	//ESte liberar recursos lo paso al cerrar socket
+	//liberarRecursos((*procesoEnEjecucion).idProceso);
 	(*procesoEnEjecucion).estado = finalizado;
-	list_add(terminados,procesoEnEjecucion);
 	procesoEnEjecucion = NULL;
+	sem_post(&sem_ESIejecutoUnaSentencia);
 	sem_post(&semCambioEstado);
 }
 
@@ -353,7 +354,7 @@ void aplicacion(void *a){
 }
 void liberarRecursos(int id){
 	Bloqueo *block;
-	int i=0;
+	idBuscar=id;
 	list_iterate(bloqueados,aplicacion);
 }
 
@@ -421,8 +422,9 @@ void matarESI(int id){
 		list_remove_by_condition(listos,&procesoEsIdABuscar);
 	}
 	if((*procesoEnEjecucion).idProceso==id){
-		//sem_post(&sem_replanificar);
-		enviarSegnalPlanificar();
+		if(list_get(listos,0)!=NULL){
+			enviarSegnalPlanificar();
+		}
 	}
 	liberarRecursos(id);
 	idBuscar = id;
@@ -571,9 +573,14 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                              if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
-                                     // conexión cerrada
-                                	 log_warning(logger, "El ESI se fue");
+                                     // conexión cerrada y liberacion de recursos
+                                	 idBuscar=i;
+                                	 Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
+                                	 liberarRecursos((*proc_finalizado).idProceso);
+                                	 list_add(terminados,proc_finalizado);
+                                	 log_warning(logger, "El ESI se fue y se liberaron sus recursos");
                                  } else {
+                                	 printf("%d",nbytes);
                                 	 tirarErrorYexit("Problema de conexion con el ESI");
                                  }
                                  close(i); // cierra socket
@@ -592,8 +599,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   if(list_get(listos,0)!=NULL)
                             		   //envia solo la signal si no hay mas procesos para planificar
                             		   enviarSegnalPlanificar();
-                            	   close(i); // cierra socket
-                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
+                            	   //close(i); // cierra socket
+                            	   //FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
                             	   if(flag_quierenDesalojar&&flag_desalojo){
@@ -612,8 +619,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             	   buf = realloc(buf,tam);
                             	   recv(i,buf,tam,0);
                             	   matarESI(transformarNumero(buf,0));
-                            	   close(i); // cierra socket
-                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
+                            	  // close(i); // cierra socket
+                            	  // FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                }
                              }
