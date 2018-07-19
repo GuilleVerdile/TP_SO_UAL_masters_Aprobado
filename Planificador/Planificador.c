@@ -24,11 +24,12 @@ bool procesoEsIdABuscarSocket(void * proceso){
 }
 
 void terminarProceso(){
-	sem_post(&sem_ESIejecutoUnaSentencia);
+
 		liberarRecursos((*procesoEnEjecucion).idProceso);
 		(*procesoEnEjecucion).estado = finalizado;
 		list_add(terminados,procesoEnEjecucion);
 		procesoEnEjecucion = NULL;
+		sem_post(&sem_ESIejecutoUnaSentencia);
 		sem_post(&semCambioEstado);
 	/*//ESte liberar recursos lo paso al cerrar socket
 	//liberarRecursos((*procesoEnEjecucion).idProceso);
