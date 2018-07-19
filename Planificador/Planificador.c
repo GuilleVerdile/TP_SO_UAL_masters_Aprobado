@@ -481,6 +481,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
      FD_ZERO(&master);    // borra los conjuntos maestro
      FD_ZERO(&read_fds);	// borra los conjuntos maestro
     	if(((casoDiscriminador=crearConexionCliente(8001,"127.0.0.1")))==-1){
+    		send(casoDiscriminador,"p",2,0);
     		config_destroy(config);
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}
