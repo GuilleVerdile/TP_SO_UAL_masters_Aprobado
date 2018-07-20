@@ -4,19 +4,17 @@ t_list* semaforosInstancias;
 int cantidadDeInstancias;
 sem_t esperaInicializacion;
 sem_t semaforoEsi;
-sem_t semaforoPlanificador;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
 pthread_mutex_t mutexInstancias;
 instancia* (*algoritmoDeDistribucion)();
-char* claveAComunicar;
 char* operacion;
 char* errorMensajeInstancia;
+int socketPlanificador;
 int main(){
 	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
-	sem_init(&semaforoPlanificador,0,0);
 	pthread_mutex_init(&mutexInstancias,NULL);
 	cantidadDeInstancias =0;
 	semaforosInstancias = list_create();
@@ -45,20 +43,20 @@ int main(){
 	pthread_t hiloPlanificador;
 	char* buff= malloc(2);
 	while(1){
-	if((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
+	if((socketPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
 	    log_error(logger, "No se aceptar la conexion");
 	    log_destroy(logger);
 	    return -1;
 	}
-		recv(nuevoCliente,buff,2,0);
+		recv(socketPlanificador,buff,2,0);
 		if(buff[0]=='p'){
 			log_info(logger, "Se acepto la conexion");
 			free(buff);
 			break;
 		}
-		close(nuevoCliente);
+		close(socketPlanificador);
 	}
-	pthread_create(&hiloPlanificador,NULL,conexionPlanificador,(void*)&nuevoCliente);
+	pthread_create(&hiloPlanificador,NULL,conexionPlanificador,NULL);
 	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
 	pthread_t* hilosInstancias = NULL;
 	pthread_t hiloEsi = 0;
@@ -102,22 +100,16 @@ int main(){
 	return 0;
 }
 
-void* conexionPlanificador(void* cliente){
-	int sockPlanificador = *(int*)cliente;
+void* conexionPlanificador(){
 	sem_post(&esperaInicializacion);
-	while(1){
-		sem_wait(&semaforoPlanificador);
-		send(sockPlanificador,operacion,2,0);
-		enviarCantBytes(sockPlanificador,claveAComunicar);
-		log_info(logger,"Se envio la operacion %s con la clave %s", operacion,claveAComunicar);
-		send(sockPlanificador,claveAComunicar,strlen(claveAComunicar)+1,0);
-		if(operacion[0] == 'n' || operacion[0] == 'v'){
-			char* resultado = malloc(2);
-			recv(sockPlanificador,resultado,2,0);
-			operacionValida = resultado[0]-48;
-			free(resultado);
+	char* buff = malloc(2);
+	while(recv(socketPlanificador,buff,2,0)>0){
+		log_info(logger,"Recibi un paquete");
+		if(buff[0]=='1' || buff[0]=='0'){
+			operacionValida = buff[0]-48;
+			sem_post(&semaforoEsi);
 		}
-		sem_post(&semaforoEsi);
+
 	}
 }
 
@@ -154,8 +146,9 @@ instancia* buscarInstancia(char* clave){
 
 
 void liberarClave(instancia* instancia,char* clave){
-	operacion="l";
-	sem_post(&semaforoPlanificador);
+	send(socketPlanificador,"l",2,0);
+	enviarCantBytes(socketPlanificador,clave);
+	send(socketPlanificador,clave,strlen(clave)+1,0);
 	int j = 0;
 	while(strcmp(clave,list_get((*instancia).clavesBloqueadas,j)) != 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
 		j++;
@@ -165,7 +158,6 @@ void liberarClave(instancia* instancia,char* clave){
 		list_destroy((*instancia).clavesBloqueadas);
 		(*instancia).clavesBloqueadas = NULL;
 	}
-	sem_wait(&semaforoEsi);
 }
 
 void agregarClave(instancia* instancia,char* clave){
@@ -178,15 +170,6 @@ void agregarClave(instancia* instancia,char* clave){
 	log_info(logger,"Se agrego correctamente la clave %s", claveABloquear);
 }
 
-
-int verificacionEsi(char* loQueEnvio){
-	operacion = loQueEnvio;
-	sem_post(&semaforoPlanificador);
-	log_info(logger,"Enviado los datos del esi");
-	sem_wait(&semaforoEsi);
-	log_info(logger,"Se confirmo el resultado: %d",operacionValida);
-
-}
 
 void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
 {
@@ -203,12 +186,14 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
-    		claveAComunicar = paqueteAEnviar.argumentos.GET.clave;
-    		verificacionEsi("n");
+			send(socketPlanificador,"n",2,0);
+			enviarCantBytes(socketPlanificador,paqueteAEnviar.argumentos.GET.clave);
+			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
+			sem_wait(&semaforoEsi);
     		if(!operacionValida){ //VERIFICO SI LA CLAVE ESTA TOMADA
-    			operacion = "b";
-    			sem_post(&semaforoPlanificador);
-    			sem_wait(&semaforoEsi);
+    			send(socketPlanificador,"b",2,0);
+    			enviarCantBytes(socketPlanificador,paqueteAEnviar.argumentos.GET.clave);
+    			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
     			free(paqueteAEnviar.argumentos.GET.clave);
     			resultadoEsi = "b";
     			break;
@@ -222,10 +207,10 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		algoritmoDeDistribucion(instanciaAEnviar);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
-    			operacion = "b";
-    			sem_post(&semaforoPlanificador);
+    			send(socketPlanificador,"b",2,0);
+    			enviarCantBytes(socketPlanificador,paqueteAEnviar.argumentos.GET.clave);
+    			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.GET.clave);
-    			sem_wait(&semaforoEsi);
     			free(paqueteAEnviar.argumentos.GET.clave);
     	    	resultadoEsi = "e";
     			break;
@@ -264,12 +249,12 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
         }else{
         	send(socketEsi,resultadoEsi,2,0);
         }
+    log_warning(logger,"Finalizo la atencion al esi");
     close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
     return 0;
 }
 
 int validarYenviarPaquete(char* clave, int socketEsi) {
-	claveAComunicar = clave;
 	instancia* instanciaAEnviar;
 	instanciaAEnviar = buscarInstancia(clave); //BUSCO LA INSTANCIA QUE CONTIENE TAL CLAVE
 	if(instanciaAEnviar == NULL){
@@ -280,7 +265,10 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 	}
 	log_info(logger,"Se encontro la instancia con tal clave");
 	log_info(logger,"La instancia a enviar es: %s",(*instanciaAEnviar).nombreInstancia);
-	verificacionEsi("v");
+	send(socketPlanificador,"v",2,0);
+	enviarCantBytes(socketPlanificador,clave);
+	send(socketPlanificador,clave,strlen(clave)+1,0);
+	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
 		send(socketEsi,"a",2,0);
 		enviarCantBytes(socketEsi,"Planificador: Error Clave No Bloqueada");
@@ -417,10 +405,10 @@ int contarCantidadDeInstanciasDisponibles(){
 
 int obtenerLetra(){
 	int restarSegunMayusOMinus = 65;
-	if(claveAComunicar[0] >= 97){
+	if(paqueteAEnviar.argumentos.GET.clave[0] >= 97){
 		restarSegunMayusOMinus = 97;
 	}
-	return claveAComunicar[0]-restarSegunMayusOMinus;
+	return paqueteAEnviar.argumentos.GET.clave[0]-restarSegunMayusOMinus;
 }
 
 instancia* keyExplicit(instancia* instancia){
