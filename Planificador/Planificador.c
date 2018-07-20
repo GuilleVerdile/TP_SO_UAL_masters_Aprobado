@@ -80,7 +80,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 
 void *ejecutarEsi(void *esi){
 	t_log *log_ejecutarEsi;
-	log_ejecutarEsi=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
+	log_ejecutarEsi=log_create(logPlanificador,"Ejecutar ESI",0, LOG_LEVEL_INFO);
 	while(1){
 		log_info(log_ejecutarEsi, "Esperando al semaforo para ejecucion");
 
@@ -133,18 +133,19 @@ float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
 	if((*proc).rafagaRealActual){
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+		imprimirln(rojo,"remanente?");
+
 	}
 	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
 		(*aux)=(*proc).estimacionAnterior;
 	}
 	else{
-		imprimir(rojo,"rafagaREalActual %f\n",(*proc).rafagaRealActual);
-		imprimir(rojo,"rafagaREalAnterior %f\n",(*proc).rafagaRealAnterior);
 		//(*aux) = alfaPlanificador*((*proc).rafagaRealActual) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
 		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
 	}
-
-	return (void*) aux;
+	imprimir(verde,"La estimacion del proceso con id %d es :",(*proc).idProceso);
+	imprimirln(azul," %f",(*aux));
+	return aux;
 }
 bool compararSJF(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
@@ -153,8 +154,6 @@ bool compararSJF(void *a,void *b){
 	float *bf=estimarSJF(b);
 	(*primero).estimacionAnterior=(*af);
 	(*segundo).estimacionAnterior=(*bf);
-	printf("\n%f\n",*af);
-	printf("\n%f\n",*bf);
 	fflush(stdout);
 	bool aux=(*af<=*bf);
 	free(af);
@@ -167,10 +166,11 @@ float* estimarHRRN(Proceso *proc){
 	s=estimarSJF(proc);
 	(*w)=tiempo_de_ejecucion-(*proc).tiempo_que_entro;
 	float *aux=malloc(sizeof(float));
-	imprimir(rojo,"S ->%f",*s );
-	imprimir(rojo,"W ->%f",*w);
+	imprimirln(blanco,"Los valores del esi con id %d son : ",(*proc).idProceso);
+	imprimir(verde,"S -> ");imprimirln(azul,"%f",*s);
+	imprimir(verde,"W -> ");imprimirln(azul,"%f",*w);
 	(*aux)=(float)1+(float)(*w)/(*s);
-	imprimir(rojo,"RR ->%f",*aux);
+	imprimir(verde,"RR -> ");imprimirln(verde,"%f",*aux);
 	free(s);
 	free(w);
 	return aux;
@@ -186,22 +186,14 @@ bool compararHRRN(void *a,void *b){
 	return aux;
 }
 Proceso* obtenerSegunCriterio(bool (*comparar) (void*,void*)){
-	imprimir(rojo,"ttttttt");
 	t_list *aux=list_duplicate(listos);
-	imprimir(rojo,"zzzzzzzzzzzzzz");
 	Proceso *proceso=NULL;
 	if(list_get(aux,0)!=NULL){//REVISAR ES9TA SOLUCION PARA QUE NO MUERA EL PLANIFICADOR*******
 			list_sort(aux,comparar); //CREO UNA LISTA AUXILIAR Y LO ORDENO
-			imprimir(rojo,"aaaaaaaaaaa");
 			proceso=list_get(aux,0);
-			imprimir(rojo,"ssssssssssss");
 			list_destroy(aux);
-			imprimir(rojo,"mmmmmmmmmm");
 			idBuscar = (*proceso).idProceso;
-			imprimir(magenta,"%d",idBuscar);
-			imprimir(rojo,"wwwwwwwwwww");
 			list_remove_by_condition(listos,&procesoEsIdABuscar); //ELIMINO EL PROCESO QUE COINCIDA CON TAL ID EN LA COLA DE LISTOS
-			imprimir(rojo,"xxxxxxxxxxx");
 	}
 	return proceso;
 }
@@ -362,6 +354,7 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 void aplicacion(void *a){
 	Bloqueo *block=(Bloqueo *) a;
 	if((*block).idProceso==idBuscar){
+				imprimir(azul,",%s",(*block).clave);
 				liberaClave((*block).clave);
 	}
 	else{
@@ -371,7 +364,9 @@ void aplicacion(void *a){
 void liberarRecursos(int id){
 	Bloqueo *block;
 	idBuscar=id;
+	imprimir(verde,"Liberando claves recurso id %d :",id);
 	list_iterate(bloqueados,aplicacion);
+	printf("\n");
 }
 
 void liberaClave(char *clave){
@@ -461,18 +456,13 @@ void matarESI(int id){
 }
 
 void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
-     procesos=list_create();
-	 listos=list_create();
-     terminados=list_create();
-     bloqueados=list_create();
      procesoEnEjecucion = NULL;
 	 int listener;
-	 char* buf;
 	 t_config *config=config_create(pathPlanificador);
-	 bloquearClavesIniciales(config);
 
+	 char* buf;
 	//HOLA
-	 logger=log_create(logPlanificador,"crearSelect",1, LOG_LEVEL_INFO);
+	 logger=log_create(logPlanificador,"crearSelect",0, LOG_LEVEL_INFO);
 	 fd_set master;   // conjunto maestro de descriptores de fichero
 	 fd_set read_fds; // conjunto temporal de descriptores de fichero para select()
 	 struct sockaddr_in their_addr; // datos cliente
@@ -601,12 +591,13 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                              if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
                                  if (nbytes == 0) {
-                                     /*// conexión cerrada y liberacion de recursos
+                                     // conexión cerrada y liberacion de recursos
                                 	 idBuscar=i;
                                 	 Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
                                 	 liberarRecursos((*proc_finalizado).idProceso);
+                                	 (*proc_finalizado).estado=finalizado;
                                 	 list_add(terminados,proc_finalizado);
-                                	 log_warning(logger, "El ESI se fue y se liberaron sus recursos");*/
+                                	 //log_warning(logger, "El ESI se fue y se liberaron sus recursos");*/
                                 	 log_warning(logger, "El ESI se fue ");
                                  } else {
                                 	 printf("%d",nbytes);
@@ -622,9 +613,9 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                int tam;
                                switch(buf[0]){
                                case 'f':
-                            	   imprimir(magenta,"SE VA A TERMINAR EL PROCESO");
+                            	   imprimirln(magenta,"SE VA A TERMINAR EL PROCESO");
                             	   if(procesoEnEjecucion!=NULL&&(*procesoEnEjecucion).socketProceso==i){
-                            		   imprimir(magenta,"El PROCESO ESTA EN EJECUCION");
+                            		   imprimirln(magenta,"El PROCESO ESTA EN EJECUCION");
                                 	   terminarProceso();
                                 	  // sem_post(&sem_replanificar);
                                 	   if(list_get(listos,0)!=NULL)
@@ -662,23 +653,31 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 void main()
     {
-	//jiva
 	flag_seEnvioSignalPlanificar=0;
 	flag_quierenDesalojar=0;
 	//
-	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
-	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
+    procesos=list_create();
+	listos=list_create();
+    terminados=list_create();
+    bloqueados=list_create();
+	//
+	log_test=log_create(logPlanificador,"Plani_test",0, LOG_LEVEL_INFO);
+	log_importante=log_create(logPlanificador,"Planificador",0, LOG_LEVEL_INFO);
 	sem_init(&sem_replanificar,0,0);
 	sem_init(&sem_procesoEnEjecucion,0,0);
 	sem_init(&sem_ESIejecutoUnaSentencia,0,1);
 	sem_init(&sem_finDeEjecucion,0,1);
 	sem_init(&semCambioEstado,0,0);
 	sem_init(&sem_pausar,0,1);
+	//
 	pthread_mutex_init(&mutex_pausa,NULL);
 	idGlobal=1;
 	tiempo_de_ejecucion=0;
+	//
 	Proceso*(*miAlgoritmo)();
 	t_config *config=config_create(pathPlanificador);
+	bloquearClavesIniciales(config);
+	//
 	logTest("Se creo archivo config",Blanco);
 	int estimacionInicial=config_get_int_value(config,"Estimacion inicial");
 	alfaPlanificador=(float)config_get_int_value(config,"Alfa planificacion")/100;

@@ -59,11 +59,22 @@ void imprimir(char*(*color)(char*),const char *texto,...){
 	aux2=string_from_vformat(texto,args);
 	va_end(args);
 	char *aux=color(aux2);
-	printf("%s\n",aux);
+	printf("%s",aux);
 	free(aux);
 	free(aux2);
 }
 
+void imprimirln(char*(*color)(char*),const char *texto,...){
+	char *aux2;
+	va_list args;
+	va_start(args,texto);
+	aux2=string_from_vformat(texto,args);
+	va_end(args);
+	char *aux=color(aux2);
+	printf("%s\n",aux);
+	free(aux);
+	free(aux2);
+}
 //Funciones de loggeo
 
 void loggear(t_log *log,const char *texto,...){
