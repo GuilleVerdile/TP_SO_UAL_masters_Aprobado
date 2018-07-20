@@ -116,8 +116,8 @@ void planificadorLargoPlazo(int id,int estimacionInicial){
 	(*proceso).rafagaRealActual=0;
 	(*proceso).rafagaRealAnterior=0;
     logImportante("Ingreso un nuevo ESI con ID %d",Blanco,(*proceso).idProceso);
-	meterEsiColaListos(proceso);
 	 list_add(procesos, proceso);
+	meterEsiColaListos(proceso);
 	 flag_nuevoProcesoEnListo = 1;
 	 idGlobal++;
 }
@@ -1088,11 +1088,11 @@ else{
 		enviarSegnalPlanificar();
 	}
 }
+(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
+(*proceso).estado=listo;
 if(procesoEnEjecucion==NULL){
 	enviarSegnalPlanificar();
 }
-(*proceso).tiempo_que_entro=tiempo_de_ejecucion;
-(*proceso).estado=listo;
 }
 
 //
