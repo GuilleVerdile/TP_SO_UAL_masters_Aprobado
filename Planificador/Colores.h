@@ -43,9 +43,9 @@ void imprimir(char*(*color)(char*),const char *texto,...);
 
 void imprimirln(char*(*color)(char*),const char *texto,...);
 
-void loggear(t_log *log,const char *texto,...);
+void loggear(t_log *log,Color color,const char *texto,...);
 
-void darFormatoLog(t_log *log,const char *texto,va_list args);
+void darFormatoLog(t_log *log,Color color,const char *texto,va_list args);
 
 
 #endif /* COLORES_H_ */

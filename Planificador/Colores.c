@@ -8,11 +8,11 @@
 #include "Colores.h"
 //
 //Definicion
-#define log_con_logger_espesifico(nombre,logger) 						\
+#define log_con_logger_espesifico(nombre,color,logger) 					\
 		void nombre(const char* texto, ...) { 							\
 			va_list args;												\
 			va_start(args, texto);										\
-			darFormatoLog(logger,texto,args);							\
+			darFormatoLog(logger,color,texto,args);						\
 			va_end(args);												\
 		}																\
 
@@ -77,11 +77,10 @@ void imprimirln(char*(*color)(char*),const char *texto,...){
 }
 //Funciones de loggeo
 
-void loggear(t_log *log,const char *texto,...){
+void loggear(t_log *log,Color color,const char *texto,...){
 	char *texto_imprimir;
 	va_list args;
 	va_start(args,texto);
-	Color color=va_arg(args,Color);
 	texto_imprimir=string_from_vformat(texto,args);
 	va_end(args);
 	printf("\x1b[1;3%dm",color);
@@ -91,9 +90,8 @@ void loggear(t_log *log,const char *texto,...){
 
 }
 
-void darFormatoLog(t_log *log,const char *texto,va_list args){
+void darFormatoLog(t_log *log,Color color,const char *texto,va_list args){
 	char *aux;
-	Color color=va_arg(args,Color);
 	aux=string_from_vformat(texto,args);
 	printf("\x1b[1;3%dm",color);
 	log_info(log,aux);
@@ -102,7 +100,9 @@ void darFormatoLog(t_log *log,const char *texto,va_list args){
 
 }
 //Defino las funciones log test y log importante
-log_con_logger_espesifico(logTest,log_test);
+log_con_logger_espesifico(logTest,Azul,log_test);
 
-log_con_logger_espesifico(logImportante,log_importante);
+log_con_logger_espesifico(logImportante,Blanco,log_importante);
+log_con_logger_espesifico(logImportantec,Cian,log_importante);
+
 
