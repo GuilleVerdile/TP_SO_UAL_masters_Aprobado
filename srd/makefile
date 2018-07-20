@@ -1,44 +1,40 @@
-################################################################################
-# Automatically-generated file. Do not edit!
-################################################################################
+.PHONY: default
 
--include ../makefile.init
+buildAll: so-commons-library conexiones parsi readline coordinador esi instancia planificador
 
-RM := rm -rf
+first: uninstallCommons clean
 
-# All of the sources participating in the build are defined here
--include sources.mk
--include Planificador/subdir.mk
--include Instancia/subdir.mk
--include ESI/subdir.mk
--include Coordinador/subdir.mk
--include Config/subdir.mk
--include subdir.mk
--include objects.mk
+uninstallCommons:
+	cd ~; sudo rm -rf ~/so-commons-library; git clone https://github.com/sisoputnfrba/so-commons-library.git; cd so-commons-library; sudo make uninstall
+	cd ~; sudo rm -rf ~/conexiones; git clone https://github.com/francobatta/conexiones.git; cd conexiones; sudo make uninstall
+	cd ~; sudo rm -rf ~/parsi; git clone https://github.com/sisoputnfrba/parsi.git; cd parsi
 
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(strip $(C_DEPS)),)
--include $(C_DEPS)
-endif
-endif
+so-commons-library:
+	cd ~; cd so-commons-library; sudo make install
 
--include ../makefile.defs
+conexiones:
+	cd ~; cd conexiones; sudo make install
+	
+parsi:
+	cd ~; cd parsi; sudo make install
 
-# Add inputs and outputs from these tool invocations to the build variables 
+readline:
+	sudo apt-get install libreadline6 libreadline6-dev
 
-# All Target
-all: SistemasOperativos
+coordinador:
+	cd ../Coordinador; sudo make all
 
-# Tool invocations
-SistemasOperativos: $(OBJS) $(USER_OBJS)
-	@echo 'Finished building target: $@'
-	@echo ' '
+esi:
+	cd ../ESI; sudo make all
+	
+instancia:
+	cd ../Instancia; sudo make all
+	
+planificador:
+	cd ../Planificador; sudo make all
 
-# Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) SistemasOperativos
-	-@echo ' '
-
-.PHONY: all clean dependents
-
--include ../makefile.targets
+	cd ../Coordinador; rm -rf  ./Coordinador.o  ./Coordinador.d  Coordinador
+	cd ../ESI; rm -rf  ./ESI.o  ./ESI.d  ESI
+	cd ../Instancia; rm -rf  ./Instancia.o  ./Instancia.d  Instancia
+	cd ../Planificador; rm -rf  ./Consola.o ./Planificador.o ./Colores.o ./Consola.d ./Planificador.d ./Colores.d Planificador

@@ -15,10 +15,10 @@ readline:
 	sudo apt-get install libreadline6 libreadline6-dev
 
 coordinador:
-	cd Coordinador; make
+	cd Coordinador; make all
 
 esi:
-	cd ESI; make
+	cd ESI; make all
 	
 instancia:
 	cd Instancia; make
