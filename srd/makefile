@@ -1,8 +1,10 @@
 .PHONY: default
 
-buildAll: so-commons-library conexiones parsi readline coordinador esi instancia planificador
-
 first: uninstallCommons clean
+
+second: so-commons-library conexiones parsi readline
+
+third: coordinador esi instancia planificador
 
 uninstallCommons:
 	cd ~; sudo rm -rf ~/so-commons-library; git clone https://github.com/sisoputnfrba/so-commons-library.git; cd so-commons-library; sudo make uninstall
