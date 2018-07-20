@@ -1123,9 +1123,6 @@ void status(char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
 	if(block){
-		//COORDINADOR
-		send(socketCoordinador,"s",2,0);
-		//Aca va todo lo que tiene que hacer status
 		imprimir(azul,"Proceso bloqueados por esta clave : ");
 		if(list_get((*block).bloqueados,0)==NULL)
 			imprimir(rojo,"ninguno");
@@ -1133,8 +1130,11 @@ void status(char *clave){
 			list_iterate((*block).bloqueados,&mostrarProcesos);
 		}
 	}
-	else
-		imprimir(rojo,"No se encontro la clave");
+	//COORDINADOR
+	send(socketCoordinador,"s",2,0);
+	enviarCantBytes(clave);
+	send(socketCoordinador,clave,strlen(clave)+1,0);
+
 }
 //liberar memoria
 
