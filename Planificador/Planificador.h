@@ -53,6 +53,7 @@ int flag_desalojo;
 //
 int flag_nuevoProcesoEnListo;
 //
+int socketCoordinador;
 int tiempo_de_ejecucion;
 float alfaPlanificador;
 typedef enum {bloqueado,listo,ejecucion,finalizado}Estado;

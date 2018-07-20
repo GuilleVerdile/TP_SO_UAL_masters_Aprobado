@@ -355,6 +355,9 @@ void aplicacion(void *a){
 	Bloqueo *block=(Bloqueo *) a;
 	if((*block).idProceso==idBuscar){
 				imprimir(azul,",%s",(*block).clave);
+				send(socketCoordinador,"l",2,0);
+				enviarCantBytes(socketCoordinador,(*block).clave);
+				send(socketCoordinador,(*block).clave,strlen((*block).clave+1),0);
 				liberaClave((*block).clave);
 	}
 	else{
@@ -488,6 +491,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
     		config_destroy(config);
     		tirarErrorYexit("No se pudo crear socket de cliente");
     	}*/
+    	socketCoordinador=casoDiscriminador;
     	send(casoDiscriminador,"p",2,0);
     	logImportante("Se establecio comunicacion con el coordinador como cliente",Blanco);
      config_destroy(config); // SI NO HAY ERROR SE DESTRUYE FINALMENTE EL CONFIG
@@ -561,6 +565,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         	buf=malloc(tam);
                         		                         	recv(i, buf, tam, 0);
                         		                         	log_info(logger,"Se realizo el recv %s",buf);
+
                         		                         	switch(aux[0]){
                         		                         	case 'n':
                         		                         		logTest("Se decidio verificar un GET de la clave %s",Azul,buf);
@@ -578,6 +583,24 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         		logTest("Se decidio liberar la clave %s",Azul,buf);
                         		                         		liberaClave(buf);
                         		                         		break;
+                        		                         	//CASE PARA ESTATUS
+                        		                         	case 's':
+                        		                         		free(buf);
+                        		                         		tam = obtenerTamDelSigBuffer(socketCoordinador);
+                        		                         		buf=malloc(tam);
+                        		                         		recv(socketCoordinador,buf,tam,0);
+                        		                         		tam = obtenerTamDelSigBuffer(socketCoordinador);
+                        		                         		imprimir(verde,"Nombre de la instancia es : ");
+                        		                      			imprimirln(azul,"%s",buf);
+                        		                      			free(buf);
+                        		                      			buf=malloc(tam);
+                        		                         		recv(socketCoordinador,buf,tam,0);
+
+                        		                         			imprimir(verde,"Valor ");
+                        		                         			imprimirln(azul,"%s",strlen(buf)>0?buf:"No hay valor");
+
+                        		                         		break;
+
                         		                         	}
                         		                         	logTest("Se realizo correctamente la comunicacion con el coordinador",Blanco);
                         		                         	free(buf);
@@ -1100,6 +1123,8 @@ void status(char *clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
 	if(block){
+		//COORDINADOR
+		send(socketCoordinador,"s",2,0);
 		//Aca va todo lo que tiene que hacer status
 		imprimir(azul,"Proceso bloqueados por esta clave : ");
 		if(list_get((*block).bloqueados,0)==NULL)
