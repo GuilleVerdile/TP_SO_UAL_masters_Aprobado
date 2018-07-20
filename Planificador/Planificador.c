@@ -61,7 +61,7 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 	proceso = (*algoritmo)();
 
 	if(proceso){
-	logImportante("Se selecciono un proceso ID %d por el algoritmo",(*proceso).idProceso);
+	logImportante("Se selecciono el Proceso ID %d por el algoritmo",(*proceso).idProceso);
 	logTest("Esperando el semaforo sem fin de ejecucion");
 	sem_wait(&sem_finDeEjecucion);
 	logTest("Se paso el semaforo sem fin de ejecucion");
@@ -80,7 +80,6 @@ void *planificadorCortoPlazo(void *miAlgoritmo){//como parametro le tengo que pa
 
 void *ejecutarEsi(void *esi){
 	t_log *log_ejecutarEsi;
-	log_importante=log_create(logPlanificador,"Ejecutar ESI",1, LOG_LEVEL_INFO);
 	while(1){
 		logTest("Esperando al semaforo para ejecucion");
 		sem_wait(&sem_procesoEnEjecucion);
@@ -94,7 +93,7 @@ void *ejecutarEsi(void *esi){
 				send((*procesoEnEjecucion).socketProceso,"1",2,0);// este send va a permitir al ESI ejecutar una sentencia
          	   tiempo_de_ejecucion++;
          	   (*procesoEnEjecucion).rafagaRealActual=(*procesoEnEjecucion).rafagaRealActual+1;
-				logImportante("se envio al esi en ejecucion orden de ejecutar");
+				logTest("se envio al ESI %d orden de ejecutar",(*procesoEnEjecucion).idProceso);
 			}
 
 			sem_wait(&semCambioEstado);
@@ -102,7 +101,7 @@ void *ejecutarEsi(void *esi){
 		}
 		//el proceso esi actual dejo de ser el que tiene que ejecutar
 		sem_post(&sem_finDeEjecucion);
-		logTest(log_ejecutarEsi, "se da segnal de fin de ejecucion");
+		logTest("se da segnal de fin de ejecucion");
 	}
 }
 void planificadorLargoPlazo(int id,int estimacionInicial){
@@ -129,14 +128,22 @@ Proceso* fifo(){
 }
 float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
-	if((*proc).rafagaRealActual){
+	imprimirln(verde,"%d",(*proc).idProceso);
+	imprimirln(verde,"%f",(*proc).estimacionAnterior);
+	imprimirln(verde,"%f",(*proc).rafagaRealActual);
+	imprimirln(verde,"%f",(*proc).rafagaRealAnterior);
+	if((*proc).rafagaRealActual!=0){
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+		//
+		(*proc).estimacionAnterior=(*aux);
+		//
 		imprimirln(rojo,"remanente?");
 
 	}
 	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
 		(*aux)=(*proc).estimacionAnterior;
 	}
+
 	else{
 		//(*aux) = alfaPlanificador*((*proc).rafagaRealActual) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
 		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
@@ -144,6 +151,7 @@ float *estimarSJF(Proceso *proc){
 	imprimir(verde,"La estimacion del proceso con id %d es :",(*proc).idProceso);
 	imprimirln(azul," %f",(*aux));
 	logTest("La estimacion del proceso con id %d es : %f ",(*proc).idProceso,(*aux));
+	fflush(stdout);
 	return aux;
 }
 bool compararSJF(void *a,void *b){
@@ -473,7 +481,6 @@ void realizarStatus(char* nombreInstancia){
 	free(buf);
 }
 void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
-	log_importante=log_create(logPlanificador,"Conexion",1, LOG_LEVEL_INFO);
 	procesoEnEjecucion = NULL;
 	 int listener;
 	 t_config *config=config_create(pathPlanificador);
@@ -533,7 +540,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                  for(i = 0; i <= fdmax; i++) {
                      if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
                          if (i == listener) {
-                        	 logImportante("Conexion entrante de un nuevo ESI");
+                        	 logTest("Conexion entrante de un nuevo ESI");
                              // gestionar nuevas conexiones
                              addrlen = sizeof(their_addr);
                              if ((nuevoCliente = accept(listener, (struct sockaddr *)&their_addr,
@@ -660,7 +667,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             		   flag_quierenDesalojar=0;
                             		   meterEsiColaListos(procesoEnEjecucion);
                             		   //ESTO ES PARTE DE LA SOLUCION VAGA
-                            		   //enviarSegnalPlanificar();
+                            		   enviarSegnalPlanificar();
                             	   }
                             	   sem_post(&sem_ESIejecutoUnaSentencia);
                             	   sem_post(&semCambioEstado);
@@ -684,7 +691,7 @@ void main()
     terminados=list_create();
     bloqueados=list_create();
 	//
-	log_test=log_create(logPlanificador,"Plani_test",1, LOG_LEVEL_INFO);
+	log_test=log_create(logPlanificador,"Plani_test",0, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	//
 	sem_init(&sem_replanificar,0,0);
@@ -1079,7 +1086,9 @@ if((*proceso).estado==bloqueado&&flag_desalojo==1){
 		flag_quierenDesalojar=1;
 	}
 	//si estaba bloqueado y lo quiero agregar fue porque se desbloqueo
-	enviarSegnalPlanificar();
+
+	//enviarSegnalPlanificar();
+
 }
 else if((*proceso).estado==ejecucion){
 	//el proceso en ejecucion fue desalojado por algun otro proceso
@@ -1093,7 +1102,8 @@ else{
 			//tengo que esperar a que finalice su sentencia
 			flag_quierenDesalojar=1;
 		}
-		enviarSegnalPlanificar();
+
+		//enviarSegnalPlanificar();
 	}
 }
 (*proceso).tiempo_que_entro=tiempo_de_ejecucion;
