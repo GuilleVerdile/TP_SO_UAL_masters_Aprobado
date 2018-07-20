@@ -11,7 +11,7 @@ t_list* bitArray;
 int sockcoordinador;
 void (*algoritmoDeReemplazo)();
 int nroEntrada = 0;
-
+int nroOperacion = 0;
 int main(){
     logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
     t_config* config = config_create(pathInstancia);
@@ -76,6 +76,11 @@ algoritmo obtenerAlgoritmoDeReemplazo(){
 		config_destroy(config);
 		log_info(logger,"Usted selecciono circular");
 		return &circular;
+	}
+	if(strcmp("LRU",algoritmo) == 0){
+			config_destroy(config);
+			log_info(logger,"Usted selecciono LRU");
+			return &lru;
 	}
 }
 
@@ -162,7 +167,7 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 		//Garantizo mutua exclusion al ejecutar la seccion critica
 	tablaEntradas* tabla = list_get(tablas,posTabla);
 		if(!(*tabla).seAlmacenoElValor){
-		log_error(logger,"La posicion de la tabla %d",posTabla);
+		log_trace(logger,"La posicion de la tabla %d",posTabla);
 		char* aux = string_new();
 		string_append(&aux,path);
 		char* valor = string_new();
@@ -171,15 +176,15 @@ void almacenarInformacionDeTalPosicionDeLaTabla(int posTabla){
 			cantidadEntradasALeer++;
 		}
 		int posEntrada = posicionDeLaEntrada((*tabla).entrada);
-		log_error(logger,"La posicion de entrada es %d",posEntrada);
-		log_error(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
+		log_trace(logger,"La posicion de entrada es %d",posEntrada);
+		log_trace(logger,"La cantidad de entradas a leer son %d",cantidadEntradasALeer);
 		for(int j = 0; j<cantidadEntradasALeer; j++){
 			char* entrada = list_get(entradas,posEntrada);
 			log_trace(logger,"La entrada a almacenar %s",entrada);
 			string_append(&valor,entrada);
 			posEntrada++;
 		}
-		log_error(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
+		log_trace(logger,"Se va almacenar el valor %s de la clave %s",valor, (*tabla).clave);
 		string_append(&aux,(*tabla).clave);
 		int desc = open(aux, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		free(aux);
@@ -237,6 +242,7 @@ void liberarClave(int posTabla){
 	if((*tabla).tamValor%tamEntradas){
 		cantEntradasAOcupadas++;
 	}
+	log_info(logger,"Se va liberar desde la posicion %d hasta %d",posEntrada,posEntrada+cantEntradasAOcupadas-1);
 	for(int i = 0;i<cantEntradasAOcupadas;i++){
 		char* bit = list_get(bitArray,posEntrada+i);
 		bit[0]='0'; //LIBERO :D
@@ -253,6 +259,7 @@ void enviarEntradasRestantes(){
 			cantidadEntradas++;
 		}
 	}
+	log_warning(logger,"LA CANTIDAD DE ENTRADAS QUE TENGO LIBRE SON: %d",cantidadEntradas);
 	char* buff = string_itoa(cantidadEntradas);
 	enviarCantBytes(sockcoordinador,buff);
 	send(sockcoordinador,buff,strlen(buff)+1,0);
@@ -260,10 +267,23 @@ void enviarEntradasRestantes(){
 	return;
 }
 
+void mostrarEstadoEntradas(){
+	int i =0;
+	char* bit;
+	while((bit = list_get(bitArray,i))!=NULL){
+		if(bit[0]-48){
+			log_info(logger,"Posicion: %d valor: %s",i,list_get(entradas,i));
+		}
+		i++;
+	}
+}
+
 void manejarPaquete(t_esi_operacion paquete){
 	int posTabla;
 	char* resultado = "r";
 	pthread_mutex_lock(&mutexAlmacenamiento);
+	nroOperacion++;
+	log_error(logger,"%d",nroOperacion);
 	switch(paquete.keyword){
 		case GET:
 			log_info(logger,"Se selecciono el caso GET");
@@ -317,7 +337,7 @@ void manejarPaquete(t_esi_operacion paquete){
 				meterValorParTalClave(paquete.argumentos.SET.valor,tabla);
 				(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
 			}
-
+			(*tabla).nroOperacion = nroOperacion;
 			free(paquete.argumentos.SET.clave);
 			free(paquete.argumentos.SET.valor);
 			break;
@@ -332,6 +352,7 @@ void manejarPaquete(t_esi_operacion paquete){
 			free(paquete.argumentos.STORE.clave);
 			break;
 	}
+	mostrarEstadoEntradas();
 	pthread_mutex_unlock(&mutexAlmacenamiento);
 	if(send(sockcoordinador,resultado,2,0)==-1)
 	{
@@ -350,6 +371,7 @@ void meterClaveALaTabla(char* clave){
 	(*tabla).entrada = NULL;
 	(*tabla).tamValor = 0;
 	(*tabla).seAlmacenoElValor = 0;
+	(*tabla).nroOperacion = 0;
 	list_add(tablas,tabla);
 }
 
@@ -387,7 +409,7 @@ int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 			}
 			posicion ++;
 		}
-		log_warning(logger,"El valor de encontrado es %d",encontrado);
+		log_warning(logger,"El valor de encontrado es %d y la cantidad de entradas libre %d",encontrado,cantEntradasLibres);
 		if(encontrado){
 			return primeraPosicionEncontrada;
 		}else if(cantEntradasAOcupar > cantEntradasLibres){
@@ -420,12 +442,23 @@ void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada){
 			posicionPermitidaParaOcupar++;
 	}
 }
-
+int esAtomico(tablaEntradas* tabla){
+	int cantidadEntradas = (*tabla).tamValor/tamEntradas;
+	if((*tabla).tamValor%tamEntradas){
+		cantidadEntradas++;
+	}
+	return cantidadEntradas==1;
+}
 int obtenerTablaDeTalEntrada(char* entrada){
 	int posTabla=0;
 	tablaEntradas* tabla;
 	while((tabla = list_get(tablas,posTabla))!=NULL){
 		if((*tabla).entrada == entrada){
+			log_info(logger,"Encontre el valor xd que es: %s con la posicion %d", (*tabla).entrada,posTabla);
+			if(!esAtomico(tabla)){
+				log_warning(logger,"Pero no es atomico D:");
+				break;
+			}
 			return posTabla;
 		}
 		posTabla++;
@@ -434,23 +467,43 @@ int obtenerTablaDeTalEntrada(char* entrada){
 }
 
 void circular(){
-	char* bit = list_get(bitArray,nroEntrada);
-	while(!(bit[0]-48)){ //BUSCO HASTA ENCONTRAR UNO OCUPADO
+	int posTabla;
+	if(nroEntrada >= entradasTotales){ //SI SUPERE A LA CANTIDAD DE ENTRADAS TOTALES REINICIO
+		nroEntrada = 0;
+	}
+	while(((posTabla=obtenerTablaDeTalEntrada(list_get(entradas,nroEntrada)))<0)){
 		nroEntrada++;
-		log_warning(logger,"Seguimos...");
 		if(nroEntrada >= entradasTotales){ //SI SUPERE A LA CANTIDAD DE ENTRADAS TOTALES REINICIO
 			nroEntrada = 0;
 		}
-		bit = list_get(bitArray,nroEntrada);
 	}
-	int posTabla = obtenerTablaDeTalEntrada(list_get(entradas,nroEntrada));
 	tablaEntradas* tabla = list_get(tablas,posTabla);
-	int cantEntradasALiberar = (*tabla).tamValor/tamEntradas;
-	if((*tabla).tamValor%tamEntradas){
-		cantEntradasALiberar++;
-	}
-	log_info(logger,"La victima es %s", (*tabla).clave);
-	nroEntrada += cantEntradasALiberar;
+	log_info(logger,"La victima es: %s con el  valor %s de la posicion %d",(*tabla).clave,(*tabla).entrada, posTabla);
+	nroEntrada++;
 	liberarClave(posTabla);
 }
 
+int buscarTablaMenosUsada(){
+	int i =0;
+	tablaEntradas* tabla=NULL;
+	tablaEntradas*tablaMenosUsada = NULL;
+	while(((tablaMenosUsada= list_get(tablas,i))!=NULL) && (*tablaMenosUsada).entrada == NULL && !esAtomico(tablaMenosUsada)){
+		i++;
+	}
+	int posTabla= i;
+	while((tabla = list_get(tablas,i))!=NULL){
+		log_info(logger,"Nro operacion = %d vs %d y su valor es: %s",(*tablaMenosUsada).nroOperacion,(*tabla).nroOperacion, (*tabla).entrada?(*tabla).entrada:"NULL");
+		if(((*tabla).entrada !=NULL) && esAtomico(tabla) && ((*tablaMenosUsada).nroOperacion > (*tabla).nroOperacion)){
+			tablaMenosUsada = tabla;
+			posTabla = i;
+		}
+		i++;
+	}
+	log_info(logger,"La victima es %s de la posicion %d", (*tablaMenosUsada).clave, posTabla);
+	return posTabla;
+}
+
+void lru(){
+	int posTabla= buscarTablaMenosUsada();
+	liberarClave(posTabla);
+}

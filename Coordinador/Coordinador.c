@@ -515,6 +515,13 @@ void *conexionInstancia(void* cliente){
 						errorMensajeInstancia = "Instancia: Error Clave No Encontrada";
 						sem_post(&semaforoEsi);
 						free(buff);
+						break;
+					case 'a':
+						operacionValida = 0;
+						errorMensajeInstancia = "Instancia: Error No Tengo Espacio Suficiente";
+						sem_post(&semaforoEsi);
+						free(buff);
+						break;
 				}
 			}
 			free(buff);

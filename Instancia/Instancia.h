@@ -22,6 +22,7 @@ struct TE{
 	char* entrada; //Direcciones de memoria de las entradas de la clave
 	int tamValor; //Tamanio del valor asociado a la clave
 	int seAlmacenoElValor;
+	int nroOperacion;
 }typedef tablaEntradas;
 void compactacion();
 void inicializarTablaEntradas();
@@ -36,4 +37,5 @@ int posicionDeLaEntrada(char* entradaABuscar);
 typedef void(*algoritmo)();
 algoritmo obtenerAlgoritmoDeReemplazo();
 void circular();
+void lru();
 #endif /* SOCKET_INSTANCIA_H_ */
