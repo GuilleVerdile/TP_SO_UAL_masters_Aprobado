@@ -8,6 +8,7 @@ t_esi_operacion paqueteAEnviar;
 int operacionValida;
 pthread_mutex_t mutexInstancias;
 pthread_mutex_t mutexPlanificador;
+sem_t semaforoLiberar;
 instancia* (*algoritmoDeDistribucion)();
 char* operacion;
 char* claveAComunicar;
@@ -17,6 +18,7 @@ int main(){
 	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
+	sem_init(&semaforoLiberar,0,0);
 	pthread_mutex_init(&mutexInstancias,NULL);
 	pthread_mutex_init(&mutexPlanificador,NULL);
 	cantidadDeInstancias =0;
@@ -128,11 +130,16 @@ void* conexionPlanificador(){
 				tam = obtenerTamDelSigBuffer(socketPlanificador);
 				clave = malloc(tam);
 				recv(socketPlanificador,clave,tam,0);
+				log_info(logger,"La clave a liberar es: %s",clave);
 				instanciaAEnviar = buscarInstancia(clave);
+				if(instanciaAEnviar){
 	    		liberarClave(instanciaAEnviar,clave);
 	    		operacion = "l";
+	    		claveAComunicar=clave;
 	    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
-	    		free(clave);
+	    		sem_wait(&semaforoLiberar);
+				}
+				free(clave);
 	    		pthread_mutex_unlock(&mutexPlanificador);
 				break;
 			case 's':
@@ -588,6 +595,7 @@ void *conexionInstancia(void* cliente){
 		}else if(operacion[0]=='l'){
 			enviarCantBytes(socketInstancia,claveAComunicar);
 			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,0);
+			sem_post(&semaforoLiberar);
 		}
 		log_info(logger,"Se envio completamente el paquete");
 	}

@@ -357,7 +357,7 @@ void aplicacion(void *a){
 				imprimir(azul,",%s",(*block).clave);
 				send(socketCoordinador,"l",2,0);
 				enviarCantBytes(socketCoordinador,(*block).clave);
-				send(socketCoordinador,(*block).clave,strlen((*block).clave+1),0);
+				send(socketCoordinador,(*block).clave,strlen((*block).clave)+1,0);
 				liberaClave((*block).clave);
 	}
 	else{
