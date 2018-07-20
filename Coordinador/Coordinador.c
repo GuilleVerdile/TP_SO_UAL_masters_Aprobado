@@ -7,8 +7,10 @@ sem_t semaforoEsi;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
 pthread_mutex_t mutexInstancias;
+pthread_mutex_t mutexPlanificador;
 instancia* (*algoritmoDeDistribucion)();
 char* operacion;
+char* claveAComunicar;
 char* errorMensajeInstancia;
 int socketPlanificador;
 int main(){
@@ -16,6 +18,7 @@ int main(){
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
 	pthread_mutex_init(&mutexInstancias,NULL);
+	pthread_mutex_init(&mutexPlanificador,NULL);
 	cantidadDeInstancias =0;
 	semaforosInstancias = list_create();
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
@@ -100,16 +103,65 @@ int main(){
 	return 0;
 }
 
+instancia* realizarSimulacion(){
+	t_list* instanciaAux = list_duplicate(instancias);
+	instancia* instancia = algoritmoDeDistribucion(NULL,instanciaAux);
+	list_destroy(instanciaAux);
+	return instancia;
+}
+
 void* conexionPlanificador(){
 	sem_post(&esperaInicializacion);
 	char* buff = malloc(2);
+	int tam;
+	char* clave;
+	instancia* instanciaAEnviar;
 	while(recv(socketPlanificador,buff,2,0)>0){
 		log_info(logger,"Recibi un paquete");
 		if(buff[0]=='1' || buff[0]=='0'){
 			operacionValida = buff[0]-48;
 			sem_post(&semaforoEsi);
 		}
-
+		switch(buff[0]){
+			case'l':
+				pthread_mutex_lock(&mutexPlanificador);
+				tam = obtenerTamDelSigBuffer(socketPlanificador);
+				clave = malloc(tam);
+				recv(socketPlanificador,clave,tam,0);
+				instanciaAEnviar = buscarInstancia(clave);
+	    		liberarClave(instanciaAEnviar,clave);
+	    		operacion = "l";
+	    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
+	    		free(clave);
+	    		pthread_mutex_unlock(&mutexPlanificador);
+				break;
+			case 's':
+				tam = obtenerTamDelSigBuffer(socketPlanificador);
+				log_info(logger,"tam buff: %d", tam);
+				clave = malloc(tam);
+				recv(socketPlanificador,clave,tam,0);
+				send(socketPlanificador,"s",2,0);
+				pthread_mutex_lock(&mutexPlanificador);
+				if((instanciaAEnviar=buscarInstancia(clave))!=NULL){
+					enviarCantBytes(socketPlanificador,(*instanciaAEnviar).nombreInstancia);
+					send(socketPlanificador,(*instanciaAEnviar).nombreInstancia,strlen((*instanciaAEnviar).nombreInstancia)+1,0);
+					operacion = "o";
+					claveAComunicar = malloc(strlen(clave)+1);
+					strcpy(claveAComunicar,clave);
+					sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
+				}else{
+					paqueteAEnviar.argumentos.GET.clave= clave;
+					instanciaAEnviar = realizarSimulacion();
+					log_info(logger,"La simulacion fue un exito nombre instancia: %s",(*instanciaAEnviar).nombreInstancia);
+					enviarCantBytes(socketPlanificador,(*instanciaAEnviar).nombreInstancia);
+					send(socketPlanificador,(*instanciaAEnviar).nombreInstancia,strlen((*instanciaAEnviar).nombreInstancia)+1,0);
+					enviarCantBytes(socketPlanificador,"Fue un simulacro");
+					send(socketPlanificador,"Fue un simulacro",17,0);
+				}
+				pthread_mutex_unlock(&mutexPlanificador);
+				free(clave);
+				break;
+		}
 	}
 }
 
@@ -183,6 +235,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     	t_config* config = config_create(pathCoordinador);
     	usleep(config_get_int_value(config,"Retardo")*1000);
     	config_destroy(config);
+    	pthread_mutex_lock(&mutexPlanificador);
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
@@ -200,11 +253,11 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		}
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
-    		instanciaAEnviar = algoritmoDeDistribucion(NULL); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
+    		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
     		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*instanciaAEnviar).nroSemaforo);
     		operacion = "p";
     		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));  //LE DIGO A LA INSTANCIA QUE TRABAJE
-    		algoritmoDeDistribucion(instanciaAEnviar);
+    		algoritmoDeDistribucion(instanciaAEnviar,instancias);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
     			send(socketPlanificador,"b",2,0);
@@ -240,6 +293,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
         	resultadoEsi = "e";
     		break;
     	}
+    	pthread_mutex_unlock(&mutexPlanificador);
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
             log_info(logger,"Se desconecto un ESI");
@@ -353,34 +407,34 @@ instancia* existeEnLaLista(char* id){
 	return instancia;
 }
 
-instancia* equitativeLoad(instancia* instancia){
+instancia* equitativeLoad(instancia* instancia, t_list* listaInstancias){
 	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
 		int i = 0;
 		int disponibilidad = 0;
 		pthread_mutex_lock(&mutexInstancias);
 		while(!disponibilidad && instancia != NULL){
-			instancia = list_get(instancias,i);
+			instancia = list_get(listaInstancias,i);
 			disponibilidad = (*instancia).estaDisponible;
 			i++;
 		}
-		instancia = list_remove(instancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
+		instancia = list_remove(listaInstancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
 		pthread_mutex_unlock(&mutexInstancias);
 		return instancia;
 	}
 	pthread_mutex_lock(&mutexInstancias);
-	list_add(instancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
+	list_add(listaInstancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
 	pthread_mutex_unlock(&mutexInstancias);
 	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
 }
 
-instancia* lsu(instancia* instanciaAUsar){
+instancia* lsu(instancia* instanciaAUsar,t_list* listaInstancias){
 	if(instanciaAUsar == NULL){
 		int i=1;
 		instancia* instanciaAux;
-		instanciaAUsar = list_get(instancias,0);
+		instanciaAUsar = list_get(listaInstancias,0);
 		pthread_mutex_lock(&mutexInstancias);
 		do{
-			instanciaAux = list_get(instancias,i);
+			instanciaAux = list_get(listaInstancias,i);
 			if(instanciaAux!=NULL && (*(*instanciaAux).cantEntradasDisponibles) > (*(*instanciaAUsar).cantEntradasDisponibles)){
 				instanciaAUsar = instanciaAux;
 			}
@@ -411,7 +465,7 @@ int obtenerLetra(){
 	return paqueteAEnviar.argumentos.GET.clave[0]-restarSegunMayusOMinus;
 }
 
-instancia* keyExplicit(instancia* instancia){
+instancia* keyExplicit(instancia* instancia,t_list* listaInstancias){
 	if(instancia == NULL){
 		int cantidadInstancias = contarCantidadDeInstanciasDisponibles();
 		int rangoAscii = 25/cantidadInstancias;
@@ -422,7 +476,7 @@ instancia* keyExplicit(instancia* instancia){
 		int nroInstancia = 0;
 		int i =0;
 		int letraABuscar = obtenerLetra();
-		while((instancia = list_get(instancias,i))){
+		while((instancia = list_get(listaInstancias,i))){
 			if((*instancia).estaDisponible){
 				if(letraABuscar>= nroInstancia*rangoAscii && letraABuscar <= (nroInstancia+1)*rangoAscii){
 					return instancia;
@@ -446,6 +500,21 @@ void compactacionSimultanea(int semaforoNoNecesario){
 		}
 		nroSemaforo++;
 	}
+}
+
+void realizarEnvioDeValor(int socketInstancia) {
+	enviarCantBytes(socketInstancia, claveAComunicar);
+	log_info(logger,"La clave a conocer el valor es %s",claveAComunicar);
+	send(socketInstancia, claveAComunicar, strlen(claveAComunicar)+1, 0);
+	free(claveAComunicar);
+	int tamBuff = obtenerTamDelSigBuffer(socketInstancia);
+	log_error(logger, "tam del valor %d", tamBuff);
+	char * buff = malloc(tamBuff);
+	recv(socketInstancia, buff, tamBuff, 0);
+	log_error(logger, "el valor a enviar es: %s", buff);
+	enviarCantBytes(socketPlanificador, buff);
+	send(socketPlanificador, buff, strlen(buff)+1, 0);
+	free(buff);
 }
 
 void *conexionInstancia(void* cliente){
@@ -492,6 +561,7 @@ void *conexionInstancia(void* cliente){
 					case 'r':
 						operacionValida=1;
 						int bytes = obtenerTamDelSigBuffer(socketInstancia);
+						log_info(logger,"bytes: %d",bytes);
 						char* cantidadDeEntradasARestar = malloc(sizeof(bytes));
 						recv(socketInstancia,cantidadDeEntradasARestar,bytes,0);
 						cantidadDeEntradasRestantes=transformarNumero(cantidadDeEntradasARestar,0);
@@ -513,6 +583,11 @@ void *conexionInstancia(void* cliente){
 				}
 			}
 			free(buff);
+		}else if(operacion[0]=='o'){
+			realizarEnvioDeValor(socketInstancia);
+		}else if(operacion[0]=='l'){
+			enviarCantBytes(socketInstancia,claveAComunicar);
+			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,0);
 		}
 		log_info(logger,"Se envio completamente el paquete");
 	}

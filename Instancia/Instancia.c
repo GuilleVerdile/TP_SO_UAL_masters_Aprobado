@@ -59,6 +59,23 @@ int main(){
     		case 'c':
     			compactacion();
     			break;
+    		case 'o':
+    			recvValor = obtenerTamDelSigBuffer(sockcoordinador);
+    			free(buff);
+    			buff = malloc(recvValor);
+    			recv(sockcoordinador,buff,recvValor,0);
+    			enviarValor(buff);
+    			free(buff);
+    			buff= malloc(2);
+    			break;
+    		case 'l':
+    			recvValor =obtenerTamDelSigBuffer(sockcoordinador);
+    			buff = malloc(recvValor);
+    			recv(sockcoordinador,buff,recvValor,0);
+    			buscarYLiberarClave(buff);
+    			free(buff);
+    			buff = malloc(2);
+    			break;
     	}
    }
     config_destroy(config);
@@ -66,6 +83,13 @@ int main(){
     log_destroy(logger);
     close(sockcoordinador);
 	 return 0;
+}
+
+void buscarYLiberarClave(char* clave){
+	int posTabla = encontrarTablaConTalClave(clave);
+	if(posTabla >0){
+		liberarClave(posTabla);
+	}
 }
 
 algoritmo obtenerAlgoritmoDeReemplazo(){
@@ -507,3 +531,27 @@ void lru(){
 	int posTabla= buscarTablaMenosUsada();
 	liberarClave(posTabla);
 }
+
+void enviarValor(char* clave){
+	int posTabla = encontrarTablaConTalClave(clave);
+	tablaEntradas* tabla= list_get(tablas,posTabla);
+	char* valor = string_new();
+	if((*tabla).entrada){
+		int cantidadEntradasALeer = (*tabla).tamValor/tamEntradas;
+		if((*tabla).tamValor%tamEntradas){
+			cantidadEntradasALeer++;
+		}
+		int posEntrada = posicionDeLaEntrada((*tabla).entrada);
+		for(int j = 0; j<cantidadEntradasALeer; j++){
+			char* entrada = list_get(entradas,posEntrada);
+			string_append(&valor,entrada);
+			posEntrada++;
+		}
+	}else{
+		string_append(&valor,"No tiene valor");
+	}
+	enviarCantBytes(sockcoordinador,valor);
+	send(sockcoordinador,valor,strlen(valor)+1,0);
+	free(valor);
+}
+

@@ -457,7 +457,14 @@ void matarESI(int id){
 	free(procesoAEliminar);
 	*/
 }
-
+void realizarStatus(char* nombreInstancia){
+	imprimir(azul,"Instancia: %s",nombreInstancia);
+	int tam = obtenerTamDelSigBuffer(socketCoordinador);
+	char* buf=malloc(tam);
+	recv(socketCoordinador,buf,tam,0);
+	imprimir(azul,"Valor: %s",buf);
+	free(buf);
+}
 void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoCliente lo pasa como NULL
      procesoEnEjecucion = NULL;
 	 int listener;
@@ -585,19 +592,8 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		                         		break;
                         		                         	//CASE PARA ESTATUS
                         		                         	case 's':
-                        		                         		free(buf);
-                        		                         		tam = obtenerTamDelSigBuffer(socketCoordinador);
-                        		                         		buf=malloc(tam);
-                        		                         		recv(socketCoordinador,buf,tam,0);
-                        		                         		tam = obtenerTamDelSigBuffer(socketCoordinador);
-                        		                         		imprimir(verde,"Nombre de la instancia es : ");
-                        		                      			imprimirln(azul,"%s",buf);
-                        		                      			free(buf);
-                        		                      			buf=malloc(tam);
-                        		                         		recv(socketCoordinador,buf,tam,0);
-
-                        		                         			imprimir(verde,"Valor ");
-                        		                         			imprimirln(azul,"%s",strlen(buf)>0?buf:"No hay valor");
+                        		                         		logTest("Se decidio obtener el status %s",Azul,buf);
+                        		                         		realizarStatus(buf);
 
                         		                         		break;
 
@@ -1132,7 +1128,7 @@ void status(char *clave){
 	}
 	//COORDINADOR
 	send(socketCoordinador,"s",2,0);
-	enviarCantBytes(clave);
+	enviarCantBytes(socketCoordinador,clave);
 	send(socketCoordinador,clave,strlen(clave)+1,0);
 
 }

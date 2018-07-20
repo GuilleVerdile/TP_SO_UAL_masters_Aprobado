@@ -38,4 +38,6 @@ typedef void(*algoritmo)();
 algoritmo obtenerAlgoritmoDeReemplazo();
 void circular();
 void lru();
+void enviarValor(char* clave);
+void buscarYLiberarClave(char* clave);
 #endif /* SOCKET_INSTANCIA_H_ */

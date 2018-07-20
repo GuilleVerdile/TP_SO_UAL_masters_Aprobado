@@ -37,12 +37,14 @@ void *conexionESI(void* nuevoCliente);
 void *conexionInstancia(void* cliente);
 void* conexionPlanificador();
 void enviarDatosInstancia(int sockInstancia, char* tipo);
-typedef instancia*(*algoritmo)(instancia* instancia);
-instancia* equitativeLoad(instancia* instancia);
-instancia* lsu(instancia* instanciaAUsar);
+typedef instancia*(*algoritmo)(instancia* instancia,t_list* lista);
+instancia* equitativeLoad(instancia* instancia,t_list* lista);
+instancia* lsu(instancia* instanciaAUsar,t_list* lista);
 void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
 instancia* existeEnLaLista(char* id);
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas);
 algoritmo obtenerAlgoritmoDistribucion();
-instancia* keyExplicit(instancia* instancia);
+instancia* buscarInstancia(char* clave);
+instancia* keyExplicit(instancia* instancia,t_list* lista);
+void liberarClave(instancia* instancia,char* clave);
 #endif /* COORDINADOR_H_ */
