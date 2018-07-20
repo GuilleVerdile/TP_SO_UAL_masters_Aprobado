@@ -1,5 +1,3 @@
-.PHONY: default
-
 first: uninstallCommons clean
 
 second: so-commons-library conexiones parsi readline
