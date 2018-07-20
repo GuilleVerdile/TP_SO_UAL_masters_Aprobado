@@ -9,7 +9,7 @@ third: coordinador esi instancia planificador
 uninstallCommons:
 	cd ~; sudo rm -rf ~/so-commons-library; git clone https://github.com/sisoputnfrba/so-commons-library.git; cd so-commons-library; sudo make uninstall
 	cd ~; sudo rm -rf ~/conexiones; git clone https://github.com/francobatta/conexiones.git; cd conexiones; sudo make uninstall
-	cd ~; sudo rm -rf ~/parsi; git clone https://github.com/sisoputnfrba/parsi.git; cd parsi
+	cd ~; sudo rm -rf ~/parsi; git clone https://github.com/sisoputnfrba/parsi.git
 
 so-commons-library:
 	cd ~; cd so-commons-library; sudo make install
