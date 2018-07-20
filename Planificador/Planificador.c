@@ -128,16 +128,14 @@ Proceso* fifo(){
 }
 float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
-	imprimirln(verde,"%d",(*proc).idProceso);
-	imprimirln(verde,"%f",(*proc).estimacionAnterior);
-	imprimirln(verde,"%f",(*proc).rafagaRealActual);
-	imprimirln(verde,"%f",(*proc).rafagaRealAnterior);
 	if((*proc).rafagaRealActual!=0){
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
 		//
 		(*proc).estimacionAnterior=(*aux);
 		//
-		imprimirln(rojo,"remanente?");
+		(*proc).rafagaRealAnterior=(*proc).rafagaRealActual;
+		(*proc).rafagaRealActual=0;
+		imprimirln(cian,"remanente");
 
 	}
 	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
@@ -151,7 +149,6 @@ float *estimarSJF(Proceso *proc){
 	imprimir(verde,"La estimacion del proceso con id %d es :",(*proc).idProceso);
 	imprimirln(azul," %f",(*aux));
 	logTest("La estimacion del proceso con id %d es : %f ",(*proc).idProceso,(*aux));
-	fflush(stdout);
 	return aux;
 }
 bool compararSJF(void *a,void *b){
