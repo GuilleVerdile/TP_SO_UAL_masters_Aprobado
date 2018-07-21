@@ -73,10 +73,12 @@ void consola() {
 	   			logTest("Se ingreso comando Kill",Blanco);
 	        	}
 	   	    else if(!strcmp(centinelas[0],"status")){
+	   	    	sem_wait(&sem_liberarRecursos);
 	   	    	imprimir(magenta,"Usted ingreso status\n");
 	   	    	imprimir(magenta,"con la clave %s\n",centinelas[1]);
 	   	    	status(centinelas[1]);
 	   	    	logTest("Se ingreso comando estatus",Blanco);
+	   	    	sem_post(&sem_liberarRecursos);
 	   	    }
     	    else{
     	    	imprimir(amarillo,"No se reconocio el comando %s\n", centinelas[0]);
