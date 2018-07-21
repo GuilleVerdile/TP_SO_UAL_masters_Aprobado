@@ -87,7 +87,7 @@ int main(){
 
 void buscarYLiberarClave(char* clave){
 	int posTabla = encontrarTablaConTalClave(clave);
-	if(posTabla >0){
+	if(posTabla >=0){
 		liberarClave(posTabla);
 	}
 }
@@ -267,10 +267,15 @@ void liberarClave(int posTabla){
 		cantEntradasAOcupadas++;
 	}
 	log_info(logger,"Se va liberar desde la posicion %d hasta %d",posEntrada,posEntrada+cantEntradasAOcupadas-1);
+	char* valor = string_new();
 	for(int i = 0;i<cantEntradasAOcupadas;i++){
 		char* bit = list_get(bitArray,posEntrada+i);
+		char* entrada = list_get(entradas,posEntrada+i);
+		string_append(&valor,entrada);
 		bit[0]='0'; //LIBERO :D
 	}
+	log_info(logger,"EL VALOR LIBERADO ES %s",valor);
+	free(valor);
 	free(tabla);
 }
 

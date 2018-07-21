@@ -565,7 +565,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		 if (nbytes == 0) {
                         	                                     // conexión cerrada
                         	                             	 logTest("El coordinador se fue");
-                        	                                     cerrarPlanificador();
+                        	                             //        cerrarPlanificador();
                         	                                 } else {
                         	                                	 logTest("Error conexion con el coordinador");
                         	                                     perror("recv");
@@ -730,6 +730,7 @@ void main()
 	logImportante("La estimacion inicial es : %d",estimacionInicial);
 	char*algoritmo= config_get_string_value(config, "Algoritmo de planificacion");
 	pthread_t hilo_planificadrCortoPlazo;
+	pthread_t liberadorRecursos;
 	pthread_t hilo_ejecutarEsi;
 	pthread_t hilo_consola;
 	if(!strcmp(algoritmo,"fifo")){
@@ -750,6 +751,7 @@ void main()
 			}
 	logImportante("Se asigno el algoritmo %s",algoritmo);
 	config_destroy(config);
+	pthread_create(&liberadorRecursos,NULL,liberadorDeRecursos,NULL);
 	pthread_create(&hilo_planificadrCortoPlazo,NULL,planificadorCortoPlazo,(void *)miAlgoritmo);
 	logTest("Se creo el hilo planificador CORTO PLAZO");
 	pthread_create(&hilo_ejecutarEsi,NULL,ejecutarEsi,NULL);
