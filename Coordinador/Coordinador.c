@@ -47,6 +47,7 @@ int main(int argc, char**argv){
 	addrlen = sizeof(their_addr);
 	pthread_t hiloPlanificador;
 	char* buff= malloc(2);
+	log_info(loggerReal,"Esperando la conexion con el planificador");
 	while(1){
 	if((socketPlanificador = accept(listener, (struct sockaddr *)&their_addr,&addrlen))==-1){ //NOS CONECTAMOS CON EL PLANIFICADOR
 	    log_error(logger, "No se aceptar la conexion");
@@ -55,10 +56,11 @@ int main(int argc, char**argv){
 	}
 		recv(socketPlanificador,buff,2,0);
 		if(buff[0]=='p'){
-			log_info(logger, "Se acepto la conexion");
+			log_info(loggerReal, "Se acepto la conexion");
 			free(buff);
 			break;
 		}
+		log_warning(loggerReal, "No es el planificador esperando devuelta la conexion");
 		close(socketPlanificador);
 	}
 	instancia* instanciaABuscar;

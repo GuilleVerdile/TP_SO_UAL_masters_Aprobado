@@ -13,8 +13,10 @@ void (*algoritmoDeReemplazo)();
 int nroEntrada = 0;
 int nroOperacion = 0;
 int dump=1;
+t_log* loggerReal;
 int main(int argc, char**argv){
-    logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
+    logger =log_create(logInstancias,"InstanciaTest",0, LOG_LEVEL_INFO);
+    loggerReal = log_create(logInstancias,"Instancia",1,LOG_LEVEL_INFO);
     if(argc > 1)
     	pathInstancia = argv[1];
     t_config* config = config_create(pathInstancia);
@@ -23,7 +25,7 @@ int main(int argc, char**argv){
     	log_error(logger,"Error en la conexion con el coordinador");
     	return -1;
     }
-    log_info(logger,"Se realizo correctamente la conexion con el coordinador");
+    log_info(loggerReal,"Se realizo correctamente la conexion con el coordinador");
     enviarTipoDeCliente(sockcoordinador,INSTANCIA);
     inicializarTablaEntradas();
     char *buff = config_get_string_value(config, "nombreInstancia"); //obtengo el id
@@ -52,9 +54,8 @@ int main(int argc, char**argv){
     				free(buff);
     				exit(-1);
     			}
-    			log_info(logger,"Recibi la operacion");
+    			log_info(loggerReal,"Recibi una operacion");
     			manejarPaquete(paquete);
-
     			break;
     		case 'v':
     			send(sockcoordinador,"v",2,1); //LE DIGO AL COORDINADOR QUE SIGO VIVO
@@ -124,14 +125,17 @@ algoritmo obtenerAlgoritmoDeReemplazo(){
 	char* algoritmo = config_get_string_value(config,"AlgoritmoDeReemplazo");
 	if(strcmp("CIRCULAR",algoritmo) == 0){
 		config_destroy(config);
-		log_info(logger,"Usted selecciono circular");
+		log_info(loggerReal,"El algoritmo de reemplazo elegido fue: CIRCULAR");
 		return &circular;
 	}
 	if(strcmp("LRU",algoritmo) == 0){
 			config_destroy(config);
-			log_info(logger,"Usted selecciono LRU");
+			log_info(loggerReal,"El algoritmo de reemplazo elegido fue: LRU");
 			return &lru;
 	}
+	log_error(loggerReal,"No se reconocio el algoritmo de reemplazo");
+	exit(-1);
+	return NULL;
 }
 
 int cuantasEntradasAMover(int posicionDelArray){
@@ -148,7 +152,7 @@ int cuantasEntradasAMover(int posicionDelArray){
 void compactacion(){
 	char* posicionConProblemas;
 	int posicionDelArray=0;
-	log_warning(logger,"Se va realizar una compactacion");
+	log_info(loggerReal,"Se va realizar una compactacion");
 	while(posicionDelArray < entradasTotales){
 		char* bit =list_get(bitArray,posicionDelArray);
 		if(!(bit[0]-48)){
@@ -184,15 +188,13 @@ void inicializarTablaEntradas(){
     char* buff = malloc(tam);
     recv(sockcoordinador,buff, tam , 0);
     entradasTotales= transformarNumero(buff,0);
-
-    log_info(logger,"La cantidad de entradas es %d",  entradasTotales);
     inicializarBitArray();
     free(buff);
     tam = obtenerTamDelSigBuffer(sockcoordinador);
     buff = malloc(tam);
     recv(sockcoordinador,buff, tam , 0);
     tamEntradas = transformarNumero(buff,0);
-    log_info(logger,"El tamagno de entradas es %d", tamEntradas);
+    log_info(loggerReal,"Se van a crear %d entradas de tamagno %d", entradasTotales,tamEntradas);
     int i = 0;
     entradas=list_create();
     char* unaEntrada;
@@ -209,6 +211,7 @@ void* hacerDump(){
 		sleep(config_get_int_value(config,"dump"));	//Permite la ejecucion de manera periodica del dump
 		config_destroy(config);
 		almacenarTodaInformacion();
+		log_info(loggerReal,"Se realizo el dump");
 	}
 }
 
@@ -299,7 +302,7 @@ void liberarClave(int posTabla){
 		string_append(&valor,entrada);
 		bit[0]='0'; //LIBERO :D
 	}
-	log_info(logger,"EL VALOR LIBERADO ES %s",valor);
+	log_warning(loggerReal,"Se libero la clave %s",(*tabla).clave);
 	free(valor);
 	free(tabla);
 }
@@ -321,12 +324,30 @@ void enviarEntradasRestantes(){
 	return;
 }
 
+char* encontrarTablaConTalEntrada(char* entrada){
+	int i =0;
+	tablaEntradas* tabla;
+	while((tabla = list_get(tablas,i))!=NULL){
+		if((*tabla).entrada == entrada){
+			return (*tabla).clave;
+		}
+		i++;
+	}
+	return NULL;
+}
+
 void mostrarEstadoEntradas(){
 	int i =0;
 	char* bit;
+	log_info(logger,"El estado de las entradas son: ");
 	while((bit = list_get(bitArray,i))!=NULL){
 		if(bit[0]-48){
-			log_info(logger,"Posicion: %d valor: %s",i,list_get(entradas,i));
+			char* entrada = list_get(entradas,i);
+			char* clave = encontrarTablaConTalEntrada(entrada);
+			if(clave!=NULL){
+				log_info(loggerReal,"Clave: %s",clave);
+			}
+			log_info(loggerReal,"Posicion: %d valor: %s",i,entrada);
 		}
 		i++;
 	}
@@ -341,13 +362,16 @@ void manejarPaquete(t_esi_operacion paquete){
 	switch(paquete.keyword){
 		case GET:
 			log_info(logger,"Se selecciono el caso GET");
+			log_info(loggerReal,"GET %s",paquete.argumentos.GET.clave);
 			meterClaveALaTabla(paquete.argumentos.GET.clave);
 			free(paquete.argumentos.GET.clave);
 			break;
 		case SET:
 			log_info(logger,"Se selecciono el caso SET");
+			log_info(loggerReal,"SET %s %s",paquete.argumentos.SET.clave,paquete.argumentos.SET.valor);
 			posTabla = encontrarTablaConTalClave(paquete.argumentos.SET.clave);
 			if(posTabla==-1){
+				log_error(loggerReal,"No se puede realizar el SET ya que la clave no existe");
 				resultado = "e";
 				break;
 			}
@@ -362,6 +386,7 @@ void manejarPaquete(t_esi_operacion paquete){
 					cantEntradasOcupadas++;
 				}
 				log_info(logger,"Ya tenia un valor asignado");
+				log_warning(loggerReal,"Ya tenia un valor asignado");
 				log_info(logger,"La cantidad de entradas ocupadas son %d y las que necesita son %d",cantEntradasOcupadas,cantEntradasNecesarias);
 				int posEntrada = posicionDeLaEntrada((*tabla).entrada);
 				int j = 0;
@@ -390,6 +415,7 @@ void manejarPaquete(t_esi_operacion paquete){
 				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.valor,paquete.argumentos.SET.clave);
 				if(meterValorParTalClave(paquete.argumentos.SET.valor,tabla) ==-1){
 					resultado = "a";
+					log_error(loggerReal,"No hay espacio debido a que ningun valor es atomico");
 					break;
 				}
 				(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
@@ -400,7 +426,9 @@ void manejarPaquete(t_esi_operacion paquete){
 			break;
 		case STORE:
 			log_info(logger,"Se selecciono el caso STORE");
+			log_info(loggerReal,"STORE %s",paquete.argumentos.STORE.clave);
 			if((posTabla = encontrarTablaConTalClave(paquete.argumentos.STORE.clave))==-1){
+				log_error(loggerReal,"No se puede realizar el STORE ya que la clave no existe");
 				resultado = "e";
 				break;
 			}
@@ -483,8 +511,10 @@ int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 			if(!hayAlgunoAtomico()){
 				return -1;
 			}
+			log_warning(loggerReal,"Se va realizar el algoritmo de reemplazo");
 			algoritmoDeReemplazo();
 		}else{
+			log_warning(loggerReal,"Se va solicitar compactacion simultanea al Coordinador");
 			send(sockcoordinador,"c",2,0); //ENVIO UNA SOLICITUD DE COMPACTACION AL COORDINADOR
 			compactacion();
 		}
@@ -551,7 +581,7 @@ void circular(){
 		}
 	}
 	tablaEntradas* tabla = list_get(tablas,posTabla);
-	log_info(logger,"La victima es: %s con el  valor %s de la posicion %d",(*tabla).clave,(*tabla).entrada, posTabla);
+	log_warning(loggerReal,"La victima es: %s",(*tabla).clave);
 	nroEntrada++;
 	liberarClave(posTabla);
 }
@@ -572,7 +602,7 @@ int buscarTablaMenosUsada(){
 		}
 		i++;
 	}
-	log_info(logger,"La victima es %s de la posicion %d", (*tablaMenosUsada).clave, posTabla);
+	log_warning(loggerReal,"La victima es: %s",(*tabla).clave);
 	return posTabla;
 }
 
