@@ -30,7 +30,7 @@ struct Instancia{
 	char* nombreInstancia; //ME VA SERVIR COMO CLAVE PARA LA RECONEXION
 	t_list* clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int* cantEntradasDisponibles; //PARA EL LSU
-	int nroSemaforo;
+	int* nroSemaforo;
 }typedef instancia;
 void *conexionESI(void* nuevoCliente);
 void *conexionInstancia(void* cliente);
@@ -39,9 +39,9 @@ void enviarDatosInstancia(int sockInstancia, char* tipo);
 typedef instancia*(*algoritmo)(instancia* instancia,t_list* lista);
 instancia* equitativeLoad(instancia* instancia,t_list* lista);
 instancia* lsu(instancia* instanciaAUsar,t_list* lista);
-void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia);
+void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia,int* nroSemaforo);
 instancia* existeEnLaLista(char* id);
-instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas);
+instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas,int* nroSemaforo);
 algoritmo obtenerAlgoritmoDistribucion();
 instancia* buscarInstancia(char* clave);
 instancia* keyExplicit(instancia* instancia,t_list* lista);
