@@ -282,6 +282,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
     		    close(socketEsi);
+    		    pthread_mutex_unlock(&mutexPlanificador);
     		    return 0;
     		}
     		free(paqueteAEnviar.argumentos.SET.clave);
@@ -292,6 +293,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)){
     			close(socketEsi);
+    			pthread_mutex_unlock(&mutexPlanificador);
     			return 0;
     		}
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
@@ -579,14 +581,15 @@ void *conexionInstancia(void* cliente){
 						operacionValida=0;
 						errorMensajeInstancia = "Instancia: Error Clave No Encontrada";
 						sem_post(&semaforoEsi);
-						free(buff);
 						break;
 					case 'a':
 						operacionValida = 0;
 						errorMensajeInstancia = "Instancia: Error No Tengo Espacio Suficiente";
 						sem_post(&semaforoEsi);
-						free(buff);
 						break;
+				}
+				if(buff[0]=='a' || buff[0]=='e'){
+					break;
 				}
 			}
 			free(buff);

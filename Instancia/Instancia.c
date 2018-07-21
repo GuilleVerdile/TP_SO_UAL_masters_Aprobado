@@ -363,7 +363,10 @@ void manejarPaquete(t_esi_operacion paquete){
 				(*tabla).seAlmacenoElValor=0;
 			}else{
 				log_info(logger,"Estamos metiendo el valor %s de la clave %s",paquete.argumentos.SET.valor,paquete.argumentos.SET.clave);
-				meterValorParTalClave(paquete.argumentos.SET.valor,tabla);
+				if(meterValorParTalClave(paquete.argumentos.SET.valor,tabla) ==-1){
+					resultado = "a";
+					break;
+				}
 				(*tabla).tamValor = strlen(paquete.argumentos.SET.valor);
 			}
 			(*tabla).nroOperacion = nroOperacion;
@@ -421,7 +424,17 @@ int llegaAOcuparTodasLaEntradas(int* posicion,int cantEntradasAOcupar,int* canti
 	}
 	return 0; //ESTO SIGNIFICA QUE YA ME LEI TODAS LAS ENTRADAS POR LO TANTO GG
 }
-
+int hayAlgunoAtomico(){
+	int i=0;
+	tablaEntradas* tabla;
+	while((tabla = list_get(tablas,i))!=NULL){
+		if(esAtomico(tabla)){
+			return 1;
+		}
+		i++;
+	}
+	return 0;
+}
 int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 	int primeraPosicionEncontrada;
 	while(1){
@@ -442,6 +455,9 @@ int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 		if(encontrado){
 			return primeraPosicionEncontrada;
 		}else if(cantEntradasAOcupar > cantEntradasLibres){
+			if(!hayAlgunoAtomico()){
+				return -1;
+			}
 			algoritmoDeReemplazo();
 		}else{
 			send(sockcoordinador,"c",2,0); //ENVIO UNA SOLICITUD DE COMPACTACION AL COORDINADOR
@@ -450,13 +466,14 @@ int obtenerPrimeraPosicionPermitida(int cantEntradasAOcupar){
 	}
 }
 
-void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada){
+int meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada){
 	int cantEntradasAOcupar = (string_length(valor))/tamEntradas;
 	log_info(logger,"La cantidad de entradas a ocupar son: %d",cantEntradasAOcupar);
 	if(string_length(valor)%tamEntradas){
 		cantEntradasAOcupar++;
 	}
 	int posicionPermitidaParaOcupar = obtenerPrimeraPosicionPermitida(cantEntradasAOcupar);
+	if(posicionPermitidaParaOcupar != -1){
 		(*tablaEntrada).entrada = list_get(entradas,posicionPermitidaParaOcupar);
 		for(int j =0;j<cantEntradasAOcupar;j++){
 			char* valorEntrada = string_substring(valor,tamEntradas*j,tamEntradas*(j+1));
@@ -469,7 +486,9 @@ void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada){
 			log_info(logger,"El valor se copio en la posicion %d con el valor %s",posicionPermitidaParaOcupar,entrada);
 			free(valorEntrada);
 			posicionPermitidaParaOcupar++;
+		}
 	}
+	return posicionPermitidaParaOcupar;
 }
 int esAtomico(tablaEntradas* tabla){
 	int cantidadEntradas = (*tabla).tamValor/tamEntradas;
