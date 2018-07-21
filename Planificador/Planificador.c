@@ -127,10 +127,6 @@ Proceso* fifo(){
 }
 float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
-	imprimirln(rojo,"%d",(*proc).idProceso);
-	imprimirln(rojo,"%f",(*proc).estimacionAnterior);
-	imprimirln(rojo,"%f",(*proc).rafagaRealActual);
-	imprimirln(rojo,"%f",(*proc).rafagaRealAnterior);
 	if((*proc).rafagaRealActual!=0){//me dice que proceso esta en ejecuion
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
 		imprimirln(cian,"remanente");
@@ -162,20 +158,38 @@ bool compararSJF(void *a,void *b){
 	float *af=estimarSJF(a);
 
 	float *bf=estimarSJF(b);
-	/*
-	(*primero).estimacionAnterior=(*af);
-	(*segundo).estimacionAnterior=(*bf);
-	*/
+
+
 	fflush(stdout);
 	bool aux=(*af<=*bf);
 	free(af);
 	free(bf);
 	return aux;
 }
+
+float *estimarMediaExponencial(Proceso *proc){
+	float *aux=malloc(sizeof(float));
+	if((*proc).rafagaRealActual){
+		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
+	}
+	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
+		(*aux)=(*proc).estimacionAnterior;
+	}
+	else{
+		imprimir(rojo,"rafagaREalActual %f\n",(*proc).rafagaRealActual);
+		imprimir(rojo,"rafagaREalAnterior %f\n",(*proc).rafagaRealAnterior);
+
+		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
+	}
+
+	return (void*) aux;
+}
+
 float* estimarHRRN(Proceso *proc){
+	imprimirln(amarillo,"asdsadsad");
 	float *s;
 	float *w=malloc(sizeof(float));
-	s=estimarSJF(proc);
+	s=estimarMediaExponencial(proc);
 	(*w)=tiempo_de_ejecucion-(*proc).tiempo_que_entro;
 	float *aux=malloc(sizeof(float));
 	imprimirln(blanco,"Los valores del esi con id %d son : ",(*proc).idProceso);
