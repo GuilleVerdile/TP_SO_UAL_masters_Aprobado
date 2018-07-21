@@ -27,7 +27,6 @@ extern t_list* instancias;
 
 
 struct Instancia{
-	int estaDisponible; //ESTE VALOR DEFINE SI SE SIGUE MANTENIENDO UNA CONEXION CON EL SERVIDOR
 	char* nombreInstancia; //ME VA SERVIR COMO CLAVE PARA LA RECONEXION
 	t_list* clavesBloqueadas; //LAS CLAVES QUE SE LE HICIERON GET EN ESTA INSTANCIA
 	int* cantEntradasDisponibles; //PARA EL LSU

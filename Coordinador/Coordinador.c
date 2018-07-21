@@ -6,7 +6,6 @@ sem_t esperaInicializacion;
 sem_t semaforoEsi;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
-pthread_mutex_t mutexInstancias;
 pthread_mutex_t mutexPlanificador;
 sem_t semaforoLiberar;
 instancia* (*algoritmoDeDistribucion)();
@@ -19,7 +18,6 @@ int main(){
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
 	sem_init(&semaforoLiberar,0,0);
-	pthread_mutex_init(&mutexInstancias,NULL);
 	pthread_mutex_init(&mutexPlanificador,NULL);
 	cantidadDeInstancias =0;
 	semaforosInstancias = list_create();
@@ -61,6 +59,7 @@ int main(){
 		}
 		close(socketPlanificador);
 	}
+	instancia* instanciaABuscar;
 	pthread_create(&hiloPlanificador,NULL,conexionPlanificador,NULL);
 	algoritmoDeDistribucion = obtenerAlgoritmoDistribucion(); //OBTENGO EL ALGORITMO DE DISTRUBUCION SEGUN EL ARCHIVO CONFIG
 	pthread_t* hilosInstancias = NULL;
@@ -78,8 +77,8 @@ int main(){
 		free(buff);
 		switch(tipoCliente){
 		case 1:
-			pthread_join(hiloEsi,NULL);
 			log_info(logger,"El cliente es ESI");
+			pthread_join(hiloEsi,NULL);
 			if((pthread_create(&hiloEsi , NULL , conexionESI, (void*)&nuevoCliente)) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
@@ -126,7 +125,6 @@ void* conexionPlanificador(){
 		}
 		switch(buff[0]){
 			case'l':
-				pthread_mutex_lock(&mutexPlanificador);
 				tam = obtenerTamDelSigBuffer(socketPlanificador);
 				clave = malloc(tam);
 				recv(socketPlanificador,clave,tam,0);
@@ -140,7 +138,6 @@ void* conexionPlanificador(){
 	    		sem_wait(&semaforoLiberar);
 				}
 				free(clave);
-	    		pthread_mutex_unlock(&mutexPlanificador);
 				break;
 			case 's':
 				tam = obtenerTamDelSigBuffer(socketPlanificador);
@@ -183,7 +180,6 @@ void enviarDatosInstancia(int sockInstancia, char* tipo){
 instancia* buscarInstancia(char* clave){
 	int i =0;
 	instancia* instancia;
-	//pthread_mutex_lock(&mutexInstancias);
 	while((instancia = list_get(instancias,i))!= NULL){ //ME FIJO HASTA LA ULTIMA LISTA
 		if((*instancia).clavesBloqueadas != NULL){ //PRIMERO ME FIJO QUE EXISTA AL MENOS UNA CLAVE
 			int j =0;
@@ -198,16 +194,12 @@ instancia* buscarInstancia(char* clave){
 		}
 		i++;
 	}
-	//pthread_mutex_unlock(&mutexInstancias);
 	log_warning(logger,"No se encontro la instancia :c");
 	return NULL; //ES NULL SI NO ENCUENTRO NINGUNA INSTANCIA QUE LA USE
 }
 
 
 void liberarClave(instancia* instancia,char* clave){
-	send(socketPlanificador,"l",2,0);
-	enviarCantBytes(socketPlanificador,clave);
-	send(socketPlanificador,clave,strlen(clave)+1,0);
 	int j = 0;
 	while(strcmp(clave,list_get((*instancia).clavesBloqueadas,j)) != 0){ //BUSCO HASTA ENCONTRAR LA CLAVE ASOCIADA
 		j++;
@@ -260,10 +252,13 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		}
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
-    		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias); //BUSCO UNA INSTANCIA CON estaDisponible == 1.
+    		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias);
     		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*instanciaAEnviar).nroSemaforo);
     		operacion = "p";
-    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));  //LE DIGO A LA INSTANCIA QUE TRABAJE
+    		int i;
+    		sem_getvalue(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo),&i);
+    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
+    		log_warning(logger,"valor semaforo xd %d",i);//LE DIGO A LA INSTANCIA QUE TRABAJE
     		algoritmoDeDistribucion(instanciaAEnviar,instancias);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
@@ -274,14 +269,15 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			free(paqueteAEnviar.argumentos.GET.clave);
     	    	resultadoEsi = "e";
     			break;
-    		}
-    		(*instanciaAEnviar).estaDisponible = 0; //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
+    		} //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
     		}
     		break;
     	case SET:
     		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
     		    close(socketEsi);
+        		free(paqueteAEnviar.argumentos.SET.clave);
+        	    free(paqueteAEnviar.argumentos.SET.valor);
     		    pthread_mutex_unlock(&mutexPlanificador);
     		    return 0;
     		}
@@ -293,10 +289,14 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)){
     			close(socketEsi);
+        		free(paqueteAEnviar.argumentos.STORE.clave);
     			pthread_mutex_unlock(&mutexPlanificador);
     			return 0;
     		}
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
+    		send(socketPlanificador,"l",2,0);
+    		enviarCantBytes(socketPlanificador,paqueteAEnviar.argumentos.STORE.clave);
+    		send(socketPlanificador,paqueteAEnviar.argumentos.STORE.clave,strlen(paqueteAEnviar.argumentos.STORE.clave)+1,0);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		free(paqueteAEnviar.argumentos.STORE.clave);
         	resultadoEsi = "e";
@@ -353,7 +353,6 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas){
 	instancia* instanciaNueva = NULL;
 	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
-		(*instanciaNueva).estaDisponible = 1;
 		cantidadDeEntradas = (*instanciaNueva).cantEntradasDisponibles;
 		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
 		log_info(logger,"Es una reconexion de la instancia %s", nombreInstancia);
@@ -394,7 +393,6 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	(*(*instanciaNueva).cantEntradasDisponibles) = config_get_int_value(config, "CantidadEntradas");
 	config_destroy(config);
 	(*instanciaNueva).clavesBloqueadas = NULL;
-	(*instanciaNueva).estaDisponible = 1;
 	(*instanciaNueva).nombreInstancia = malloc(string_length(nombreInstancia)+1);
 	strcpy((*instanciaNueva).nombreInstancia,nombreInstancia);
 	sem_t* semInstancia = malloc(sizeof(sem_t));
@@ -403,6 +401,7 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 	}
 	list_add(semaforosInstancias,semInstancia);
 	(*instanciaNueva).nroSemaforo = cantidadDeInstancias;
+	log_info(logger,"El nro semaforo asignado es %d",cantidadDeInstancias);
 }
 
 instancia* existeEnLaLista(char* id){
@@ -420,19 +419,14 @@ instancia* equitativeLoad(instancia* instancia, t_list* listaInstancias){
 	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
 		int i = 0;
 		int disponibilidad = 0;
-		pthread_mutex_lock(&mutexInstancias);
 		while(!disponibilidad && instancia != NULL){
 			instancia = list_get(listaInstancias,i);
-			disponibilidad = (*instancia).estaDisponible;
 			i++;
 		}
 		instancia = list_remove(listaInstancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
-		pthread_mutex_unlock(&mutexInstancias);
 		return instancia;
 	}
-	pthread_mutex_lock(&mutexInstancias);
 	list_add(listaInstancias, instancia); //ESTO ES CUANDO LLEGA UNA CONEXION DE UNA INSTANCIA LO METO AL FINAL DE LA LISTA
-	pthread_mutex_unlock(&mutexInstancias);
 	return NULL; //NO IMPORTA LO QUE DEVUELTA POR QUE ES ESCRITURA
 }
 
@@ -441,7 +435,6 @@ instancia* lsu(instancia* instanciaAUsar,t_list* listaInstancias){
 		int i=1;
 		instancia* instanciaAux;
 		instanciaAUsar = list_get(listaInstancias,0);
-		pthread_mutex_lock(&mutexInstancias);
 		do{
 			instanciaAux = list_get(listaInstancias,i);
 			if(instanciaAux!=NULL && (*(*instanciaAux).cantEntradasDisponibles) > (*(*instanciaAUsar).cantEntradasDisponibles)){
@@ -449,22 +442,12 @@ instancia* lsu(instancia* instanciaAUsar,t_list* listaInstancias){
 			}
 			i++;
 		}while(instanciaAux !=NULL);
-		pthread_mutex_unlock(&mutexInstancias);
 		log_info(logger,"Se logro realizar el lsu %s",instanciaAUsar!=NULL?(*instanciaAUsar).nombreInstancia:"Es null csm");
 		return instanciaAUsar;
 	}
 	return NULL;
 }
 
-int contarCantidadDeInstanciasDisponibles(){
-	int i = 0;
-	instancia* unaInstancia;
-	while((unaInstancia = list_get(instancias,i))!= NULL){
-		if((*unaInstancia).estaDisponible)
-		i++;
-	}
-	return i;
-}
 
 int obtenerLetra(){
 	int restarSegunMayusOMinus = 65;
@@ -476,22 +459,18 @@ int obtenerLetra(){
 
 instancia* keyExplicit(instancia* instancia,t_list* listaInstancias){
 	if(instancia == NULL){
-		int cantidadInstancias = contarCantidadDeInstanciasDisponibles();
+		int cantidadInstancias = list_size(instancias);
 		int rangoAscii = 25/cantidadInstancias;
 		if(25%cantidadInstancias){
 			rangoAscii++;
 		}
 		log_info(logger,"El rango ascii es %d",rangoAscii);
-		int nroInstancia = 0;
 		int i =0;
 		int letraABuscar = obtenerLetra();
 		while((instancia = list_get(listaInstancias,i))){
-			if((*instancia).estaDisponible){
-				if(letraABuscar>= nroInstancia*rangoAscii && letraABuscar <= (nroInstancia+1)*rangoAscii){
+				if(letraABuscar>= i*rangoAscii && letraABuscar <= (i+1)*rangoAscii){
 					return instancia;
-				}
-				nroInstancia++;
-			}
+				};
 			i++;
 		}
 	}
@@ -544,9 +523,11 @@ void *conexionInstancia(void* cliente){
 	}
 	sem_post(&esperaInicializacion);
 	//ACA TERMINE DE INICIALIZAR LA INSTANCIA
+	sem_t* semaforoInstancia = list_get(semaforosInstancias,nroSemaforo);
 	int  recvValor;
 	while(true){
-		sem_wait(list_get(semaforosInstancias,nroSemaforo));
+		log_error(logger,"Esperando semaforo %d",nroSemaforo);
+		sem_wait(semaforoInstancia);
 		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",nroSemaforo);
 		send(socketInstancia,operacion,2,MSG_NOSIGNAL);
 		if(operacion[0]=='p'){
@@ -554,8 +535,8 @@ void *conexionInstancia(void* cliente){
 			buff[0]='n';
 			log_info(logger,"Vamos a enviarle un paquete a la instancia");
 			enviar(socketInstancia,paqueteAEnviar);
-			while(buff[0]!= 'r'){
-				if(recv(socketInstancia,buff,2,0)<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
+			while(buff[0]!= 'r'&&buff[0]!='a'&& buff[0]!='e'){
+				if((recvValor=recv(socketInstancia,buff,2,0))<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
 					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",nroSemaforo);
 					errorMensajeInstancia = "Instancia: Error Clave Inaccesible";
 					operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
@@ -588,9 +569,6 @@ void *conexionInstancia(void* cliente){
 						sem_post(&semaforoEsi);
 						break;
 				}
-				if(buff[0]=='a' || buff[0]=='e'){
-					break;
-				}
 			}
 			free(buff);
 		}else if(operacion[0]=='o'){
@@ -598,6 +576,7 @@ void *conexionInstancia(void* cliente){
 		}else if(operacion[0]=='l'){
 			enviarCantBytes(socketInstancia,claveAComunicar);
 			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,0);
+			log_info(logger,"Se termino liberar la clave");
 			sem_post(&semaforoLiberar);
 		}
 		log_info(logger,"Se envio completamente el paquete");
