@@ -134,6 +134,7 @@ void* conexionPlanificador(){
 	    		liberarClave(instanciaAEnviar,clave);
 	    		operacion = "l";
 	    		claveAComunicar=clave;
+	    		log_info(logger,"Vamos a liberar la instancia con el semaforo %d",(*instanciaAEnviar).nroSemaforo);
 	    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
 	    		sem_wait(&semaforoLiberar);
 				}
@@ -505,6 +506,40 @@ void realizarEnvioDeValor(int socketInstancia) {
 	free(buff);
 }
 
+void eliminarClaves(char* clave){
+	free(clave);
+}
+
+void liberarInstancia(instancia* instanciaALiberar){
+	instancia* instancia;
+	int i=0;
+	while((instancia = list_get(instancias,i))!=NULL){
+		log_info(logger,"bajando semaforo");
+		log_info(logger,"con nro %d",(*instancia).nroSemaforo);
+		if((*instancia).nroSemaforo > (*instanciaALiberar).nroSemaforo){
+			(*instancia).nroSemaforo--;
+		}
+		if(instanciaALiberar== instancia){
+			list_remove(instancias,i);
+			i--;
+		}
+		i++;
+	}
+	sem_t* semaforo = list_remove(semaforosInstancias,(*instanciaALiberar).nroSemaforo);
+	log_info(logger,"liberando semaforo");
+	sem_destroy(semaforo);
+	log_info(logger,"liberando semaforo");
+	free(semaforo);
+	log_info(logger,"liberando nombre");
+	free((*instanciaALiberar).nombreInstancia);
+	log_info(logger,"liberando lista");
+	if((*instanciaALiberar).clavesBloqueadas!=NULL){
+	list_destroy_and_destroy_elements((*instanciaALiberar).clavesBloqueadas,&eliminarClaves);
+	}
+	log_info(logger,"liberando instancia");
+	free(instanciaALiberar);
+
+}
 void *conexionInstancia(void* cliente){
 	int socketInstancia = *(int*)cliente;
 	int nroSemaforo = cantidadDeInstancias;
@@ -540,6 +575,7 @@ void *conexionInstancia(void* cliente){
 					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",nroSemaforo);
 					errorMensajeInstancia = "Instancia: Error Clave Inaccesible";
 					operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
+					liberarInstancia(instanciaNueva);
 					sem_post(&semaforoEsi);
 					free(buff);
 					return 0;
@@ -575,7 +611,7 @@ void *conexionInstancia(void* cliente){
 			realizarEnvioDeValor(socketInstancia);
 		}else if(operacion[0]=='l'){
 			enviarCantBytes(socketInstancia,claveAComunicar);
-			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,0);
+			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,MSG_NOSIGNAL);
 			log_info(logger,"Se termino liberar la clave");
 			sem_post(&semaforoLiberar);
 		}
