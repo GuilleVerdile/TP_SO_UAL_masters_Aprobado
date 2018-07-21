@@ -367,16 +367,18 @@ void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso e
 }
 void aplicacion(void *a){
 	Bloqueo *block=(Bloqueo *) a;
-	if((*block).idProceso==idBuscar){
-				imprimir(azul,",%s",(*block).clave);
-				send(socketCoordinador,"l",2,0);
-				enviarCantBytes(socketCoordinador,(*block).clave);
-				send(socketCoordinador,(*block).clave,strlen((*block).clave)+1,0);
-				liberaClave((*block).clave);
+	if(block!=NULL){
+		if((*block).idProceso==idBuscar){
+					imprimir(azul,",%s",(*block).clave);
+					send(socketCoordinador,"l",2,0);
+					enviarCantBytes(socketCoordinador,(*block).clave);
+					send(socketCoordinador,(*block).clave,strlen((*block).clave)+1,0);
+					liberaClave((*block).clave);
+		}
+		else{
+					list_remove_by_condition((*block).bloqueados,&procesoEsIdABuscar);
+				}
 	}
-	else{
-				list_remove_by_condition((*block).bloqueados,&procesoEsIdABuscar);
-			}
 }
 
 void liberarRecursos(int id){
@@ -415,6 +417,7 @@ void liberaClave(char *clave){
 			}
 	}
 	else{
+		imprimirln(rojo,"No se encontro clave");
 		logTest("NO se encontro la clave %s",clave);
 	}
 
@@ -625,7 +628,6 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                              // gestionar datos de ESI
                              if ((nbytes = recv(i, buf, 2, 0)) <= 0) {
                                  // error o conexión cerrada por el cliente
-                                 if (nbytes == 0) {
                                      // conexión cerrada y liberacion de recursos
                                 	 idBuscar=i;
                                 	 Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
@@ -633,13 +635,11 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 	 //log_warning(logger, "El ESI se fue y se liberaron sus recursos");*/
                                 	 logImportante("El ESI se FUE con ID %d",(*proc_finalizado).idProceso);
                                 	 sem_post(&sem_liberador);
-                                 } else {
-                                	 printf("%d",nbytes);
-                                	 tirarErrorYexit("Problema de conexion con el ESI");
+                                     close(i); // cierra socket
+                                     FD_CLR(i, &master); // eliminar del conjunto maestro
                                  }
-                                 close(i); // cierra socket
-                                 FD_CLR(i, &master); // eliminar del conjunto maestro
-                             } else {
+
+                             else {
                             	 logTest("Conexion entrante del ESI");
                                //aca hago un case de los posibles send de un esi, que son
                                //1.- termino ejecucion el esi y nos esta informando
