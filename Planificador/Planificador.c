@@ -24,8 +24,6 @@ bool procesoEsIdABuscarSocket(void * proceso){
 }
 
 void terminarProceso(){
-
-		liberarRecursos((*procesoEnEjecucion).idProceso);
 		(*procesoEnEjecucion).estado = finalizado;
 		list_add(terminados,procesoEnEjecucion);
 		procesoEnEjecucion = NULL;
@@ -85,6 +83,7 @@ void *ejecutarEsi(void *esi){
 		sem_wait(&sem_procesoEnEjecucion);
 		logTest("se entro a ejecutar el esi en ejecucion");
 		while(procesoEnEjecucion && (*procesoEnEjecucion).estado==ejecucion){
+			sem_wait(&sem_liberarRecursos);
 			pthread_mutex_lock(&mutex_pausa);
 			logTest("esperando semaforo de que el esi ejecuto una sentencia");
 			sem_wait(&sem_ESIejecutoUnaSentencia);
@@ -94,8 +93,8 @@ void *ejecutarEsi(void *esi){
          	   tiempo_de_ejecucion++;
          	   (*procesoEnEjecucion).rafagaRealActual=(*procesoEnEjecucion).rafagaRealActual+1;
 				logTest("se envio al ESI %d orden de ejecutar",(*procesoEnEjecucion).idProceso);
-			}
-
+				sem_post(&sem_liberarRecursos);
+			}//EJECUCION
 			sem_wait(&semCambioEstado);
 			pthread_mutex_unlock(&mutex_pausa);
 		}
@@ -104,6 +103,8 @@ void *ejecutarEsi(void *esi){
 		logTest("se da segnal de fin de ejecucion");
 	}
 }
+
+
 void planificadorLargoPlazo(int id,int estimacionInicial){
 	Proceso *proceso=malloc(sizeof(Proceso));
 	(*proceso).idProceso=idGlobal;
@@ -374,8 +375,8 @@ void aplicacion(void *a){
 				list_remove_by_condition((*block).bloqueados,&procesoEsIdABuscar);
 			}
 }
+
 void liberarRecursos(int id){
-	Bloqueo *block;
 	idBuscar=id;
 	imprimir(verde,"Liberando claves recurso id %d :",id);
 	list_iterate(bloqueados,aplicacion);
@@ -451,8 +452,7 @@ void sendFinaliza(int id){
 void matarESI(int id){
 	idBuscar=id;
 	list_remove_by_condition(listos,&procesoEsIdABuscar);
-	liberarRecursos(id);
-	Proceso* procesoAEliminar = list_find(procesos,&procesoEsIdABuscar);
+	Proceso* procesoAEliminar = list_remove_by_condition(procesos,&procesoEsIdABuscar);
 	(*procesoAEliminar).estado=finalizado;
 	list_add(terminados,procesoAEliminar);
 	/*
@@ -624,11 +624,10 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                      // conexión cerrada y liberacion de recursos
                                 	 idBuscar=i;
                                 	 Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
-                                	 liberarRecursos((*proc_finalizado).idProceso);
-                                	 (*proc_finalizado).estado=finalizado;
-                                	 list_add(terminados,proc_finalizado);
+                                	 matarESI((*proc_finalizado).idProceso);
                                 	 //log_warning(logger, "El ESI se fue y se liberaron sus recursos");*/
                                 	 logImportante("El ESI se FUE con ID %d",(*proc_finalizado).idProceso);
+                                	 sem_post(&sem_liberador);
                                  } else {
                                 	 printf("%d",nbytes);
                                 	 tirarErrorYexit("Problema de conexion con el ESI");
@@ -655,6 +654,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                             		   Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
                             		   matarESI((*proc_finalizado).idProceso);
                             	   }
+                            	   sem_post(&sem_liberador);
                             	   close(i); // cierra socket
                             	   FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
@@ -678,6 +678,21 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 
 }
+
+void* liberadorDeRecursos(){
+	while(1){
+	sem_wait(&sem_liberador);
+	sem_wait(&sem_liberarRecursos);
+	Proceso* proceso;
+	int i =0;
+	while((proceso = list_get(terminados,i))){
+		liberarRecursos((*proceso).idProceso);
+		i++;
+	}
+	sem_post(&sem_liberarRecursos);
+	}
+}
+
 void main()
     {
 	flag_seEnvioSignalPlanificar=0;
@@ -691,6 +706,8 @@ void main()
 	log_test=log_create(logPlanificador,"Plani_test",0, LOG_LEVEL_INFO);
 	log_importante=log_create(logPlanificador,"Planificador",1, LOG_LEVEL_INFO);
 	//
+	sem_init(&sem_liberarRecursos,0,1);
+	sem_init(&sem_liberador,0,0);
 	sem_init(&sem_replanificar,0,0);
 	sem_init(&sem_procesoEnEjecucion,0,0);
 	sem_init(&sem_ESIejecutoUnaSentencia,0,1);
@@ -1008,7 +1025,6 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 		if(list_get(indicesQueCumplen,0)==NULL){
 			//No se encontraron filas que cumplan con la condicion
 			//REFACTORIZAR ESTA PARTE
-			imprimir(azul,"yupi me fui");
 			for(int k=0;k<filas;k++){
 				int *aux=malloc(sizeof(int));
 				(*aux)=k;
@@ -1030,23 +1046,16 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 			//
 		}
 		else{
-			imprimir(azul,"encontre >OOOO");
 				int *elMejor=dameElMejor(indicesQueCumplen,matrizDeAsignados,columnas);
 				//
-				imprimir(azul,"xxxxxxxxxx");
 				list_add(indicesDescartados,elMejor);
-				imprimir(azul,"zzzzzzzzzzzzz");
 				list_clean(indicesQueCumplen);
-				imprimir(azul,"ttttttttttttttt");
 				imprimirVector(matrizDeAsignados[(*elMejor)],columnas);
-				imprimir(azul,"ssssssssssssss");
 				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
-				imprimir(azul,"aaaaaaaaaaaaa");
 			}
 	}
 	//REVISAR ESTA PARTE
 	if(!compararElementosVectores(vectorRecursosActuales,vectorRecursosTotales,&elementoMenorOIgual,columnas)){
-		imprimir(azul,"asdasdqseqwewqeqw");
 		for(int k=0;k<filas;k++){
 					int *aux=malloc(sizeof(int));
 					(*aux)=k;

@@ -39,6 +39,8 @@ sem_t sem_replanificar;
 sem_t sem_procesoEnEjecucion;
 sem_t sem_ESIejecutoUnaSentencia;
 sem_t sem_finDeEjecucion;
+sem_t sem_liberarRecursos;
+sem_t sem_liberador;
 //semaforos in jiava lenguage
 sem_t sem_pausar;
 pthread_mutex_t mutex_pausa;
