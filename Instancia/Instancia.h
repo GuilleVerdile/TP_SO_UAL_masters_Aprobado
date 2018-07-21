@@ -42,5 +42,7 @@ void lru();
 void enviarValor(char* clave);
 void buscarYLiberarClave(char* clave);
 void liberarClave(int posTabla);
+void mostrarEstadoEntradas();
+void enviarEntradasRestantes();
 int esAtomico(tablaEntradas* tabla);
 #endif /* SOCKET_INSTANCIA_H_ */

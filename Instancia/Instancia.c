@@ -65,23 +65,21 @@ int main(int argc, char**argv){
     			break;
     		case 'o':
     			recvValor = obtenerTamDelSigBuffer(sockcoordinador);
-    			free(buff);
-    			buff = malloc(recvValor);
+    			buff = realloc(buff,recvValor);
     			recv(sockcoordinador,buff,recvValor,0);
     			log_info(loggerReal,"Me pidieron la solicitud del valor de la clave: %s",buff);
     			enviarValor(buff);
-    			free(buff);
-    			buff= malloc(2);
+    			buff= realloc(buff,2);
     			break;
     		case 'l':
     			recvValor =obtenerTamDelSigBuffer(sockcoordinador);
-    			buff = malloc(recvValor);
+    			buff = realloc(buff,recvValor);
     			recv(sockcoordinador,buff,recvValor,0);
     			log_info(loggerReal,"El coordinador me aviso que libere la clave %s",buff);
     			buscarYLiberarClave(buff);
     			mostrarEstadoEntradas();
-    			free(buff);
-    			buff = malloc(2);
+    			enviarEntradasRestantes();
+    			buff = realloc(buff,2);
     			break;
     	}
    }
@@ -610,7 +608,6 @@ int buscarTablaMenosUsada(){
 		}
 		i++;
 	}
-	log_warning(loggerReal,"La victima es: %s",(*tabla).clave);
 	return posTabla;
 }
 

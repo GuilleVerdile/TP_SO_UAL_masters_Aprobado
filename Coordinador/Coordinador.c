@@ -424,11 +424,6 @@ instancia* existeEnLaLista(char* id){
 instancia* equitativeLoad(instancia* instancia, t_list* listaInstancias){
 	if(instancia == NULL){ //ES DE LECTURA SI ES NULL
 		int i = 0;
-		int disponibilidad = 0;
-		while(!disponibilidad && instancia != NULL){
-			instancia = list_get(listaInstancias,i);
-			i++;
-		}
 		instancia = list_remove(listaInstancias,i);//SACA LA PRIMERA INSTANCIA DISPONIBLE Y LO ELIMINO (NO ESTA DISPONIBLE SI SURGIO UNA DESCONEXION CON EL SERVIDOR)
 		return instancia;
 	}
@@ -448,6 +443,15 @@ instancia* lsu(instancia* instanciaAUsar,t_list* listaInstancias){
 			}
 			i++;
 		}while(instanciaAux !=NULL);
+		i=0;
+		while((instanciaAux=list_get(listaInstancias,i))!=NULL){
+			if(instanciaAux==instanciaAUsar){
+				list_remove(listaInstancias,i);
+				list_add(listaInstancias,instanciaAUsar);
+				break;
+			}
+			i++;
+		}
 		log_info(logger,"Se logro realizar el lsu %s",instanciaAUsar!=NULL?(*instanciaAUsar).nombreInstancia:"Es null csm");
 		return instanciaAUsar;
 	}
@@ -623,6 +627,12 @@ void *conexionInstancia(void* cliente){
 		}else if(operacion[0]=='l'){
 			enviarCantBytes(socketInstancia,claveAComunicar);
 			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,MSG_NOSIGNAL);
+			int bytes = obtenerTamDelSigBuffer(socketInstancia);
+			log_info(logger,"bytes: %d",bytes);
+			char* cantidadDeEntradasARestar = malloc(sizeof(bytes));
+			recv(socketInstancia,cantidadDeEntradasARestar,bytes,0);
+			cantidadDeEntradasRestantes=transformarNumero(cantidadDeEntradasARestar,0);
+			free(cantidadDeEntradasARestar);
 			log_info(logger,"Se termino liberar la clave");
 			sem_post(&semaforoLiberar);
 		}
