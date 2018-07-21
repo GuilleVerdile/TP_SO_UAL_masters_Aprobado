@@ -291,6 +291,7 @@ void bloquearPorConsola(char *clave,int id){
 	Bloqueo *block=buscarClave();
 	idBuscar=id;
 	Proceso *proceso=buscarProcesoPorId(id);
+	if(proceso!=NULL){
 	if((*proceso).estado==ejecucion||(*proceso).estado==listo){
 	logTest("proceso listo o en ejecucion",clave);
 
@@ -319,6 +320,10 @@ void bloquearPorConsola(char *clave,int id){
 	}
 	else
 		logImportantec("El proceso no se encontraba en listo o ejecucion");
+	}
+	else{
+		imprimirln(rojo,"No se encontro el proceso");
+	}
 }
 //jiava
 void bloquear(char *clave){//En el hadshake con el coordinador asignar proceso en ejecucion a proceso;
@@ -411,8 +416,11 @@ void liberaClave(char *clave){
 				destruirUnBloqueado(block);
 			}
 	}
-	else
+	else{
 		logTest("NO se encontro la clave %s",clave);
+		imprimirln(cian,"No se encontro clave");
+	}
+
 
 
 }
@@ -762,21 +770,25 @@ void main()
 void listar(char* clave){
 	claveABuscar=clave;
 	Bloqueo *block=buscarClave();
-	if(!list_is_empty((*block).bloqueados) || !(*block).idProceso){
+	if(block!=NULL){
+	if(!list_is_empty((*block).bloqueados)){
 		if(!(*block).idProceso)
-					printf("Esta Clave fue bloqueada por config\n");
+					imprimir(magenta,"Esta Clave fue bloqueada por config\n");
 		else
-					printf("Proceso con id %d posee a la clave\n",(*block).idProceso);
+					imprimir(magenta,"Proceso con id %d posee a la clave\n",(*block).idProceso);
 
 		int j=0;
 		Proceso *proceso;
 		while((proceso=list_get((*block).bloqueados,j))!=NULL){
-			printf("Proceso con id %d esta en la lista de clave\n",(*proceso).idProceso);
+			imprimir(cian,"Proceso con id %d esta en la lista de clave\n",(*proceso).idProceso);
 			j++;
 		}
 		}
 	else
-		printf("No existe la clave\n");
+		imprimir(cian,"No tiene procesos bloqueados\n");
+	}
+	else
+		imprimirln(rojo,"No existe la clave");
 }
 void bloquearClavesIniciales(t_config *config){
 	char ** claves;
