@@ -186,7 +186,6 @@ float *estimarMediaExponencial(Proceso *proc){
 }
 
 float* estimarHRRN(Proceso *proc){
-	imprimirln(amarillo,"asdsadsad");
 	float *s;
 	float *w=malloc(sizeof(float));
 	s=estimarMediaExponencial(proc);
