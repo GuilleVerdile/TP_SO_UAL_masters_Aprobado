@@ -21,17 +21,17 @@ int conectarESI(char* tipoServidor){
 	char* stringPuerto = malloc(strlen(tipoServidor)+strlen("Puerto de Conexion al ") + 1);
 	strcpy(stringPuerto,"Puerto de Conexion al ");
 	strcat(stringPuerto,tipoServidor);
-	//log_info(logger,"%s",stringPuerto);
+	log_info(logger,"%s",stringPuerto);
 	char* stringIP = malloc(strlen(tipoServidor)+strlen("IP de Conexion al ") + 1);
 	strcpy(stringIP,"IP de Conexion al ");
 	strcat(stringIP,tipoServidor);
-	//log_info(logger,"%s",stringIP);
+	log_info(logger,"%s",stringIP);
 	int socket = crearConexionCliente(config_get_int_value(config, stringPuerto),config_get_string_value(config, stringIP));
 	if(socket < 0){
 		log_error(logger,"Error en la conexion con los clientes");
 		config_destroy(config);
 	}
-	log_info(logger,"Se realizo correctamente la conexion con el %s", tipoServidor);
+	log_info(logConsola,"Se realizo correctamente la conexion con el %s", tipoServidor);
 	config_destroy(config);
 	free(stringPuerto);
 	free(stringIP);
@@ -45,8 +45,8 @@ void hacerUnaOperacion(){
 			enviar(sockcoordinador,operacion);
 			destruir_operacion(operacion);
 			recv(sockcoordinador,resultado,2,0);
-			log_info(logger,"Se realizo la operacion");
-			log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
+			log_info(logConsola,"Se realizo la operacion");
+			log_warning(logConsola,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
 			if(resultado[0] == 'e')
 				send(sockplanificador,resultado,2,0);
 			if(resultado[0]=='a'){
@@ -65,7 +65,8 @@ void hacerUnaOperacion(){
 
 int main(int argc, char**argv){
 	ssize_t read;
-	logger =log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
+	logger = log_create(logESI,"ESI",0, LOG_LEVEL_INFO);
+	t_log* logConsola = log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	f = fopen(argv[1],"r");
 	int noBloqueado = 1;
 	if(f == NULL){
@@ -74,15 +75,15 @@ int main(int argc, char**argv){
 	}
 	sockplanificador = conectarESI("Planificador");
 	resultado = malloc(2);
-	log_info(logger,"Se conecto con el planificador. Esperando permiso para ejecucion...");
+	log_info(logConsola,"Se conecto con el planificador. Esperando permiso para ejecucion...");
 	while((!feof(f) || !noBloqueado)&& recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
 		if(resultado[0]=='f')//me forzaron a finalizar
 			break;
-		log_info(logger,"El planificador me dejo ejecutar");
+		log_info(logger,"Se obtuvo permiso para leer una linea");
 		if(noBloqueado){
 			if(getline(&linea,&length,f) < 0) break; //OBTENGO LA LINEA
 		}
-		log_info(logger,"La operacion a ejecutar es %s",linea);
+		log_info(logConsola,"La operacion a ejecutar es %s",linea);
 		if(linea)
 		sockcoordinador = conectarESI("Coordinador");
 		hacerUnaOperacion();
