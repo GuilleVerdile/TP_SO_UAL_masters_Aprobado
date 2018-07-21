@@ -6,6 +6,7 @@
  */
 
 #include "ESI.h"
+
 	size_t length = 0;
 	char* linea = NULL;
 	int sockcoordinador;
@@ -13,7 +14,7 @@
 	char* resultado;
 	FILE* f;
 void tirarError(char* mensaje){
-	log_error(logger,"%s",mensaje);
+	log_error(logConsola,"%s",mensaje);
 	resultado[0] = 'a';
 }
 int conectarESI(char* tipoServidor){
@@ -46,7 +47,7 @@ void hacerUnaOperacion(){
 			destruir_operacion(operacion);
 			recv(sockcoordinador,resultado,2,0);
 			log_info(logConsola,"Se realizo la operacion");
-			log_warning(logConsola,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
+			log_warning(logger,"El resultado de la operacion es: %s",(resultado[0]=='e')?"OK":(resultado[0]=='b')?"BLOQUEAR":"ABORTA");
 			if(resultado[0] == 'e')
 				send(sockplanificador,resultado,2,0);
 			if(resultado[0]=='a'){
@@ -66,11 +67,11 @@ void hacerUnaOperacion(){
 int main(int argc, char**argv){
 	ssize_t read;
 	logger = log_create(logESI,"ESI",0, LOG_LEVEL_INFO);
-	t_log* logConsola = log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
+	logConsola = log_create(logESI,"ESI",1, LOG_LEVEL_INFO);
 	f = fopen(argv[1],"r");
 	int noBloqueado = 1;
 	if(f == NULL){
-		log_error(logger, "No se pudo abrir el archivo");
+		log_error(logConsola, "No se pudo abrir el archivo");
 		exit(-1);
 	}
 	sockplanificador = conectarESI("Planificador");

@@ -258,6 +258,16 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		}
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
+    		if(list_get(instancias,0)==NULL){
+    			send(socketEsi,"a",2,0);
+    			log_warning(loggerReal,"No se pudo realizar la operacion ya que no hay instancias conectadas");
+    			enviarCantBytes(socketEsi,"Coordinador: No hay instancias conectadas al Coordinador");
+    			free(paqueteAEnviar.argumentos.GET.clave);
+    			send(socketEsi,"Coordinador: No hay instancias conectadas al Coordinador",56,0);
+    		    log_destroy(logOperaciones);
+    		    return 0;
+    			break;
+    		}
     		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias);
     		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*(*instanciaAEnviar).nroSemaforo));
     		operacion = "p";
@@ -432,6 +442,7 @@ instancia* equitativeLoad(instancia* instancia, t_list* listaInstancias){
 }
 
 instancia* lsu(instancia* instanciaAUsar,t_list* listaInstancias){
+
 	if(instanciaAUsar == NULL){
 		int i=1;
 		instancia* instanciaAux;
