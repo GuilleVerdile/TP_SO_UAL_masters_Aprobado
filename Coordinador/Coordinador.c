@@ -171,6 +171,7 @@ void* conexionPlanificador(){
 				break;
 		}
 	}
+	free(buff);
 }
 
 void enviarDatosInstancia(int sockInstancia, char* tipo){
