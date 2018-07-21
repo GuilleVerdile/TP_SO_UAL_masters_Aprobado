@@ -28,7 +28,7 @@ void compactacion();
 void inicializarTablaEntradas();
 void manejarPaquete(t_esi_operacion paquete);
 void meterClaveALaTabla(char* clave);
-void meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada);
+int meterValorParTalClave(char*valor,tablaEntradas* tablaEntrada);
 int encontrarTablaConTalClave(char clave[40]);
 void* hacerDump();
 void almacenarTodaInformacion();
