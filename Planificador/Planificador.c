@@ -316,18 +316,18 @@ void bloquearPorConsola(char *clave,int id){
 	logTest("proceso listo o en ejecucion",clave);
 
 	if(!block){
-		logTest(logger,"El bloque con clave %s NO EXISTE",clave);
+		logTest("El bloque con clave %s NO EXISTE",clave);
 			block=malloc(sizeof(Bloqueo));
 			(*block).clave=aux;
 			(*block).bloqueados=list_create();
 			(*block).idProceso=-1;
 			list_add(bloqueados,block);
-		logTest(logger,"El bloque con clave %s se CREO",clave);
+		logTest("El bloque con clave %s se CREO",clave);
 		}
 	//Esto no se si va, me fijo si el proceso ya esta bloqueado por esta clave asi
 	//no lo vuelvo a agregar a la cola de bloqueados
 	else{ //<---- Este else me dice que el block no es null que existe entonces voe si el proceso ya esta bloqueado
-		logTest(logger,"El bloque con clave %s EXISTE",clave);
+		logTest("El bloque con clave %s EXISTE",clave);
 		//Si encuentra un proceso que coincide con el id a buscar quiere decir que el proceso esta en la lista de bloqueados
 		if(list_find((*block).bloqueados,&procesoEsIdABuscar)){
 			logImportante("Se intento bloquear el proceso que YA ESTABA bloqueado por eso clave");
