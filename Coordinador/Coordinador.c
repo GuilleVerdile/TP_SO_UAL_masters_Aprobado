@@ -134,7 +134,8 @@ void* conexionPlanificador(){
 	    		liberarClave(instanciaAEnviar,clave);
 	    		operacion = "l";
 	    		claveAComunicar=clave;
-	    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
+	    		log_info(logger,"Vamos a liberar la instancia con el semaforo %d",(*(*instanciaAEnviar).nroSemaforo));
+	    		sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo)));
 	    		sem_wait(&semaforoLiberar);
 				}
 				free(clave);
@@ -152,7 +153,7 @@ void* conexionPlanificador(){
 					operacion = "o";
 					claveAComunicar = malloc(strlen(clave)+1);
 					strcpy(claveAComunicar,clave);
-					sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
+					sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo)));
 				}else{
 					paqueteAEnviar.argumentos.GET.clave= clave;
 					instanciaAEnviar = realizarSimulacion();
@@ -253,12 +254,9 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		log_info(logger,"Se puede realizar el GET");
     		while(true){
     		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias);
-    		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*instanciaAEnviar).nroSemaforo);
+    		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*(*instanciaAEnviar).nroSemaforo));
     		operacion = "p";
-    		int i;
-    		sem_getvalue(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo),&i);
-    		sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo));
-    		log_warning(logger,"valor semaforo xd %d",i);//LE DIGO A LA INSTANCIA QUE TRABAJE
+    		sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo)));
     		algoritmoDeDistribucion(instanciaAEnviar,instancias);
     		sem_wait(&semaforoEsi);
     		if(operacionValida){
@@ -339,7 +337,7 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 		return 0;
 	}
 	operacion = "p";
-	sem_post(list_get(semaforosInstancias,(*instanciaAEnviar).nroSemaforo)); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
+	sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo))); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
 		send(socketEsi,"a",2,0);
@@ -350,17 +348,11 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 	return 1;
 }
 
-instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas){
+instancia* crearInstancia(int sockInstancia,char* nombreInstancia,int* cantidadDeEntradas,int* nroSemaforo){
 	instancia* instanciaNueva = NULL;
-	if((instanciaNueva = existeEnLaLista(nombreInstancia))!=NULL){
-		cantidadDeEntradas = (*instanciaNueva).cantEntradasDisponibles;
-		send(sockInstancia,"r",2,0);//SE LE MANDA R DE QUE ES UNA RECONEXION POR QUE ESTA EN LA LISTA.
-		log_info(logger,"Es una reconexion de la instancia %s", nombreInstancia);
-		return NULL; //Si ya existia la instancia en la lista no me hace falta seguir operando
-	}
 	instanciaNueva = malloc(sizeof(instancia));
 	(*instanciaNueva).cantEntradasDisponibles = cantidadDeEntradas;
-	inicializarInstancia(instanciaNueva,nombreInstancia); //Inicializamos la instancia.
+	inicializarInstancia(instanciaNueva,nombreInstancia,nroSemaforo); //Inicializamos la instancia.
 	return instanciaNueva;
 }
 
@@ -388,7 +380,7 @@ algoritmo obtenerAlgoritmoDistribucion(){
 	return NULL;
 }
 
-void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
+void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia,int* nroSemaforo){
 	t_config *config=config_create(pathCoordinador);
 	(*(*instanciaNueva).cantEntradasDisponibles) = config_get_int_value(config, "CantidadEntradas");
 	config_destroy(config);
@@ -400,7 +392,7 @@ void inicializarInstancia(instancia* instanciaNueva,char* nombreInstancia){
 		log_error(logger,"No se pudo inicializar el semaforo nro: %d",cantidadDeInstancias);
 	}
 	list_add(semaforosInstancias,semInstancia);
-	(*instanciaNueva).nroSemaforo = cantidadDeInstancias;
+	(*instanciaNueva).nroSemaforo = nroSemaforo;
 	log_info(logger,"El nro semaforo asignado es %d",cantidadDeInstancias);
 }
 
@@ -505,9 +497,47 @@ void realizarEnvioDeValor(int socketInstancia) {
 	free(buff);
 }
 
+void eliminarClaves(char* clave){
+	free(clave);
+}
+
+void liberarInstancia(instancia* instanciaALiberar){
+	instancia* instancia;
+	int i=0;
+	while((instancia = list_get(instancias,i))!=NULL){
+		log_info(logger,"bajando semaforo");
+		log_info(logger,"con nro %d",(*(*instancia).nroSemaforo));
+		if((*(*instancia).nroSemaforo) > (*(*instanciaALiberar).nroSemaforo)){
+			(*(*instancia).nroSemaforo)--;
+		}
+		if(instanciaALiberar== instancia){
+			log_info(logger,"Encontre el semaforo");
+			list_remove(instancias,i);
+			i--;
+		}
+		i++;
+	}
+	sem_t* semaforo = list_remove(semaforosInstancias,(*(*instanciaALiberar).nroSemaforo));
+	log_info(logger,"liberando semaforo");
+	sem_destroy(semaforo);
+	log_info(logger,"liberando semaforo");
+	free(semaforo);
+	free((*instanciaALiberar).nroSemaforo);
+	log_info(logger,"liberando nombre");
+	free((*instanciaALiberar).nombreInstancia);
+	log_info(logger,"liberando lista");
+	if((*instanciaALiberar).clavesBloqueadas!=NULL){
+	list_destroy_and_destroy_elements((*instanciaALiberar).clavesBloqueadas,&eliminarClaves);
+	}
+	log_info(logger,"liberando instancia");
+	free(instanciaALiberar);
+	cantidadDeInstancias--;
+
+}
 void *conexionInstancia(void* cliente){
 	int socketInstancia = *(int*)cliente;
-	int nroSemaforo = cantidadDeInstancias;
+	int* nroSemaforo = malloc(sizeof(int));
+	(*nroSemaforo)=cantidadDeInstancias;
 	enviarDatosInstancia(socketInstancia,"CantidadEntradas"); //PRIMERO LE ENVIO LA CANTIDAD DE ENTRADAS
 	enviarDatosInstancia(socketInstancia,"TamagnoEntradas"); //DESPUES LE ENVIO EL TAMAGNO DE ESAS ENTRADAS
 	int tam = obtenerTamDelSigBuffer(socketInstancia);
@@ -516,19 +546,18 @@ void *conexionInstancia(void* cliente){
 	recv(socketInstancia,buff,tam,0);
 	log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
 	int cantidadDeEntradasRestantes;
-	instancia* instanciaNueva = crearInstancia(socketInstancia,buff,&cantidadDeEntradasRestantes);
+	instancia* instanciaNueva = crearInstancia(socketInstancia,buff,&cantidadDeEntradasRestantes,nroSemaforo);
 	free(buff);
 	if(instanciaNueva != NULL){ //Si es NULL significa que es una reconexion!, por lo tanto no hace falta meterlo en la lista!
 		list_add(instancias,instanciaNueva);
 	}
 	sem_post(&esperaInicializacion);
 	//ACA TERMINE DE INICIALIZAR LA INSTANCIA
-	sem_t* semaforoInstancia = list_get(semaforosInstancias,nroSemaforo);
 	int  recvValor;
 	while(true){
-		log_error(logger,"Esperando semaforo %d",nroSemaforo);
-		sem_wait(semaforoInstancia);
-		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",nroSemaforo);
+		log_error(logger,"Esperando semaforo %d",(*nroSemaforo));
+		sem_wait(list_get(semaforosInstancias,(*nroSemaforo)));
+		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",(*nroSemaforo));
 		send(socketInstancia,operacion,2,MSG_NOSIGNAL);
 		if(operacion[0]=='p'){
 			buff = malloc(2);
@@ -537,16 +566,17 @@ void *conexionInstancia(void* cliente){
 			enviar(socketInstancia,paqueteAEnviar);
 			while(buff[0]!= 'r'&&buff[0]!='a'&& buff[0]!='e'){
 				if((recvValor=recv(socketInstancia,buff,2,0))<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
-					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",nroSemaforo);
+					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",(*nroSemaforo));
 					errorMensajeInstancia = "Instancia: Error Clave Inaccesible";
 					operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
+					liberarInstancia(instanciaNueva);
 					sem_post(&semaforoEsi);
 					free(buff);
 					return 0;
 				}
 				switch(buff[0]){
 					case 'c':
-						compactacionSimultanea(nroSemaforo);
+						compactacionSimultanea((*nroSemaforo));
 						break;
 					case 'r':
 						operacionValida=1;
@@ -575,7 +605,7 @@ void *conexionInstancia(void* cliente){
 			realizarEnvioDeValor(socketInstancia);
 		}else if(operacion[0]=='l'){
 			enviarCantBytes(socketInstancia,claveAComunicar);
-			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,0);
+			send(socketInstancia,claveAComunicar,strlen(claveAComunicar)+1,MSG_NOSIGNAL);
 			log_info(logger,"Se termino liberar la clave");
 			sem_post(&semaforoLiberar);
 		}
