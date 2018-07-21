@@ -68,6 +68,7 @@ int main(int argc, char**argv){
     			free(buff);
     			buff = malloc(recvValor);
     			recv(sockcoordinador,buff,recvValor,0);
+    			log_info(loggerReal,"Me pidieron la solicitud del valor de la clave: %s",buff);
     			enviarValor(buff);
     			free(buff);
     			buff= malloc(2);
@@ -76,12 +77,16 @@ int main(int argc, char**argv){
     			recvValor =obtenerTamDelSigBuffer(sockcoordinador);
     			buff = malloc(recvValor);
     			recv(sockcoordinador,buff,recvValor,0);
+    			log_info(loggerReal,"El coordinador me aviso que libere la clave %s",buff);
     			buscarYLiberarClave(buff);
+    			mostrarEstadoEntradas();
     			free(buff);
     			buff = malloc(2);
     			break;
     	}
    }
+    log_error(loggerReal,"Se perdio la conexion con el coordinador");
+    log_info(loggerReal,"Espere unos momentos para cerrar la aplicacion...");
     liberarListas(id);
     pthread_mutex_destroy(&mutexAlmacenamiento);
     config_destroy(config);
@@ -439,6 +444,9 @@ void manejarPaquete(t_esi_operacion paquete){
 	}
 	mostrarEstadoEntradas();
 	pthread_mutex_unlock(&mutexAlmacenamiento);
+	if(resultado[0]=='r'){
+		log_info(loggerReal,"Se realizo correctamente la operacion!");
+	}
 	if(send(sockcoordinador,resultado,2,0)==-1)
 	{
 		log_error(logger, "No se pudo enviar el mensaje de respuesta al Coordinador");
@@ -628,6 +636,7 @@ void enviarValor(char* clave){
 		}
 	}else{
 		string_append(&valor,"No tiene valor");
+		log_warning(loggerReal,"Valor no encontrado");
 	}
 	enviarCantBytes(sockcoordinador,valor);
 	send(sockcoordinador,valor,strlen(valor)+1,0);
