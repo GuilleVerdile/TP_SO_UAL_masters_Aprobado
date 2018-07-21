@@ -582,6 +582,7 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                         		 if (nbytes == 0) {
                         	                                     // conexión cerrada
                         	                             	 logTest("El coordinador se fue");
+                        	                             	 exit(-1);
                         	                             //        cerrarPlanificador();
                         	                                 } else {
                         	                                	 logTest("Error conexion con el coordinador");
@@ -987,7 +988,6 @@ int *dameElMejor(t_list *indicesQueCumplen,int **matrizDeAsignados,int cantidadC
 	int *auxIndice;
 	for(int i=0;i<list_size(indicesQueCumplen);i++){
 		int *indice=list_get(indicesQueCumplen,i);
-		imprimir(blanco,"la norma es %d",dameLaNormaInfinita(matrizDeAsignados[(*indice)],cantidadColumnas));
 		int aux2 = dameLaNormaInfinita(matrizDeAsignados[(*indice)],cantidadColumnas);
 		if(aux2>aux){
 			aux=aux2;
@@ -1019,12 +1019,12 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 	int **matrizDeAsignados=dameMatriz(&loPosee);//retencion
 	//int **matrizDeNecesidad=dameMatriz(&noLoPosee);
 	int **matrizDeNecesidad=dameMatriz(&estaBloqueado);
-	imprimirMatriz(matrizDeAsignados,filas,columnas);
-	imprimirMatriz(matrizDeNecesidad,filas,columnas);
+	//imprimirMatriz(matrizDeAsignados,filas,columnas);
+	//imprimirMatriz(matrizDeNecesidad,filas,columnas);
 	int *vectorRecursosTotales=dameVector(&total,columnas);
 	int *vectorRecursosActuales=dameVector(&actual,columnas);
-	imprimirVector(vectorRecursosTotales,columnas);
-	imprimirVector(vectorRecursosActuales,columnas);
+	//imprimirVector(vectorRecursosTotales,columnas);
+	//imprimirVector(vectorRecursosActuales,columnas);
 	//INDICES
 	t_list *indicesQueCumplen=list_create();
 	t_list *indicesDescartados=list_create();
@@ -1067,7 +1067,7 @@ t_list *algoritmoBanquero(){//devuelve lista de indices de procesos en deadlock
 				//
 				list_add(indicesDescartados,elMejor);
 				list_clean(indicesQueCumplen);
-				imprimirVector(matrizDeAsignados[(*elMejor)],columnas);
+
 				sumarVectores(vectorRecursosActuales,matrizDeAsignados[(*elMejor)],columnas);
 			}
 	}
@@ -1140,13 +1140,13 @@ if(procesoEnEjecucion==NULL){
 void deadlock(){
 	t_list *elementos=algoritmoBanquero();
 	if(list_get(elementos,0)==NULL){
-		imprimir(rojo,"NO HAY DEADLOCK");
+		imprimirln(rojo,"NO HAY DEADLOCK");
 	}
 	else{
 		for(int i=0;i<list_size(elementos);i++){
 			int *index=list_get(elementos,i);
 			Proceso *proceso=list_get(procesos,(*index));
-			imprimir(rojo,"El proceso de id : %d esta en deadlock",(*proceso).idProceso);
+			imprimirln(rojo,"El proceso de id : %d esta en deadlock",(*proceso).idProceso);
 		}
 	}
 	list_destroy_and_destroy_elements(elementos,&destruirEntero);
