@@ -24,8 +24,6 @@ bool procesoEsIdABuscarSocket(void * proceso){
 }
 
 void terminarProceso(){
-		(*procesoEnEjecucion).estado = finalizado;
-		list_add(terminados,procesoEnEjecucion);
 		procesoEnEjecucion = NULL;
 		sem_post(&sem_ESIejecutoUnaSentencia);
 		sem_post(&semCambioEstado);
@@ -384,7 +382,7 @@ void aplicacion(void *a){
 void liberarRecursos(int id){
 	idBuscar=id;
 	imprimir(verde,"Liberando claves recurso id %d :",id);
-	list_iterate(bloqueados,aplicacion);
+	list_iterate(bloqueados,&aplicacion);
 	printf("\n");
 }
 
@@ -418,7 +416,6 @@ void liberaClave(char *clave){
 	}
 	else{
 		logTest("NO se encontro la clave %s",clave);
-		imprimirln(cian,"No se encontro clave");
 	}
 
 
@@ -657,14 +654,9 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
                                 		   //envia solo la signal si no hay mas procesos para planificar
                                 		   enviarSegnalPlanificar();
                             	   }
-                            	   else{
-                            		   idBuscar=i;
-                            		   Proceso *proc_finalizado=list_find(procesos,&procesoEsIdABuscarSocket);
-                            		   matarESI((*proc_finalizado).idProceso);
-                            	   }
-                            	   sem_post(&sem_liberador);
-                            	   close(i); // cierra socket
-                            	   FD_CLR(i, &master); // eliminar del conjunto maestro
+                            	  // sem_post(&sem_liberador);
+                            	  //close(i); // cierra socket
+                            	  // FD_CLR(i, &master); // eliminar del conjunto maestro
                             	   break;
                                case 'e':
                             	   if(flag_quierenDesalojar&&flag_desalojo){
@@ -686,17 +678,15 @@ void crearSelect(int estimacionInicial){// en el caso del coordinador el pathYoC
 }
 
 }
-
+void liberador(void *a){
+	Proceso* proceso=(Proceso*)a;
+	liberarRecursos((*proceso).idProceso);
+}
 void* liberadorDeRecursos(){
 	while(1){
 	sem_wait(&sem_liberador);
 	sem_wait(&sem_liberarRecursos);
-	Proceso* proceso;
-	int i =0;
-	while((proceso = list_get(terminados,i))){
-		liberarRecursos((*proceso).idProceso);
-		i++;
-	}
+	list_iterate(terminados,&liberador);
 	sem_post(&sem_liberarRecursos);
 	}
 }
