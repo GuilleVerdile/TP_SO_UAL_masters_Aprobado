@@ -6,26 +6,26 @@ sem_t esperaInicializacion;
 sem_t semaforoEsi;
 t_esi_operacion paqueteAEnviar;
 int operacionValida;
-pthread_mutex_t mutexPlanificador;
 sem_t semaforoLiberar;
 instancia* (*algoritmoDeDistribucion)();
 char* operacion;
 char* claveAComunicar;
 char* errorMensajeInstancia;
 int socketPlanificador;
+t_log* loggerReal;
 int main(int argc, char**argv){
 	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
 	sem_init(&semaforoLiberar,0,0);
-	pthread_mutex_init(&mutexPlanificador,NULL);
 	cantidadDeInstancias =0;
 	semaforosInstancias = list_create();
-	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
     if(argc > 1)
     	pathCoordinador = argv[1];
+	loggerReal = log_create(logCoordinador,"Coordinador",1,LOG_LEVEL_INFO);
+	logger =log_create(logCoordinador,"CoordinadorTest",0, LOG_LEVEL_INFO);
 	t_config *config = config_create(pathCoordinador);
 	if((listener=crearConexionServidor(config_get_int_value(config, "Puerto"),config_get_string_value(config, "Ip")))==-1){
 		log_error(logger, "No se pudo crear el socket servidor");
@@ -80,7 +80,6 @@ int main(int argc, char**argv){
 		switch(tipoCliente){
 		case 1:
 			log_info(logger,"El cliente es ESI");
-			pthread_join(hiloEsi,NULL);
 			if((pthread_create(&hiloEsi , NULL , conexionESI, (void*)&nuevoCliente)) < 0) //HAY UN HILO QUE VA ATENDER LA CONEXION CON EL ESI
 	    	{
 				log_error(logger,"No se pudo crear un hilo");
@@ -88,6 +87,7 @@ int main(int argc, char**argv){
 	    	}
 			sem_wait(&esperaInicializacion);
 			log_info(logger,"Se asigno una conexion con hilos al ESI");
+			pthread_join(hiloEsi,NULL);
 			break;
 		case 0:
 			log_info(logger,"El cliente es INSTANCIA");
@@ -148,24 +148,25 @@ void* conexionPlanificador(){
 				clave = malloc(tam);
 				recv(socketPlanificador,clave,tam,0);
 				send(socketPlanificador,"s",2,0);
-				pthread_mutex_lock(&mutexPlanificador);
+				log_info(loggerReal,"El planificador requiere el estado de la clave: %s", clave);
 				if((instanciaAEnviar=buscarInstancia(clave))!=NULL){
 					enviarCantBytes(socketPlanificador,(*instanciaAEnviar).nombreInstancia);
 					send(socketPlanificador,(*instanciaAEnviar).nombreInstancia,strlen((*instanciaAEnviar).nombreInstancia)+1,0);
 					operacion = "o";
 					claveAComunicar = malloc(strlen(clave)+1);
 					strcpy(claveAComunicar,clave);
+					log_info(loggerReal,"Se va a preguntar a la instancia: %s", (*instanciaAEnviar).nombreInstancia);
 					sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo)));
 				}else{
 					paqueteAEnviar.argumentos.GET.clave= clave;
 					instanciaAEnviar = realizarSimulacion();
+					log_info(loggerReal,"Se va realizar una simulacion!");
 					log_info(logger,"La simulacion fue un exito nombre instancia: %s",(*instanciaAEnviar).nombreInstancia);
 					enviarCantBytes(socketPlanificador,(*instanciaAEnviar).nombreInstancia);
 					send(socketPlanificador,(*instanciaAEnviar).nombreInstancia,strlen((*instanciaAEnviar).nombreInstancia)+1,0);
 					enviarCantBytes(socketPlanificador,"Fue un simulacro");
 					send(socketPlanificador,"Fue un simulacro",17,0);
 				}
-				pthread_mutex_unlock(&mutexPlanificador);
 				free(clave);
 				break;
 		}
@@ -232,15 +233,13 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     int recvValor;
     instancia* instanciaAEnviar;
     char* resultadoEsi;
-
+    t_log* logOperaciones = log_create("../Logs/LogOperaciones.log","LogOperaciones",1,LOG_LEVEL_INFO);
    if((recvValor = recibir(socketEsi,&paqueteAEnviar)) >0){
-    	t_config* config = config_create(pathCoordinador);
-    	usleep(config_get_int_value(config,"Retardo")*1000);
-    	config_destroy(config);
-    	pthread_mutex_lock(&mutexPlanificador);
+
     	switch (paqueteAEnviar.keyword){
     	case GET:
     		log_info(logger,"Estamos haciendo un GET");
+    		log_info(logOperaciones,"GET %s",paqueteAEnviar.argumentos.GET.clave);
 			send(socketPlanificador,"n",2,0);
 			enviarCantBytes(socketPlanificador,paqueteAEnviar.argumentos.GET.clave);
 			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
@@ -251,6 +250,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
     			free(paqueteAEnviar.argumentos.GET.clave);
     			resultadoEsi = "b";
+    			log_info(loggerReal,"No se puede realizar la operacion ya que la clave fue tomada");
     			break;
     		}
     		log_info(logger,"Se puede realizar el GET");
@@ -258,6 +258,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		instanciaAEnviar = algoritmoDeDistribucion(NULL,instancias);
     		log_info(logger,"La instancia elegida es %s, con el semaforo nro: %d",(*instanciaAEnviar).nombreInstancia, (*(*instanciaAEnviar).nroSemaforo));
     		operacion = "p";
+    		log_info(loggerReal,"La instancia elegida para esta operacion es: %s", (*instanciaAEnviar).nombreInstancia);
     		sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo)));
     		algoritmoDeDistribucion(instanciaAEnviar,instancias);
     		sem_wait(&semaforoEsi);
@@ -267,30 +268,36 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     			send(socketPlanificador,paqueteAEnviar.argumentos.GET.clave,strlen(paqueteAEnviar.argumentos.GET.clave)+1,0);
     			agregarClave(instanciaAEnviar,paqueteAEnviar.argumentos.GET.clave);
     			free(paqueteAEnviar.argumentos.GET.clave);
+    			log_info(loggerReal,"Se realizo de manera correcta la operacion!");
     	    	resultadoEsi = "e";
     			break;
     		} //COMO LA OPERACION NO ES VALIDA SIGNIFICA QUE HUBO UN ERROR CON LA CONEXION DE LA INSTANCIA, POR LO TANTO LO DEJO EN FALSE.
     		}
     		break;
     	case SET:
+    		log_info(logOperaciones,"SET %s %s",paqueteAEnviar.argumentos.SET.clave,paqueteAEnviar.argumentos.SET.valor);
     		log_info(logger,"Estamos haciendo un SET");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.SET.clave, socketEsi)){
     		    close(socketEsi);
         		free(paqueteAEnviar.argumentos.SET.clave);
         	    free(paqueteAEnviar.argumentos.SET.valor);
-    		    pthread_mutex_unlock(&mutexPlanificador);
+    		    log_warning(loggerReal,"No se pudo realizar la operacion");
+    		    log_destroy(logOperaciones);
     		    return 0;
     		}
     		free(paqueteAEnviar.argumentos.SET.clave);
     	    free(paqueteAEnviar.argumentos.SET.valor);
+    	    log_info(loggerReal,"Se realizo de manera correcta la operacion!");
         	resultadoEsi = "e";
     		break;
     	case STORE:
+    		log_info(logOperaciones,"STORE %s",paqueteAEnviar.argumentos.STORE.clave);
     		log_info(logger,"Estamos haciendo un STORE");
     		if(!validarYenviarPaquete(paqueteAEnviar.argumentos.STORE.clave, socketEsi)){
     			close(socketEsi);
         		free(paqueteAEnviar.argumentos.STORE.clave);
-    			pthread_mutex_unlock(&mutexPlanificador);
+        		 log_warning(loggerReal,"No se pudo realizar la operacion");
+        		    log_destroy(logOperaciones);
     			return 0;
     		}
     		instanciaAEnviar = buscarInstancia(paqueteAEnviar.argumentos.STORE.clave);
@@ -299,13 +306,13 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
     		send(socketPlanificador,paqueteAEnviar.argumentos.STORE.clave,strlen(paqueteAEnviar.argumentos.STORE.clave)+1,0);
     		liberarClave(instanciaAEnviar,paqueteAEnviar.argumentos.STORE.clave);
     		free(paqueteAEnviar.argumentos.STORE.clave);
+    		log_info(loggerReal,"Se realizo de manera correcta la operacion!");
         	resultadoEsi = "e";
     		break;
     	}
-    	pthread_mutex_unlock(&mutexPlanificador);
     }//GET SET STORE IMPLEMENTACION
     if(recvValor == 0)
-            log_info(logger,"Se desconecto un ESI");
+            log_warning(loggerReal,"Se desconecto el ESI en medio de ejecucion");
         else if(recvValor == -1){
             log_error(logger,"Error al recibir el tam del codigo serializado");
             resultadoEsi = "a";
@@ -314,6 +321,7 @@ void *conexionESI(void* nuevoCliente) //REFACTORIZAR EL FOKEN SWITCH
         }
     log_warning(logger,"Finalizo la atencion al esi");
     close(socketEsi); //SE OPERA SENTENCIA POR SENTENCIA POR LO TANTO LO CERRAMOS Y ESPERAMOS SU CONEXION DEVUELTA
+    log_destroy(logOperaciones);
     return 0;
 }
 
@@ -339,6 +347,7 @@ int validarYenviarPaquete(char* clave, int socketEsi) {
 		return 0;
 	}
 	operacion = "p";
+	log_info(loggerReal,"La instancia elegida para esta operacion es: %s", (*instanciaAEnviar).nombreInstancia);
 	sem_post(list_get(semaforosInstancias,(*(*instanciaAEnviar).nroSemaforo))); //LE AVISO A LA INSTANCIA QUE ES HORA DE ACTUAR
 	sem_wait(&semaforoEsi);
 	if (!operacionValida) {
@@ -363,12 +372,12 @@ algoritmo obtenerAlgoritmoDistribucion(){
 	log_info(logger,"Vamos a seleccionar un algoritmo");
 	char* algoritmo = config_get_string_value(config,"AlgoritmoDeDistribucion");
 	if(strcmp("EL",algoritmo)==0){
-		log_info(logger,"Usted eligio el algoritmo Equitative Load");
+		log_info(loggerReal,"Usted eligio el algoritmo Equitative Load");
 		config_destroy(config);
 		return &equitativeLoad;
 	}
 	if(strcmp("KE",algoritmo)==0){
-		log_info(logger,"Usted eligio el algoritmo KE");
+		log_info(logger,"Usted eligio el algoritmo Key Explicit");
 		config_destroy(config);
 		return &keyExplicit;
 	}
@@ -474,7 +483,7 @@ instancia* keyExplicit(instancia* instancia,t_list* listaInstancias){
 void compactacionSimultanea(int semaforoNoNecesario){
 	int nroSemaforo = 0;
 	sem_t* semaforo;
-	log_info(logger,"Se va realizar una compactacion simultantea");
+	log_info(loggerReal,"Se va realizar una compactacion simultantea");
 	while((semaforo =list_get(semaforosInstancias,nroSemaforo)) != NULL){
 		if(nroSemaforo != semaforoNoNecesario){
 			operacion = "c";
@@ -546,7 +555,7 @@ void *conexionInstancia(void* cliente){
 	char* buff = malloc(tam);
 	log_info(logger,"El tam del buffer es %d",tam);
 	recv(socketInstancia,buff,tam,0);
-	log_info(logger,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
+	log_info(loggerReal,"Se conecto la instancia: %s",buff); // RECIBO EL ID DE LA INSTANCIA.
 	int cantidadDeEntradasRestantes;
 	instancia* instanciaNueva = crearInstancia(socketInstancia,buff,&cantidadDeEntradasRestantes,nroSemaforo);
 	free(buff);
@@ -562,13 +571,16 @@ void *conexionInstancia(void* cliente){
 		log_info(logger,"Se asigno la tarea a la instancia con el semaforo: %d",(*nroSemaforo));
 		send(socketInstancia,operacion,2,MSG_NOSIGNAL);
 		if(operacion[0]=='p'){
+			t_config* config = config_create(pathCoordinador);
+			usleep(config_get_int_value(config,"Retardo")*1000);
+	    	config_destroy(config);
 			buff = malloc(2);
 			buff[0]='n';
 			log_info(logger,"Vamos a enviarle un paquete a la instancia");
 			enviar(socketInstancia,paqueteAEnviar);
 			while(buff[0]!= 'r'&&buff[0]!='a'&& buff[0]!='e'){
 				if((recvValor=recv(socketInstancia,buff,2,0))<=0){ //ESPERO EL RESULTADO DE LA INSTANCIA
-					log_warning(logger,"Se habia desconectado la instancia con el semaforo: %d",(*nroSemaforo));
+					log_warning(loggerReal,"Se habia desconectado la instancia %s",(*instanciaNueva).nombreInstancia);
 					errorMensajeInstancia = "Instancia: Error Clave Inaccesible";
 					operacionValida=0; //SI HUBO UN ERROR EN LA CONEXION O LA INSTANCIA SE DESCONECTO
 					liberarInstancia(instanciaNueva);

@@ -24,6 +24,7 @@ struct TE{
 	int seAlmacenoElValor;
 	int nroOperacion;
 }typedef tablaEntradas;
+void liberarListas(pthread_t id);
 void compactacion();
 void inicializarTablaEntradas();
 void manejarPaquete(t_esi_operacion paquete);

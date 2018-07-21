@@ -12,6 +12,7 @@ int sockcoordinador;
 void (*algoritmoDeReemplazo)();
 int nroEntrada = 0;
 int nroOperacion = 0;
+int dump=1;
 int main(int argc, char**argv){
     logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
     if(argc > 1)
@@ -80,13 +81,36 @@ int main(int argc, char**argv){
     			break;
     	}
    }
+    liberarListas(id);
+    pthread_mutex_destroy(&mutexAlmacenamiento);
     config_destroy(config);
     free(buff);
     log_destroy(logger);
     close(sockcoordinador);
 	 return 0;
 }
-
+void liberarListas(pthread_t id){
+	dump = 0;
+	log_info(logger,"Esperando a que se libere el DUMP");
+    pthread_join(id,NULL);
+	int i = 0;
+	while(list_get(tablas,i)){
+		liberarClave(i);
+		i++;
+	}
+	list_destroy(tablas);
+	i = 0;
+	char* entrada;
+	log_info(logger,"Se van a liberar las entradas");
+	while((entrada = list_get(entradas,i))!=NULL){
+		free(entrada);
+		entrada = list_get(bitArray,i);
+		free(entrada);
+		i++;
+	}
+	list_destroy(entradas);
+	list_destroy(bitArray);
+}
 void buscarYLiberarClave(char* clave){
 	int posTabla = encontrarTablaConTalClave(clave);
 	if(posTabla >=0){
@@ -162,7 +186,6 @@ void inicializarTablaEntradas(){
     entradasTotales= transformarNumero(buff,0);
 
     log_info(logger,"La cantidad de entradas es %d",  entradasTotales);
-    entradas = malloc(sizeof(char*)*entradasTotales); //INICIALIZO LA TABLA
     inicializarBitArray();
     free(buff);
     tam = obtenerTamDelSigBuffer(sockcoordinador);
@@ -181,7 +204,7 @@ void inicializarTablaEntradas(){
     free(buff);
 }
 void* hacerDump(){
-	while(1){
+	while(dump){
 		t_config *config=config_create(pathInstancia);
 		sleep(config_get_int_value(config,"dump"));	//Permite la ejecucion de manera periodica del dump
 		config_destroy(config);
