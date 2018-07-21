@@ -100,6 +100,7 @@ int main(int argc, char**argv){
     send(sockplanificador,"f",2,0); //FINALIZO LA EJECUCION DEL ESI
 	free(resultado);
 	log_destroy(logger);
+	log_destroy(logConsola);
 	close(sockplanificador);
 	fclose(f);
 	return 0;
