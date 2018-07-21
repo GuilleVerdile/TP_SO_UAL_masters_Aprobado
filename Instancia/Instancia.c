@@ -12,8 +12,10 @@ int sockcoordinador;
 void (*algoritmoDeReemplazo)();
 int nroEntrada = 0;
 int nroOperacion = 0;
-int main(){
+int main(int argc, char**argv){
     logger =log_create(logInstancias,"Instancia",1, LOG_LEVEL_INFO);
+    if(argc > 1)
+    	pathInstancia = argv[1];
     t_config* config = config_create(pathInstancia);
     if((sockcoordinador =crearConexionCliente(config_get_int_value(config,"Puerto"),config_get_string_value(config,"Ip"))) == -1){
     	config_destroy(config);

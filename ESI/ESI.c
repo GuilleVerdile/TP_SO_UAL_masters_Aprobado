@@ -21,11 +21,11 @@ int conectarESI(char* tipoServidor){
 	char* stringPuerto = malloc(strlen(tipoServidor)+strlen("Puerto de Conexion al ") + 1);
 	strcpy(stringPuerto,"Puerto de Conexion al ");
 	strcat(stringPuerto,tipoServidor);
-	log_info(logger,"%s",stringPuerto);
+	//log_info(logger,"%s",stringPuerto);
 	char* stringIP = malloc(strlen(tipoServidor)+strlen("IP de Conexion al ") + 1);
 	strcpy(stringIP,"IP de Conexion al ");
 	strcat(stringIP,tipoServidor);
-	log_info(logger,"%s",stringIP);
+	//log_info(logger,"%s",stringIP);
 	int socket = crearConexionCliente(config_get_int_value(config, stringPuerto),config_get_string_value(config, stringIP));
 	if(socket < 0){
 		log_error(logger,"Error en la conexion con los clientes");
@@ -74,7 +74,7 @@ int main(int argc, char**argv){
 	}
 	sockplanificador = conectarESI("Planificador");
 	resultado = malloc(2);
-	log_info(logger,"Esperando la respuesta del planificador :D");
+	log_info(logger,"Se conecto con el planificador. Esperando permiso para ejecucion...");
 	while((!feof(f) || !noBloqueado)&& recv(sockplanificador, resultado, 2, 0) > 0){ // MIRO QUE NO SEA FIN DE ARCHIVO PARA NO LEER UNA INSTRUCCION VACIA XD
 		if(resultado[0]=='f')//me forzaron a finalizar
 			break;

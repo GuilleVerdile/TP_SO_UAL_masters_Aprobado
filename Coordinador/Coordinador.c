@@ -13,7 +13,7 @@ char* operacion;
 char* claveAComunicar;
 char* errorMensajeInstancia;
 int socketPlanificador;
-int main(){
+int main(int argc, char**argv){
 	mkdir("../Logs/", 0777); // creo carpeta Logs
 	sem_init(&esperaInicializacion,0,0);
 	sem_init(&semaforoEsi,0,0);
@@ -24,6 +24,8 @@ int main(){
 	logger =log_create(logCoordinador,"crearHilos",1, LOG_LEVEL_INFO);
 	int listener;
 	struct sockaddr_in their_addr; // datos cliente
+    if(argc > 1)
+    	pathCoordinador = argv[1];
 	t_config *config = config_create(pathCoordinador);
 	if((listener=crearConexionServidor(config_get_int_value(config, "Puerto"),config_get_string_value(config, "Ip")))==-1){
 		log_error(logger, "No se pudo crear el socket servidor");

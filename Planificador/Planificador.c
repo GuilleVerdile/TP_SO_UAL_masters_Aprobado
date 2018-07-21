@@ -702,7 +702,7 @@ void* liberadorDeRecursos(){
 	}
 }
 
-void main()
+void main(int argc, char**argv)
     {
 	flag_seEnvioSignalPlanificar=0;
 	flag_quierenDesalojar=0;
@@ -729,6 +729,8 @@ void main()
 	tiempo_de_ejecucion=0;
 	//
 	Proceso*(*miAlgoritmo)();
+    if(argc > 1)
+    	pathPlanificador = argv[1];
 	t_config *config=config_create(pathPlanificador);
 	bloquearClavesIniciales(config);
 	//
