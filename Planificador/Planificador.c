@@ -127,23 +127,28 @@ Proceso* fifo(){
 }
 float *estimarSJF(Proceso *proc){
 	float *aux=malloc(sizeof(float));
-	if((*proc).rafagaRealActual!=0){
+	imprimirln(rojo,"%d",(*proc).idProceso);
+	imprimirln(rojo,"%f",(*proc).estimacionAnterior);
+	imprimirln(rojo,"%f",(*proc).rafagaRealActual);
+	imprimirln(rojo,"%f",(*proc).rafagaRealAnterior);
+	if((*proc).rafagaRealActual!=0){//me dice que proceso esta en ejecuion
 		(*aux) = (*proc).estimacionAnterior - (*proc).rafagaRealActual;
-		//
-		(*proc).estimacionAnterior=(*aux);
-		//
-		(*proc).rafagaRealAnterior=(*proc).rafagaRealActual;
-		(*proc).rafagaRealActual=0;
 		imprimirln(cian,"remanente");
+		//
+		//(*proc).estimacionAnterior=(*aux);
+		//(*proc).estimacionAnterior+=(*proc).rafagaRealActual;
+		//
+		//(*proc).rafagaRealAnterior+=(*proc).rafagaRealActual;
+		//(*proc).rafagaRealActual=0;
 
 	}
 	else if((*proc).rafagaRealActual==0&&(*proc).rafagaRealAnterior==0){
 		(*aux)=(*proc).estimacionAnterior;
 	}
-
 	else{
 		//(*aux) = alfaPlanificador*((*proc).rafagaRealActual) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
 		(*aux) = alfaPlanificador*((*proc).rafagaRealAnterior) +(1-alfaPlanificador)*((*proc).estimacionAnterior);
+		(*proc).estimacionAnterior=(*aux);
 	}
 	imprimir(verde,"La estimacion del proceso con id %d es :",(*proc).idProceso);
 	imprimirln(azul," %f",(*aux));
@@ -153,10 +158,14 @@ float *estimarSJF(Proceso *proc){
 bool compararSJF(void *a,void *b){
 	Proceso *primero=(Proceso *) a;
 	Proceso *segundo=(Proceso *) b;
+
 	float *af=estimarSJF(a);
+
 	float *bf=estimarSJF(b);
+	/*
 	(*primero).estimacionAnterior=(*af);
 	(*segundo).estimacionAnterior=(*bf);
+	*/
 	fflush(stdout);
 	bool aux=(*af<=*bf);
 	free(af);
@@ -682,11 +691,13 @@ void liberador(void *a){
 	Proceso* proceso=(Proceso*)a;
 	liberarRecursos((*proceso).idProceso);
 }
+
 void* liberadorDeRecursos(){
 	while(1){
 	sem_wait(&sem_liberador);
 	sem_wait(&sem_liberarRecursos);
 	list_iterate(terminados,&liberador);
+	list_clean_and_destroy_elements(terminados,&destruirUnProceso);
 	sem_post(&sem_liberarRecursos);
 	}
 }
